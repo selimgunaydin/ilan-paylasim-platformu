@@ -1,0 +1,136 @@
+declare module "express-session" {
+  interface SessionData {
+    adminId?: number;
+    isAdmin?: boolean;
+  }
+}
+
+declare global {
+  namespace Express {
+    interface User extends schema.User {}
+    interface Request {
+      multerFileSizeLimit?: number;
+    }
+  }
+}
+
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from 'ws';
+import * as schema from "@shared/schema";
+import { and, eq, desc, asc } from "drizzle-orm";
+import session from "express-session";
+import { setupAuth } from "./auth";
+import { storage } from "./storage";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
+import { comparePasswords } from "./auth";
+import { hashPassword } from "./utils";
+import { validatePassword } from "./password-validation";
+import passport from "passport";
+import { isTokenExpired } from "./utils/token";
+import { randomBytes } from "crypto";
+import { generateVerificationEmail, sendEmail } from "./services/email";
+import { sanitizeInput, sanitizeObject } from './utils/sanitize';
+import type { User } from "@shared/schema";
+import multer from "multer";
+import { imageService } from "./services/image-service";
+import { uploadMessageFile, deleteMessageFile } from "./services/r2";
+
+// Helper constants and functions for file handling
+const ALLOWED_IMAGE_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/heic'
+];
+
+const IMAGE_SIZE_LIMIT = 2 * 1024 * 1024; // 2MB for images
+const FILE_SIZE_LIMIT = 20 * 1024 * 1024; // 20MB for other files
+
+const isImageMimeType = (mimeType: string): boolean => {
+  return ALLOWED_IMAGE_TYPES.includes(mimeType);
+};
+
+const getMimeType = (filename: string): string => {
+  const extension = filename.split('.').pop()?.toLowerCase();
+  const mimeTypes: Record<string, string> = {
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'heic': 'image/heic'
+  };
+  return mimeTypes[extension || ''] || 'application/octet-stream';
+};
+
+export function registerRoutes(app: Express): Server {
+  setupAuth(app);
+  const httpServer = createServer(app);
+
+  // Dosya yükleme konfigürasyonu
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    fileFilter: (req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+      const mimeType = getMimeType(file.originalname);
+      
+      if (!isImageMimeType(mimeType)) {
+        cb(new Error(`Desteklenmeyen dosya türü: ${file.originalname}`));
+        return;
+      }
+
+      if (file.size > IMAGE_SIZE_LIMIT) {
+        cb(new Error(`Dosya boyutu çok büyük: ${file.size} bytes. Maksimum: ${IMAGE_SIZE_LIMIT} bytes`));
+        return;
+      }
+
+      cb(null, true);
+    }
+  });
+
+  // WebSocket server setup
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+
+  // WebSocket bağlantı yönetimi
+  wss.on('connection', (ws) => {
+    console.log('WebSocket bağlantısı kuruldu');
+
+    ws.on('error', console.error);
+
+    ws.on('close', () => {
+      console.log('WebSocket bağlantısı kapandı');
+    });
+  });
+
+  // WebSocket yayın fonksiyonu
+  const broadcastMessage = (type: string, data: any) => {
+    console.log('Broadcasting WebSocket message:', { type, ...data });
+    try {
+      const message = JSON.stringify({ type, ...data });
+      let successCount = 0;
+      let errorCount = 0;
+
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          try {
+            client.send(message);
+            successCount++;
+          } catch (error) {
+            console.error('Error sending message to client:', error);
+            errorCount++;
+          }
+        }
+      });
+
+      console.log(`WebSocket broadcast completed - Success: ${successCount}, Errors: ${errorCount}`);
+    } catch (error) {
+      console.error('Error in broadcast:', error);
+    }
+  };
+
+  // Your existing routes here...
+  
+  return httpServer;
+}

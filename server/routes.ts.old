@@ -1,0 +1,5911 @@
+declare module "express-session" {
+  interface SessionData {
+    adminId?: number;
+    isAdmin?: boolean;
+  }
+}
+
+declare global {
+  namespace Express {
+    interface User extends schema.User {}
+    interface Request {
+      multerFileSizeLimit?: number;
+    }
+  }
+}
+
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { Router } from "express";
+import * as schema from "@shared/schema";
+import { and, eq, desc, asc, inArray, SQL, sql } from "drizzle-orm";
+import { users, messages, conversations, categories } from "@shared/schema";
+import { not } from "drizzle-orm";
+import session from "express-session";
+import { setupAuth } from "./auth";
+import { storage } from "./storage";
+import { db } from "./db";
+import { comparePasswords } from "./auth";
+import { hashPassword } from "./utils";
+import { validatePassword } from "./password-validation";
+import passport from "passport";
+import { isTokenExpired } from "./utils/token";
+import crypto, { randomBytes } from "crypto";
+import { generateVerificationEmail, sendEmail } from "./services/email";
+import { sanitizeInput, sanitizeObject } from "./utils/sanitize";
+import { isForbiddenUsername } from "./utils/username-validation";
+import type { User } from "@shared/schema";
+import multer from "multer";
+import jwt from "jsonwebtoken";
+import {
+  FILE_SIZE_LIMITS,
+  ALLOWED_FILE_TYPES,
+  ALLOWED_IMAGE_TYPES,
+  isAllowedFileType,
+  getFileSizeLimit,
+  getMimeType,
+} from "./utils/file-constants";
+import type { WebSocketManager } from "./websocket";
+
+// WebSocket token'ı için ortam değişkeni veya varsayılan değer
+const JWT_SECRET = process.env.JWT_SECRET || "websocket-secret-key";
+
+// Global WebSocket yöneticisi ve helper fonksiyonları
+let wsManager: WebSocketManager | null = null;
+
+// WebSocket yöneticisini ayarla
+export function setWebSocketManager(manager: WebSocketManager) {
+  wsManager = manager;
+}
+
+// Kullanıcıya mesaj gönderme fonksiyonu
+export function sendMessageToUser(userId: number | string, message: any) {
+  const numericUserId =
+    typeof userId === "string" ? parseInt(userId, 10) : userId;
+  if (wsManager) {
+    wsManager.sendToUser(numericUserId, message);
+  } else {
+    console.error("WebSocket yöneticisi bulunamadı");
+  }
+}
+
+// Tüm kullanıcılara mesaj yayınlama fonksiyonu
+export function broadcastMessage(type: string, data: any) {
+  if (wsManager) {
+    wsManager.broadcast({ type, ...data });
+  } else {
+    console.error("WebSocket yöneticisi bulunamadı");
+  }
+}
+
+// WebSocket token doğrulama fonksiyonu
+export const verifyWSToken = (token: string) => {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as {
+      userId: number;
+      type: string;
+      timestamp: number;
+    };
+
+    // Token tipini ve geçerliliğini kontrol et
+    if (decoded.type !== "websocket") {
+      console.log("Geçersiz token tipi:", decoded.type);
+      return null;
+    }
+
+    // Token'ın 15 dakikadan eski olmadığını kontrol et
+    const now = Date.now();
+    const tokenAge = now - decoded.timestamp;
+    if (tokenAge > 15 * 60 * 1000) {
+      // 15 dakika
+      console.log("Token süresi dolmuş");
+      return null;
+    }
+
+    return decoded;
+  } catch (error) {
+    console.error("Token doğrulama hatası:", error);
+    return null;
+  }
+};
+
+// Drizzle ORM tip düzeltmeleri için arayüz tanımları
+// Drizzle ORM type definitions
+type UserSelect = typeof users.$inferSelect;
+type UserInsert = typeof users.$inferInsert;
+type ConversationSelect = typeof conversations.$inferSelect;
+type ConversationInsert = typeof conversations.$inferInsert;
+type MessageSelect = typeof messages.$inferSelect;
+type MessageInsert = typeof messages.$inferInsert;
+
+interface ConversationWithUser extends ConversationSelect {
+  sender?: UserSelect;
+  receiver?: UserSelect;
+  listingTitle: string;
+}
+
+// ImageService interface definition
+interface ImageService {
+  uploadMultipleImages: (files: Express.Multer.File[]) => Promise<string[]>;
+  deleteMultipleImages: (imagePaths: string[]) => Promise<void>;
+  deleteSingleImage: (imagePath: string) => Promise<void>;
+}
+
+import { imageService } from "./services/image-service";
+import { uploadMessageFile, deleteMessageFile } from "./services/r2";
+
+//Helper function to convert image paths to URLs
+const getImagesUrls = (imagePaths: string[]): string[] => {
+  return imagePaths.map((path) => `/images/${path}`);
+};
+
+// Helper function to convert message file paths to URLs
+const getMessageFilesUrls = (filePaths: string[]): string[] => {
+  return filePaths.map((path) => `/messages/files/${path}`);
+};
+
+const router = Router();
+
+// WebSocket token oluşturma endpoint'i
+router.get("/ws-token", (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: "Yetkilendirme gerekli" });
+  }
+
+  try {
+    // JWT token oluştur (15 dakika geçerli)
+    const token = jwt.sign(
+      {
+        userId: req.user!.id,
+        type: "websocket",
+        timestamp: Date.now(),
+      },
+      JWT_SECRET,
+      { expiresIn: "15m" },
+    );
+
+    res.json({ token });
+  } catch (error) {
+    console.error("Token oluşturma hatası:", error);
+    res.status(500).json({ error: "Token oluşturulamadı" });
+  }
+});
+
+export function registerRoutes(app: Express): Server {
+  // Auth setup'ı yap
+  setupAuth(app);
+
+  // API route'larını ekle
+  app.use("/api", router);
+
+  // HTTP sunucusunu oluştur
+  const httpServer = createServer(app);
+
+  // Dosya yükleme konfigürasyonu - Merkezi limitler kullanılıyor
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    fileFilter: (
+      req: Express.Request,
+      file: Express.Multer.File,
+      cb: multer.FileFilterCallback,
+    ) => {
+      if (!isAllowedFileType(file.mimetype)) {
+        cb(new Error(`Desteklenmeyen dosya türü: ${file.originalname}`));
+        return;
+      }
+
+      // Dosya boyutu limitini belirle ve request nesnesine ekle
+      // Not: Limitler artık merkezi olarak file-constants.ts'den alınıyor
+      const sizeLimit = getFileSizeLimit(file.mimetype);
+      req.multerFileSizeLimit = sizeLimit;
+
+      cb(null, true);
+    },
+    limits: {
+      fileSize: FILE_SIZE_LIMITS.OTHER, // Varsayılan limit olarak en yüksek limiti kullan
+    },
+  });
+
+  // Profil resmi silme endpoint'i
+  app.delete("/api/user/profile-image", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      // Kullanıcıyı bul
+      const [user] = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, req.user!.id));
+
+      if (!user || !user.profileImage) {
+        return res.status(404).json({ error: "Profil resmi bulunamadı" });
+      }
+
+      // Cloudflare R2'den resmi sil
+      try {
+        await deleteMessageFile(user.profileImage);
+      } catch (error) {
+        console.error("Profil resmi silme hatası:", error);
+        // Cloudflare silme hatası olsa bile devam et
+      }
+
+      // Kullanıcının profil resmini veritabanından temizle
+      await db
+        .update(schema.users)
+        .set({ profileImage: null })
+        .where(eq(schema.users.id, req.user!.id));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Profil resmi silme hatası:", error);
+      res.status(500).json({ error: "Profil resmi silinemedi" });
+    }
+  });
+
+  // Avatar güncelleme endpoint'i
+  app.post("/api/user/avatar", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const { avatar } = req.body;
+
+      if (!avatar) {
+        return res.status(400).json({ error: "Avatar yolu gerekli" });
+      }
+
+      // Kullanıcının avatar bilgisini güncelle
+      const [updatedUser] = await db
+        .update(schema.users)
+        .set({ avatar: avatar })
+        .where(eq(schema.users.id, req.user!.id))
+        .returning();
+
+      res.json({ success: true, user: updatedUser });
+    } catch (error) {
+      console.error("Avatar güncelleme hatası:", error);
+      res.status(500).json({ error: "Avatar güncellenemedi" });
+    }
+  });
+
+  // Profil güncelleme endpoint'i
+  app.put("/api/user/profile", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const sanitizedInput = sanitizeObject({
+        username: req.body.username,
+        profileImage: req.body.profileImage,
+        profileVisibility: req.body.profileVisibility,
+        gender: req.body.gender,
+        age: req.body.age,
+        city: req.body.city,
+        aboutMe: req.body.aboutMe,
+      });
+
+      // Yasaklı kullanıcı adı kontrolü
+      // Kullanıcının girdiği üye adının yasaklı kelimeler listesinde olup olmadığını kontrol et
+      if (
+        sanitizedInput.username &&
+        isForbiddenUsername(sanitizedInput.username)
+      ) {
+        return res.status(400).json({ error: "Bu kullanıcı adı kullanılamaz" });
+      }
+
+      // Get the client's IP address
+      const forwarded = req.headers["x-forwarded-for"] as string;
+      const user_ip = forwarded
+        ? forwarded.split(",")[0].trim()
+        : req.ip || null;
+
+      const updates = {
+        ...sanitizedInput,
+        user_ip: user_ip ?? null,
+      };
+
+      // Kullanıcı profilini güncelle
+      const [updatedUser] = await db
+        .update(schema.users)
+        .set(updates)
+        .where(eq(schema.users.id, req.user!.id))
+        .returning();
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      res.status(500).json({ error: "Profil güncellenemedi" });
+    }
+  });
+
+  // Update the login endpoint to include last_seen update
+  app.post("/api/login", passport.authenticate("local"), async (req, res) => {
+    try {
+      // Update last_seen timestamp
+      const ip_address = req.body.ipAddress || "unknown";
+      console.log("ip_address", ip_address);
+      await db
+        .update(schema.users)
+        .set({ lastSeen: new Date(), ip_address: ip_address })
+        .where(eq(schema.users.id, req.user!.id));
+
+      res.status(200).json(req.user);
+    } catch (error) {
+      console.error("Error updating last_seen:", error);
+      // Still return user data even if last_seen update fails
+      res.status(200).json(req.user);
+    }
+  });
+
+  // Konuşma bulma/oluşturma endpoint'i
+  app.post("/api/conversations/find", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      res.setHeader("Content-Type", "application/json");
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const listingId = parseInt(req.body.listingId);
+      const receiverId = parseInt(req.body.receiverId);
+
+      if (isNaN(listingId) || isNaN(receiverId)) {
+        res.setHeader("Content-Type", "application/json");
+        return res
+          .status(400)
+          .json({ error: "Geçersiz ilan ID veya alıcı ID" });
+      }
+
+      console.log("Konuşma arama parametreleri:", {
+        listingId,
+        receiverId,
+        senderId: req.user!.id,
+      });
+
+      // Önce mevcut konuşmayı bul
+      let conversation = await storage.findConversation(
+        listingId,
+        req.user!.id,
+        receiverId,
+      );
+
+      // Konuşma yoksa yeni bir konuşma oluştur
+      if (!conversation) {
+        conversation = await storage.createConversation(
+          listingId,
+          req.user!.id,
+          receiverId,
+        );
+      }
+
+      console.log("Başarılı konuşma yanıtı:", conversation);
+      res.setHeader("Content-Type", "application/json");
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error finding/creating conversation:", error);
+      res.setHeader("Content-Type", "application/json");
+      res.status(500).json({ error: "Konuşma başlatılamadı" });
+    }
+  });
+
+  // Messages endpoint with file handling
+  app.post("/api/messages", upload.array("files", 5), async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      console.log("Yeni mesaj isteği alındı:", {
+        conversationId: req.body.conversationId,
+        userId: req.user!.id,
+        hasFiles: req.files && Array.isArray(req.files) && req.files.length > 0,
+        fileDetails: req.files
+          ? (req.files as Express.Multer.File[]).map((f) => ({
+              originalname: f.originalname,
+              size: f.size,
+              mimetype: f.mimetype,
+            }))
+          : [],
+      });
+
+      const conversationId = parseInt(req.body.conversationId);
+      const message = sanitizeInput(req.body.message?.trim());
+
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Geçersiz konuşma ID" });
+      }
+
+      if (!message && (!req.files || req.files.length === 0)) {
+        return res
+          .status(400)
+          .json({ error: "Mesaj içeriği veya dosya zorunludur" });
+      }
+
+      // Get conversation and check permissions
+      const [conversation] = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId));
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Konuşma bulunamadı" });
+      }
+
+      if (
+        conversation.senderId !== req.user!.id &&
+        conversation.receiverId !== req.user!.id
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Bu konuşmaya mesaj gönderme yetkiniz yok" });
+      }
+
+      // Upload files
+      let uploadedFiles: string[] = [];
+      let fileTypes: string[] = [];
+
+      if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+        try {
+          for (const file of req.files as Express.Multer.File[]) {
+            const isImage = ALLOWED_IMAGE_TYPES.includes(file.mimetype);
+            const sizeLimit = isImage
+              ? FILE_SIZE_LIMITS.IMAGE
+              : FILE_SIZE_LIMITS.OTHER;
+
+            if (file.size > sizeLimit) {
+              return res.status(400).json({
+                error: `Dosya boyutu çok büyük: ${file.originalname}. ${
+                  isImage
+                    ? `Resimler ${FILE_SIZE_LIMITS.IMAGE / (1024 * 1024)}MB`
+                    : `Dosyalar ${FILE_SIZE_LIMITS.OTHER / (1024 * 1024)}MB`
+                }'dan küçük olmalıdır.`,
+              });
+            }
+
+            const fileKey = await uploadMessageFile(file);
+            uploadedFiles.push(fileKey);
+            fileTypes.push(file.mimetype);
+          }
+          console.log("Yüklenen dosyalar:", uploadedFiles);
+          console.log("Dosya tipleri:", fileTypes);
+        } catch (error) {
+          console.error("Dosya yükleme hatası:", error);
+          return res.status(400).json({ error: "Dosya yüklenemedi" });
+        }
+      }
+
+      const forwarded = req.headers["x-forwarded-for"] as string;
+      const sender_ip = forwarded ? forwarded.split(",")[0].trim() : req.ip;
+
+      console.log("Mesaj oluşturuluyor:", {
+        conversationId,
+        senderId: req.user!.id,
+        content: message,
+        sender_ip,
+        uploadedFiles,
+        fileTypes,
+      });
+
+      // Create message
+      const newMessage = await storage.createMessage(
+        conversationId,
+        req.user!.id,
+        message || "",
+        sender_ip,
+        uploadedFiles,
+        fileTypes,
+      );
+
+      console.log("Yeni mesaj oluşturuldu:", newMessage);
+
+      // Send WebSocket notifications
+      const receiverId =
+        conversation.senderId === req.user!.id
+          ? conversation.receiverId
+          : conversation.senderId;
+
+      if (wsManager) {
+        try {
+          // Send to both sender (for multiple device sync) and receiver
+          wsManager.sendToUser(req.user!.id, {
+            type: "new_message",
+            conversationId,
+            message: newMessage,
+            isSender: true,
+          });
+
+          if (receiverId) {
+            wsManager.sendToUser(receiverId, {
+              type: "new_message",
+              conversationId,
+              message: newMessage,
+              isSender: false,
+            });
+          }
+        } catch (error) {
+          console.error("WebSocket bildirim hatası:", error);
+        }
+      } else {
+        console.warn("WebSocket yöneticisi bulunamadı");
+      }
+
+      // Return the new message through HTTP response
+      res.status(201).json(newMessage);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      res.status(500).json({ error: "Mesaj gönderilemedi" });
+    }
+  });
+
+  // Gönderilen mesajları getiren endpoint
+  app.get("/api/conversations/sent", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      // Kullanıcının gönderdiği mesajları içeren konuşmaları getir
+      const conversations = await db
+        .select({
+          id: schema.conversations.id,
+          listingId: schema.conversations.listingId,
+          senderId: schema.conversations.senderId,
+          receiverId: schema.conversations.receiverId,
+          createdAt: schema.conversations.createdAt,
+          listingTitle: schema.listings.title,
+          receiver: {
+            id: schema.users.id,
+            username: schema.users.username,
+            profileImage: schema.users.profileImage,
+            gender: schema.users.gender,
+            avatar: schema.users.avatar,
+            lastSeen: schema.users.lastSeen,
+          },
+        })
+        .from(schema.conversations)
+        .innerJoin(
+          schema.listings,
+          eq(schema.conversations.listingId, schema.listings.id),
+        )
+        .innerJoin(
+          schema.users,
+          eq(schema.conversations.receiverId, schema.users.id),
+        )
+        .where(eq(schema.conversations.senderId, req.user!.id))
+        .orderBy(desc(schema.conversations.createdAt));
+
+      console.log(
+        "Gönderilen konuşmalar:",
+        JSON.stringify(conversations, null, 2),
+      );
+
+      res.json(conversations);
+    } catch (error) {
+      console.error("Error fetching sent conversations:", error);
+      res.status(500).json({ error: "Gönderilen mesajlar yüklenemedi" });
+    }
+  });
+
+  // Gelen mesajları getiren endpoint
+  app.get("/api/conversations/received", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      // Kullanıcının aldığı mesajları içeren konuşmaları getir
+      const conversations = await db
+        .select({
+          id: schema.conversations.id,
+          listingId: schema.conversations.listingId,
+          senderId: schema.conversations.senderId,
+          receiverId: schema.conversations.receiverId,
+          createdAt: schema.conversations.createdAt,
+          listingTitle: schema.listings.title,
+          sender: {
+            id: schema.users.id,
+            username: schema.users.username,
+            profileImage: schema.users.profileImage,
+            gender: schema.users.gender,
+            avatar: schema.users.avatar,
+            lastSeen: schema.users.lastSeen,
+          },
+        })
+        .from(schema.conversations)
+        .innerJoin(
+          schema.listings,
+          eq(schema.conversations.listingId, schema.listings.id),
+        )
+        .innerJoin(
+          schema.users,
+          eq(schema.conversations.senderId, schema.users.id),
+        )
+        .where(eq(schema.conversations.receiverId, req.user!.id))
+        .orderBy(desc(schema.conversations.createdAt));
+
+      console.log("Gelen konuşmalar:", JSON.stringify(conversations, null, 2));
+
+      res.json(conversations);
+    } catch (error) {
+      console.error("Error fetching received conversations:", error);
+      res.status(500).json({ error: "Gelen mesajlar yüklenemedi" });
+    }
+  });
+
+  // Konuşma silme endpoint'i
+  app.delete("/api/conversations/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const conversationId = parseInt(req.params.id);
+
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Geçersiz konuşma ID" });
+      }
+
+      // Konuşmayı bul ve yetki kontrolü yap
+      const [conversation] = await db
+        .select({
+          id: schema.conversations.id,
+          senderId: schema.conversations.senderId,
+          receiverId: schema.conversations.receiverId,
+        })
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId))
+        .execute();
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Konuşma bulunamadı" });
+      }
+
+      // Kullanıcının bu konuşmayı silme yetkisi var mı kontrol et
+      if (
+        conversation.senderId !== req.user!.id &&
+        conversation.receiverId !== req.user!.id
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Bu konuşmayı silme yetkiniz yok" });
+      }
+
+      // Konuşmaya ait tüm mesajları bul
+      const messagesToDelete = await db
+        .select({
+          id: schema.messages.id,
+          files: schema.messages.files,
+        })
+        .from(schema.messages)
+        .where(eq(schema.messages.conversationId, conversationId))
+        .execute();
+
+      console.log("Silinecek mesajlar:", messagesToDelete);
+
+      // Her bir mesajın dosyalarını kontrol et ve sil
+      const filePromises: Promise<void>[] = [];
+      let filesProcessed = 0;
+      let filesDeleted = 0;
+      let filesError = 0;
+
+      for (const message of messagesToDelete) {
+        if (message.files && Array.isArray(message.files)) {
+          for (const file of message.files) {
+            if (!file) continue;
+            filesProcessed++;
+
+            try {
+              console.log(
+                `Dosya siliniyor (${filesProcessed}/${message.files.length}):`,
+                file,
+              );
+              // Dosya silme promise'ini ekle
+              filePromises.push(
+                deleteMessageFile(file)
+                  .then(() => {
+                    console.log("Dosya başarıyla silindi:", file);
+                    filesDeleted++;
+                  })
+                  .catch((error) => {
+                    console.error("Dosya silme hatası:", file, error);
+                    filesError++;
+                    // Hata olsa bile devam et
+                  }),
+              );
+            } catch (error) {
+              console.error("Dosya silme işlemi başlatılamadı:", file, error);
+              filesError++;
+            }
+          }
+        }
+      }
+
+      // Tüm dosya silme işlemlerinin tamamlanmasını bekle
+      if (filePromises.length > 0) {
+        console.log(`${filePromises.length} dosya silme işlemi başlatıldı`);
+        await Promise.allSettled(filePromises);
+        console.log(
+          `Dosya silme istatistikleri - İşlenen: ${filesProcessed}, Silinen: ${filesDeleted}, Hata: ${filesError}`,
+        );
+      }
+
+      // Konuşmaya ait tüm mesajları sil
+      await db
+        .delete(schema.messages)
+        .where(eq(schema.messages.conversationId, conversationId))
+        .execute();
+
+      console.log("Mesajlar silindi, konuşma siliniyor:", conversationId);
+
+      // Konuşmayı sil
+      await db
+        .delete(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId))
+        .execute();
+
+      console.log("Konuşma silindi:", conversationId);
+
+      res.json({
+        success: true,
+        stats: {
+          filesProcessed,
+          filesDeleted,
+          filesError,
+        },
+      });
+    } catch (error) {
+      console.error("Konuşma silme hatası:", error);
+      res.status(500).json({ error: "Konuşma silinemedi" });
+    }
+  });
+
+  // Konuşma katılımcı detayları endpoint'i
+  app.get("/api/conversations/:id/user/:userId", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const conversationId = parseInt(req.params.id);
+      const userId = parseInt(req.params.userId);
+
+      if (isNaN(conversationId) || isNaN(userId)) {
+        return res.status(400).json({ error: "Geçersiz ID" });
+      }
+
+      // Konuşmayı ve kullanıcı yetkisini kontrol et
+      const [conversation] = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId));
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Konuşma bulunamadı" });
+      }
+
+      // Kullanıcının bu konuşmanın bir parçası olup olmadığını kontrol et
+      if (
+        conversation.senderId !== req.user!.id &&
+        conversation.receiverId !== req.user!.id
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Bu konuşmaya erişim yetkiniz yok" });
+      }
+
+      // İstenen kullanıcının konuşmanın bir parçası olup olmadığını kontrol et
+      if (
+        userId !== conversation.senderId &&
+        userId !== conversation.receiverId
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Bu kullanıcı konuşmanın bir parçası değil" });
+      }
+
+      // Kullanıcı bilgilerini getir
+      const [user] = await db
+        .select({
+          id: schema.users.id,
+          username: schema.users.username,
+          profileImage: schema.users.profileImage,
+          gender: schema.users.gender,
+          avatar: schema.users.avatar,
+          lastSeen: schema.users.lastSeen,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.id, userId));
+
+      if (!user) {
+        return res.status(404).json({ error: "Kullanıcı bulunamadı" });
+      }
+
+      res.json(user);
+    } catch (error) {
+      console.error("Konuşma kullanıcı bilgileri getirme hatası:", error);
+      res.status(500).json({ error: "Kullanıcı bilgileri alınamadı" });
+    }
+  });
+
+  // Admin mesajları endpoint'i
+  app.get("/api/admin/conversations/:id/messages", async (req, res) => {
+    // Admin yetkisi kontrolü
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const conversationId = parseInt(req.params.id);
+      console.log("Fetching messages for conversation:", conversationId);
+
+      // Mesajları ve ilişkili kullanıcı bilgilerini getir
+      const messages = await db
+        .select({
+          id: schema.messages.id,
+          conversationId: schema.messages.conversationId,
+          senderId: schema.messages.senderId,
+          content: schema.messages.content,
+          createdAt: schema.messages.createdAt,
+          files: schema.messages.files,
+          fileTypes: schema.messages.fileTypes,
+          isRead: schema.messages.isRead,
+          sender: {
+            id: schema.users.id,
+            username: schema.users.username,
+            profileImage: schema.users.profileImage,
+            gender: schema.users.gender,
+            avatar: schema.users.avatar,
+          },
+        })
+        .from(schema.messages)
+        .leftJoin(schema.users, eq(schema.messages.senderId, schema.users.id))
+        .where(eq(schema.messages.conversationId, conversationId))
+        .orderBy(asc(schema.messages.createdAt));
+
+      // Mesajları dönüştür ve yanıtı hazırla
+      const transformedMessages = messages.map((message) => ({
+        ...message,
+        files:
+          message.files && Array.isArray(message.files) ? message.files : [],
+        fileTypes:
+          message.fileTypes && Array.isArray(message.fileTypes)
+            ? message.fileTypes
+            : [],
+      }));
+
+      console.log("Retrieved messages:", transformedMessages);
+
+      // JSON yanıtı dön
+      res.json({ messages: transformedMessages });
+    } catch (error) {
+      console.error("Error fetching conversation messages:", error);
+      res.status(500).json({
+        error: "Mesajlar alınamadı",
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Kategori başına ilan sayısını getiren endpoint
+  app.get("/api/admin/categories/:id/listing-count", async (req, res) => {
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const categoryId = parseInt(req.params.id);
+
+      // Kategorideki ilan sayısını say
+      const [result] = await db
+        .select({
+          count: sql<number>`count(*)::int`,
+        })
+        .from(schema.listings)
+        .where(eq(schema.listings.categoryId, categoryId));
+
+      res.json({ count: result.count });
+    } catch (error) {
+      console.error("Error fetching category listing count:", error);
+      res.status(500).json({ error: "Kategori ilan sayısı alınamadı" });
+    }
+  });
+
+  // Kategori silme endpoint'i
+  app.delete("/api/admin/categories/:id", async (req, res) => {
+    // Admin yetkisi kontrolü
+    if (!req.session?.adminId && !req.session?.isAdmin) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const categoryId = parseInt(req.params.id);
+      if (isNaN(categoryId)) {
+        return res.status(400).json({ error: "Geçersiz kategori ID" });
+      }
+
+      // Önce alt kategorileri kontrol et
+      const subCategories = await db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.parentId, categoryId));
+
+      if (subCategories.length > 0) {
+        return res.status(400).json({
+          error: "Bu kategori silinemez çünkü alt kategorileri var",
+        });
+      }
+
+      // Kategoriye ait ilanları kontrol et
+      const listingCount = await storage.getCategoryListingCount(categoryId);
+      if (listingCount > 0) {
+        return res.status(400).json({
+          error: "Bu kategori silinemez çünkü içinde ilanlar var",
+        });
+      }
+
+      // Tüm kontroller başarılı, kategoriyi sil
+      await storage.deleteCategory(categoryId);
+
+      // Başarılı yanıt dön
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Kategori silme hatası:", error);
+      res.status(500).json({ error: "Kategori silinemedi" });
+    }
+  });
+
+  // Mesajı okundu olarak işaretleyen endpoint
+  app.patch("/api/messages/:id/read", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const messageId = parseInt(req.params.id);
+      if (isNaN(messageId)) {
+        return res.status(400).json({ error: "Geçersiz mesaj ID" });
+      }
+
+      // Get message and check permissions
+      const [message] = await db
+        .select({
+          id: schema.messages.id,
+          conversationId: schema.messages.conversationId,
+          senderId: schema.messages.senderId,
+          receiverId: schema.messages.receiverId,
+          isRead: schema.messages.isRead,
+        })
+        .from(schema.messages)
+        .where(eq(schema.messages.id, messageId));
+
+      if (!message) {
+        return res.status(404).json({ error: "Mesaj bulunamadı" });
+      }
+
+      if (message.receiverId !== req.user!.id) {
+        return res
+          .status(403)
+          .json({ error: "Bu mesajı okundu olarak işaretleme yetkiniz yok" });
+      }
+
+      // If message is already marked as read, return early
+      if (message.isRead) {
+        return res.json(message);
+      }
+
+      // Mark message as read
+      const [updatedMessage] = await db
+        .update(schema.messages)
+        .set({ isRead: true })
+        .where(eq(schema.messages.id, messageId))
+        .returning();
+
+      // Send WebSocket notification to sender
+      if (wsManager && message.senderId) {
+        try {
+          wsManager.sendToUser(message.senderId, {
+            type: "message_read",
+            messageId: messageId,
+            conversationId: message.conversationId,
+          });
+          console.log("Mesaj okundu bildirimi gönderildi:", {
+            senderId: message.senderId,
+            messageId: messageId,
+          });
+        } catch (error) {
+          console.error("Mesaj okundu bildirimi gönderilemedi:", error);
+        }
+      }
+
+      res.json(updatedMessage);
+    } catch (error) {
+      console.error("Mesaj okundu işaretleme hatası:", error);
+      res.status(500).json({ error: "Mesaj okundu olarak işaretlenemedi" });
+    }
+  });
+
+  // Konuşma mesajları endpoint'i
+  app.get("/api/conversations/:id/messages", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const conversationId = parseInt(req.params.id);
+
+      // Konuşmayı ve kullanıcı yetkisini kontrol et
+      const [conversation] = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId));
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Konuşma bulunamadı" });
+      }
+
+      // Kullanıcının bu konuşmanın bir parçası olup olmadığını kontrol et
+      if (
+        conversation.senderId !== req.user!.id &&
+        conversation.receiverId !== req.user!.id
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Bu konuşmaya erişim yetkiniz yok" });
+      }
+
+      // Mesajları getir
+      const messages = await db
+        .select({
+          id: schema.messages.id,
+          conversationId: schema.messages.conversationId,
+          senderId: schema.messages.senderId,
+          receiverId: schema.messages.receiverId,
+          content: schema.messages.content,
+          createdAt: schema.messages.createdAt,
+          files: schema.messages.files,
+          fileTypes: schema.messages.fileTypes,
+          isRead: schema.messages.isRead,
+        })
+        .from(schema.messages)
+        .where(eq(schema.messages.conversationId, conversationId))
+        .orderBy(asc(schema.messages.createdAt));
+
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching conversation messages:", error);
+      res.status(500).json({ error: "Mesajlar alınamadı" });
+    }
+  });
+
+  // Mesajı okundu olarak işaretleyen endpoint
+  app.patch("/api/conversations/:id/read", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const conversationId = parseInt(req.params.id);
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Geçersiz konuşma ID" });
+      }
+
+      // Konuşmayı ve kullanıcı yetkisini kontrol et
+      const [conversation] = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId));
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Konuşma bulunamadı" });
+      }
+
+      // Sadece alıcı mesajları okundu olarak işaretleyebilir
+      if (conversation.receiverId !== req.user!.id) {
+        return res.status(403).json({
+          error:
+            "Bu konuşmadaki mesajları okundu olarak işaretleme yetkiniz yok",
+        });
+      }
+
+      // Belirli kriterlere göre okunmamış mesajları bul ve güncelle
+      const updatedMessages = await db
+        .update(schema.messages)
+        .set({ isRead: true })
+        .where(
+          and(
+            eq(schema.messages.conversationId, conversationId),
+            eq(schema.messages.senderId, conversation.senderId),
+            eq(schema.messages.receiverId, req.user!.id),
+            eq(schema.messages.isRead, false), // Sadece okunmamış mesajları güncelle
+          ),
+        )
+        .returning();
+
+      // WebSocket üzerinden gönderene bildirim gönder
+      if (wsManager && conversation.senderId) {
+        sendMessageToUser(conversation.senderId, {
+          type: "message_read",
+          conversationId: conversationId,
+          messages: updatedMessages,
+        });
+      }
+
+      res.json({ success: true, updatedMessages });
+    } catch (error) {
+      console.error("Konuşma mesajları okundu işaretleme hatası:", error);
+      res
+        .status(500)
+        .json({ error: "Konuşma mesajları okundu olarak işaretlenemedi" });
+    }
+  });
+
+  // Yönetim paneli için tüm konuşmaları getiren endpoint
+  // Add the user profile endpoint with proper authentication
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      // Oturum ve yetkilendirme kontrolü
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Yetkilendirme gerekli" });
+      }
+
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: "Geçersiz kullanıcı ID" });
+      }
+
+      // Admin veya kullanıcının kendi profili kontrolü
+      // req.user.type kontrolü için type guard kullanıyoruz
+      const isAdmin =
+        req.user &&
+        typeof req.user === "object" &&
+        "type" in req.user &&
+        req.user.type === "admin";
+
+      // Yetki kontrolü: Admin tüm profilleri, kullanıcı sadece kendi profilini görebilir
+      if (!isAdmin && req.user!.id !== userId) {
+        console.log("Yetkisiz profil erişim denemesi:", {
+          requestingUserId: req.user!.id,
+          requestedProfileId: userId,
+        });
+        return res
+          .status(403)
+          .json({ error: "Bu profili görüntüleme yetkiniz yok" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "Kullanıcı bulunamadı" });
+      }
+
+      // Hassas bilgileri çıkar ve güvenli kullanıcı nesnesini oluştur
+      const {
+        password,
+        resetPasswordToken,
+        resetPasswordExpires,
+        verificationToken,
+        ...safeUser
+      } = user;
+
+      // İsteği yapan admin değilse bazı ek alanları da çıkar
+      const finalUserData = !isAdmin
+        ? {
+            ...safeUser,
+            email: undefined,
+            user_ip: undefined,
+            status: undefined,
+          }
+        : safeUser;
+
+      res.json(finalUserData);
+    } catch (error) {
+      console.error("Kullanıcı profili getirme hatası:", error);
+      res.status(500).json({
+        error: "Kullanıcı profili alınamadı",
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  app.get("/api/admin/conversations", async (req, res) => {
+    // Admin yetkisi kontrolü
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const offset = (page - 1) * limit;
+
+      // Alt sorgu ile mesaj sayılarını hesapla
+      const messageCountSubquery = db
+        .select({
+          conversationId: schema.messages.conversationId,
+          count: sql<number>`count(*)::int`.as("count"),
+        })
+        .from(schema.messages)
+        .groupBy(schema.messages.conversationId)
+        .as("message_counts");
+
+      // Tüm konuşmaları, ilgili ilan bilgileri ve kullanıcı detayları ile birlikte getir
+      const [conversations, totalCount] = await Promise.all([
+        db
+          .select({
+            id: schema.conversations.id,
+            listingId: schema.conversations.listingId,
+            listingTitle: schema.listings.title,
+            senderId: schema.conversations.senderId,
+            receiverId: schema.conversations.receiverId,
+            createdAt: schema.conversations.createdAt,
+            messageCount: sql<number>`COALESCE(${messageCountSubquery.count}, 0)`,
+          })
+          .from(schema.conversations)
+          .innerJoin(
+            schema.listings,
+            eq(schema.conversations.listingId, schema.listings.id),
+          )
+          .leftJoin(
+            messageCountSubquery,
+            eq(schema.conversations.id, messageCountSubquery.conversationId),
+          )
+          .orderBy(desc(schema.conversations.createdAt))
+          .limit(limit)
+          .offset(offset),
+
+        // Toplam kayıt sayısını al
+        db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(schema.conversations),
+      ]);
+
+      // Kullanıcı bilgilerini tek sorguda al
+      const userIds = Array.from(
+        new Set(conversations.flatMap((c) => [c.senderId, c.receiverId])),
+      );
+
+      const users = await db
+        .select({
+          id: schema.users.id,
+          username: schema.users.username,
+        })
+        .from(schema.users)
+        .where(inArray(schema.users.id, userIds));
+
+      // Kullanıcı bilgilerini map'le
+      const userMap = new Map(users.map((u) => [u.id, u]));
+
+      // Son response'u oluştur
+      const result = {
+        data: conversations.map((conv) => ({
+          ...conv,
+          sender: userMap.get(conv.senderId),
+          receiver: userMap.get(conv.receiverId),
+        })),
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalCount[0].count / limit),
+          totalItems: totalCount[0].count,
+          itemsPerPage: limit,
+        },
+      };
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching admin conversations:", error);
+      res.status(500).json({ error: "Konuşmalar yüklenirken bir hata oluştu" });
+    }
+  });
+
+  // Kategori yönetimi endpoint'leri
+  // Kategori sıralama endpoint'i
+  app.patch("/api/admin/categories/reorder", async (req, res) => {
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const updates = req.body;
+
+      if (!Array.isArray(updates)) {
+        return res.status(400).json({ error: "Geçersiz istek formatı" });
+      }
+
+      // Her güncellemeyi kontrol et
+      for (const update of updates) {
+        if (!update || typeof update !== "object") {
+          return res.status(400).json({ error: "Geçersiz güncelleme nesnesi" });
+        }
+
+        const { id, order, parentId } = update;
+
+        // ID ve order alanlarının varlığını ve tipini kontrol et
+        if (typeof id !== "number" || typeof order !== "number") {
+          return res.status(400).json({
+            error: "Geçersiz kategori ID veya sıra numarası",
+            details: `ID: ${id}, Order: ${order}`,
+          });
+        }
+
+        // Kategori var mı kontrol et
+        const [existingCategory] = await db
+          .select()
+          .from(schema.categories)
+          .where(eq(schema.categories.id, id));
+
+        if (!existingCategory) {
+          return res.status(404).json({
+            error: "Kategori bulunamadı",
+            categoryId: id,
+          });
+        }
+
+        // Kategoriyi güncelle
+        await db
+          .update(schema.categories)
+          .set({
+            order,
+            parentId: parentId || null,
+          })
+          .where(eq(schema.categories.id, id));
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Kategori sıralama hatası:", error);
+      res.status(500).json({
+        error: "Kategoriler sıralanamadı",
+        details: error instanceof Error ? error.message : "Bilinmeyen hata",
+      });
+    }
+  });
+
+  app.get("/api/admin/categories", async (req, res) => {
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      // Tüm kategorileri getir
+      const allCategories = await db
+        .select()
+        .from(schema.categories)
+        .orderBy(asc(schema.categories.order));
+
+      // Tip tanımlamaları
+      type CategoryWithChildren = schema.Category & {
+        children: CategoryWithChildren[];
+      };
+
+      // Kategorileri hiyerarşik yapıya dönüştür
+      const categoryMap = new Map<number, CategoryWithChildren>();
+      const rootCategories: CategoryWithChildren[] = [];
+
+      // Önce tüm kategorileri map'e ekle
+      allCategories.forEach((category) => {
+        categoryMap.set(category.id, { ...category, children: [] });
+      });
+
+      // Parent-child ilişkilerini kur
+      allCategories.forEach((category) => {
+        const categoryWithChildren = categoryMap.get(category.id);
+        if (!categoryWithChildren) return;
+
+        if (category.parentId === null) {
+          rootCategories.push(categoryWithChildren);
+        } else {
+          const parent = categoryMap.get(category.parentId);
+          if (parent && categoryWithChildren) {
+            parent.children.push(categoryWithChildren);
+          }
+        }
+      });
+
+      res.json(rootCategories);
+    } catch (error) {
+      console.error("Kategori listeleme hatası:", error);
+      res.status(500).json({ error: "Kategoriler yüklenemedi" });
+    }
+  });
+
+  app.post("/api/admin/categories", async (req, res) => {
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const { name, parentId, slug, order } = req.body;
+
+      // Gerekli alanların kontrolü
+      if (!name || !slug) {
+        return res
+          .status(400)
+          .json({ error: "İsim ve slug alanları zorunludur" });
+      }
+
+      // Slug benzersizlik kontrolü
+      const existingCategory = await db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.slug, slug))
+        .limit(1);
+
+      if (existingCategory.length > 0) {
+        return res.status(400).json({ error: "Bu slug zaten kullanılıyor" });
+      }
+
+      // Parent kategori kontrolü
+      if (parentId) {
+        const parentCategory = await db
+          .select()
+          .from(schema.categories)
+          .where(eq(schema.categories.id, parentId))
+          .limit(1);
+
+        if (parentCategory.length === 0) {
+          return res.status(400).json({ error: "Geçersiz üst kategori" });
+        }
+      }
+
+      // Yeni kategoriyi ekle
+      const [newCategory] = await db
+        .insert(schema.categories)
+        .values({
+          name,
+          parentId: parentId || null,
+          slug,
+          order: order || 0,
+        })
+        .returning();
+
+      // WebSocket ile yeni kategori bildirimi gönder
+      broadcastMessage("category_created", { category: newCategory });
+
+      res.status(201).json(newCategory);
+    } catch (error) {
+      console.error("Kategori oluşturma hatası:", error);
+      res.status(500).json({ error: "Kategori oluşturulamadı" });
+    }
+  });
+
+  app.patch("/api/admin/categories/:id", async (req, res) => {
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const categoryId = parseInt(req.params.id);
+      const { name, parentId, slug, order } = req.body;
+
+      if (isNaN(categoryId)) {
+        return res.status(400).json({ error: "Geçersiz kategori ID" });
+      }
+
+      // Kategori varlık kontrolü
+      const existingCategory = await db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.id, categoryId))
+        .limit(1);
+
+      if (existingCategory.length === 0) {
+        return res.status(404).json({ error: "Kategori bulunamadı" });
+      }
+
+      // Slug benzersizlik kontrolü (eğer değiştirilmişse)
+      if (slug && slug !== existingCategory[0].slug) {
+        const slugCheck = await db
+          .select()
+          .from(schema.categories)
+          .where(
+            and(
+              eq(schema.categories.slug, slug),
+              sql`${schema.categories.id} != ${categoryId}`,
+            ),
+          )
+          .limit(1);
+
+        if (slugCheck.length > 0) {
+          return res.status(400).json({ error: "Bu slug zaten kullanılıyor" });
+        }
+      }
+
+      // Parent kategori kontrolü
+      if (parentId && parentId !== existingCategory[0].parentId) {
+        // Kendisini parent olarak seçemez
+        if (parentId === categoryId) {
+          return res
+            .status(400)
+            .json({ error: "Kategori kendisini üst kategori olarak seçemez" });
+        }
+
+        const parentCategory = await db
+          .select()
+          .from(schema.categories)
+          .where(eq(schema.categories.id, parentId))
+          .limit(1);
+
+        if (parentCategory.length === 0) {
+          return res.status(400).json({ error: "Geçersiz üst kategori" });
+        }
+      }
+
+      // Kategoriyi güncelle
+      const [updatedCategory] = await db
+        .update(schema.categories)
+        .set({
+          name: name || existingCategory[0].name,
+          parentId:
+            parentId === undefined ? existingCategory[0].parentId : parentId,
+          slug: slug || existingCategory[0].slug,
+          order: order === undefined ? existingCategory[0].order : order,
+        })
+        .where(eq(schema.categories.id, categoryId))
+        .returning();
+
+      // WebSocket ile kategori güncelleme bildirimi gönder
+      broadcastMessage("category_updated", { category: updatedCategory });
+
+      res.json(updatedCategory);
+    } catch (error) {
+      console.error("Kategori güncelleme hatası:", error);
+      res.status(500).json({ error: "Kategori güncellenemedi" });
+    }
+  });
+
+  app.delete("/api/admin/categories/:id", async (req, res) => {
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const categoryId = parseInt(req.params.id);
+
+      if (isNaN(categoryId)) {
+        return res.status(400).json({ error: "Geçersiz kategori ID" });
+      }
+
+      // Alt kategorileri kontrol et
+      const childCategories = await db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.parentId, categoryId));
+
+      if (childCategories.length > 0) {
+        return res.status(400).json({
+          error:
+            "Bu kategoriye ait alt kategoriler var. Önce alt kategorileri silmelisiniz.",
+        });
+      }
+
+      // İlişkili ilanları kontrol et
+      const relatedListings = await db
+        .select()
+        .from(schema.listings)
+        .where(eq(schema.listings.categoryId, categoryId))
+        .limit(1);
+
+      if (relatedListings.length > 0) {
+        return res.status(400).json({
+          error:
+            "Bu kategoriye ait ilanlar var. Önce ilanları başka bir kategoriye taşımalısınız.",
+        });
+      }
+
+      // Kategoriyi sil
+      const [deletedCategory] = await db
+        .delete(schema.categories)
+        .where(eq(schema.categories.id, categoryId))
+        .returning();
+
+      if (!deletedCategory) {
+        return res.status(404).json({ error: "Kategori bulunamadı" });
+      }
+
+      // WebSocket ile kategori silme bildirimi gönder
+      broadcastMessage("category_deleted", { categoryId });
+
+      res.json({ success: true, message: "Kategori başarıyla silindi" });
+    } catch (error) {
+      console.error("Kategori silme hatası:", error);
+      res.status(500).json({ error: "Kategori silinemedi" });
+    }
+  });
+
+  // Kategori sıralama endpoint'i
+  app.patch("/api/admin/categories/reorder", async (req, res) => {
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      // Gelen veriyi doğrula
+      const updates = req.body as {
+        id: number;
+        order: number;
+        parentId: number | null;
+      }[];
+
+      if (!Array.isArray(updates) || updates.length === 0) {
+        return res.status(400).json({ error: "Geçersiz veri formatı" });
+      }
+
+      // İşlem başarılı olursa commit, hata olursa rollback yapılacak
+      const result = await db.transaction(async (tx) => {
+        // Her kategori güncellemesi için
+        for (const update of updates) {
+          // Kategori varlığını kontrol et
+          const existingCategory = await tx
+            .select()
+            .from(schema.categories)
+            .where(eq(schema.categories.id, update.id))
+            .limit(1);
+
+          if (existingCategory.length === 0) {
+            throw new Error(`Kategori bulunamadı: ${update.id}`);
+          }
+
+          // Parent kategori kontrolü
+          if (update.parentId !== null) {
+            // Kendisini parent olarak seçemez
+            if (update.parentId === update.id) {
+              throw new Error(
+                `Kategori kendisini üst kategori olarak seçemez: ${update.id}`,
+              );
+            }
+
+            const parentCategory = await tx
+              .select()
+              .from(schema.categories)
+              .where(eq(schema.categories.id, update.parentId))
+              .limit(1);
+
+            if (parentCategory.length === 0) {
+              throw new Error(`Geçersiz üst kategori: ${update.parentId}`);
+            }
+          }
+
+          // Kategoriyi güncelle
+          await tx
+            .update(schema.categories)
+            .set({
+              order: update.order,
+              parentId: update.parentId,
+            })
+            .where(eq(schema.categories.id, update.id));
+        }
+
+        // Tüm güncellemeler başarılı, güncel listeyi döndür
+        return await tx
+          .select()
+          .from(schema.categories)
+          .orderBy(asc(schema.categories.order));
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error reordering categories:", error);
+      res.status(500).json({
+        error: "Kategoriler güncellenirken bir hata oluştu",
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Kategori sıralama endpoint'i - Kategorilerin sırasını ve parent-child ilişkilerini günceller
+  app.patch("/api/admin/categories/reorder", async (req, res) => {
+    // Admin yetkisi kontrolü
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      // Gelen veriyi doğrula
+      const updates = req.body as Array<{
+        id: number;
+        order: number;
+        parentId: number | null;
+      }>;
+
+      if (!Array.isArray(updates) || updates.length === 0) {
+        return res.status(400).json({ error: "Geçersiz veri formatı" });
+      }
+
+      // İşlem başarılı olursa commit, hata olursa rollback yapılacak
+      const result = await db.transaction(async (tx) => {
+        // Her kategori güncellemesi için
+        for (const update of updates) {
+          // Kategori varlığını kontrol et
+          const [existingCategory] = await tx
+            .select()
+            .from(schema.categories)
+            .where(eq(schema.categories.id, update.id));
+
+          if (!existingCategory) {
+            throw new Error(`Kategori bulunamadı: ${update.id}`);
+          }
+
+          // Parent kategori kontrolü
+          if (update.parentId !== null) {
+            // Kendisini parent olarak seçemez
+            if (update.parentId === update.id) {
+              throw new Error(
+                `Kategori kendisini üst kategori olarak seçemez: ${update.id}`,
+              );
+            }
+
+            const [parentCategory] = await tx
+              .select()
+              .from(schema.categories)
+              .where(eq(schema.categories.id, update.parentId));
+
+            if (!parentCategory) {
+              throw new Error(`Geçersiz üst kategori: ${update.parentId}`);
+            }
+          }
+
+          // Kategoriyi güncelle
+          await tx
+            .update(schema.categories)
+            .set({
+              order: update.order,
+              parentId: update.parentId,
+            })
+            .where(eq(schema.categories.id, update.id));
+        }
+
+        // Tüm güncellemeler başarılı, güncel listeyi döndür
+        return await tx
+          .select()
+          .from(schema.categories)
+          .orderBy(asc(schema.categories.order));
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error reordering categories:", error);
+      res.status(500).json({
+        error: "Kategoriler güncellenirken bir hata oluştu",
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  app.get("/api/admin/categories", async (req, res) => {
+    // Admin yetkisi kontrolü
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      // Tüm kategorileri getir
+      const allCategories = await db
+        .select()
+        .from(schema.categories)
+        .orderBy(asc(schema.categories.order));
+
+      // Tip tanımlamaları
+      type CategoryWithChildren = schema.Category & {
+        children: CategoryWithChildren[];
+      };
+
+      // Kategorileri hiyerarşik yapıya dönüştür
+      const categoryMap = new Map<number, CategoryWithChildren>();
+      const rootCategories: CategoryWithChildren[] = [];
+
+      // Önce tüm kategorileri map'e ekle
+      allCategories.forEach((category) => {
+        categoryMap.set(category.id, { ...category, children: [] });
+      });
+
+      // Parent-child ilişkilerini kur
+      allCategories.forEach((category) => {
+        const categoryWithChildren = categoryMap.get(category.id);
+        if (!categoryWithChildren) return;
+
+        if (category.parentId === null) {
+          rootCategories.push(categoryWithChildren);
+        } else {
+          const parent = categoryMap.get(category.parentId);
+          if (parent && categoryWithChildren) {
+            parent.children.push(categoryWithChildren);
+          }
+        }
+      });
+
+      res.json(rootCategories);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      res
+        .status(500)
+        .json({ error: "Kategoriler yüklenirken bir hata oluştu" });
+    }
+  });
+
+  // Yeni kategori ekleme endpoint'i
+  app.post("/api/admin/categories", async (req, res) => {
+    // Admin yetkisi kontrolü
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const { name, parentId, slug, order } = req.body;
+
+      // Gerekli alanların kontrolü
+      if (!name || !slug) {
+        return res
+          .status(400)
+          .json({ error: "İsim ve slug alanları zorunludur" });
+      }
+
+      // Slug benzersizlik kontrolü
+      const existingCategory = await db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.slug, slug))
+        .limit(1);
+
+      if (existingCategory.length > 0) {
+        return res.status(400).json({ error: "Bu slug zaten kullanılıyor" });
+      }
+
+      // Parent kategori kontrolü
+      if (parentId) {
+        const parentCategory = await db
+          .select()
+          .from(schema.categories)
+          .where(eq(schema.categories.id, parentId))
+          .limit(1);
+
+        if (parentCategory.length === 0) {
+          return res.status(400).json({ error: "Geçersiz üst kategori" });
+        }
+      }
+
+      // Yeni kategoriyi ekle
+      const [newCategory] = await db
+        .insert(schema.categories)
+        .values({
+          name,
+          parentId: parentId || null,
+          slug,
+          order: order || 0,
+        })
+        .returning();
+
+      res.status(201).json(newCategory);
+    } catch (error) {
+      console.error("Error creating category:", error);
+      res
+        .status(500)
+        .json({ error: "Kategori oluşturulurken bir hata oluştu" });
+    }
+  });
+
+  // Kategori güncelleme endpoint'i
+  app.patch("/api/admin/categories/:id", async (req, res) => {
+    // Admin yetkisi kontrolü
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const categoryId = parseInt(req.params.id);
+      const { name, parentId, slug, order } = req.body;
+
+      // Kategori varlık kontrolü
+      const existingCategory = await db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.id, categoryId))
+        .limit(1);
+
+      if (existingCategory.length === 0) {
+        return res.status(404).json({ error: "Kategori bulunamadı" });
+      }
+
+      // Slug benzersizlik kontrolü (eğer değiştirilmişse)
+      if (slug && slug !== existingCategory[0].slug) {
+        const slugCheck = await db
+          .select()
+          .from(schema.categories)
+          .where(
+            and(
+              eq(schema.categories.slug, slug),
+              sql`${schema.categories.id} != ${categoryId}`,
+            ),
+          )
+          .limit(1);
+
+        if (slugCheck.length > 0) {
+          return res.status(400).json({ error: "Bu slug zaten kullanılıyor" });
+        }
+      }
+
+      // Parent kategori kontrolü
+      if (parentId && parentId !== existingCategory[0].parentId) {
+        // Kendisini parent olarak seçemez
+        if (parentId === categoryId) {
+          return res
+            .status(400)
+            .json({ error: "Kategori kendisini üst kategori olarak seçemez" });
+        }
+
+        const parentCategory = await db
+          .select()
+          .from(schema.categories)
+          .where(eq(schema.categories.id, parentId))
+          .limit(1);
+
+        if (parentCategory.length === 0) {
+          return res.status(400).json({ error: "Geçersiz üst kategori" });
+        }
+      }
+
+      // Kategoriyi güncelle
+      const [updatedCategory] = await db
+        .update(schema.categories)
+        .set({
+          name: name || existingCategory[0].name,
+          parentId:
+            parentId === undefined ? existingCategory[0].parentId : parentId,
+          slug: slug || existingCategory[0].slug,
+          order: order === undefined ? existingCategory[0].order : order,
+        })
+        .where(eq(schema.categories.id, categoryId))
+        .returning();
+
+      res.json(updatedCategory);
+    } catch (error) {
+      console.error("Error updating category:", error);
+      res
+        .status(500)
+        .json({ error: "Kategori güncellenirken bir hata oluştu" });
+    }
+  });
+
+  // Kategori silme endpoint'i
+  app.delete("/api/admin/categories/:id", async (req, res) => {
+    // Admin yetkisi kontrolü
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const categoryId = parseInt(req.params.id);
+
+      if (isNaN(categoryId)) {
+        return res.status(400).json({ error: "Geçersiz kategori ID" });
+      }
+
+      // Önce kategorinin var olup olmadığını kontrol et
+      const category = await db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.id, categoryId))
+        .limit(1);
+
+      if (category.length === 0) {
+        return res.status(404).json({ error: "Kategori bulunamadı" });
+      }
+
+      // Alt kategorileri kontrol et
+      const childCategories = await db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.parentId, categoryId));
+
+      if (childCategories.length > 0) {
+        return res.status(400).json({
+          error:
+            "Bu kategoriye ait alt kategoriler var. Önce alt kategorileri silmelisiniz.",
+        });
+      }
+
+      // İlişkili ilanları kontrol et
+      const relatedListings = await db
+        .select()
+        .from(schema.listings)
+        .where(eq(schema.listings.categoryId, categoryId))
+        .limit(1);
+
+      if (relatedListings.length > 0) {
+        return res.status(400).json({
+          error:
+            "Bu kategoriye ait ilanlar var. Önce ilanları başka bir kategoriye taşımalısınız.",
+        });
+      }
+
+      // Kategoriyi sil
+      const [deletedCategory] = await db
+        .delete(schema.categories)
+        .where(eq(schema.categories.id, categoryId))
+        .returning();
+
+      if (!deletedCategory) {
+        return res.status(404).json({ error: "Kategori bulunamadı" });
+      }
+
+      res.json({ success: true, message: "Kategori başarıyla silindi" });
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      res.status(500).json({ error: "Kategori silinirken bir hata oluştu" });
+    }
+  });
+
+  // Kategori sıralama endpoint'i
+  app.post("/api/admin/categories/reorder", async (req, res) => {
+    // Admin yetkisi kontrolü
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const updates = req.body as {
+        id: number;
+        order: number;
+        parentId: number | null;
+      }[];
+
+      // Toplu güncelleme için Promise.all kullan
+      await Promise.all(
+        updates.map((update) =>
+          db
+            .update(schema.categories)
+            .set({ order: update.order })
+            .where(eq(schema.categories.id, update.id)),
+        ),
+      );
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating category order:", error);
+      res.status(500).json({ error: "Kategori sıralaması güncellenemedi" });
+    }
+  });
+
+  // Kategori ekleme endpoint'i
+  app.post("/api/admin/categories", async (req, res) => {
+    // Admin yetkisi kontrolü
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const { name, parentId } = req.body;
+
+      // Slug oluştur
+      const slug = name
+        .toLowerCase()
+        .replace(/ğ/g, "g")
+        .replace(/ü/g, "u")
+        .replace(/ş/g, "s")
+        .replace(/ı/g, "i")
+        .replace(/ö/g, "o")
+        .replace(/ç/g, "c")
+        .replace(/[^a-z0-9]/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+
+      // Son sıra numarasını bul
+      const lastOrder = await db
+        .select({
+          maxOrder: sql<number>`COALESCE(MAX(${schema.categories.order}), -1)`,
+        })
+        .from(schema.categories)
+        .where(
+          parentId
+            ? eq(schema.categories.parentId, parentId)
+            : sql`${schema.categories.parentId} IS NULL`,
+        );
+
+      const newOrder = (lastOrder[0]?.maxOrder ?? -1) + 1;
+
+      // Yeni kategoriyi ekle
+      const [newCategory] = await db
+        .insert(schema.categories)
+        .values({
+          name,
+          parentId,
+          slug,
+          order: newOrder,
+        })
+        .returning();
+
+      res.status(201).json(newCategory);
+    } catch (error) {
+      console.error("Error creating category:", error);
+      res.status(500).json({ error: "Kategori eklenemedi" });
+    }
+  });
+
+  // Kategori güncelleme endpoint'i
+  app.put("/api/admin/categories/:id", async (req, res) => {
+    // Admin yetkisi kontrolü
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const categoryId = parseInt(req.params.id);
+      const { name, parentId } = req.body;
+
+      // Slug oluştur
+      const slug = name
+        .toLowerCase()
+        .replace(/ğ/g, "g")
+        .replace(/ü/g, "u")
+        .replace(/ş/g, "s")
+        .replace(/ı/g, "i")
+        .replace(/ö/g, "o")
+        .replace(/ç/g, "c")
+        .replace(/[^a-z0-9]/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+
+      // Kategoriyi güncelle
+      const [updatedCategory] = await db
+        .update(schema.categories)
+        .set({
+          name,
+          parentId,
+          slug,
+        })
+        .where(eq(schema.categories.id, categoryId))
+        .returning();
+
+      if (!updatedCategory) {
+        return res.status(404).json({ error: "Kategori bulunamadı" });
+      }
+
+      res.json(updatedCategory);
+    } catch (error) {
+      console.error("Error updating category:", error);
+      res.status(500).json({ error: "Kategori güncellenemedi" });
+    }
+  });
+
+  // Kategori silme endpoint'i
+  app.delete("/api/admin/categories/:id", async (req, res) => {
+    // Admin yetkisi kontrolü
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const categoryId = parseInt(req.params.id);
+
+      // Alt kategorileri kontrol et
+      const subCategories = await db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.parentId, categoryId));
+
+      if (subCategories.length > 0) {
+        return res.status(400).json({
+          error:
+            "Bu kategorinin alt kategorileri var. Önce alt kategorileri silmelisiniz.",
+        });
+      }
+
+      // İlişkili ilanları kontrol et
+      const relatedListings = await db
+        .select()
+        .from(schema.listings)
+        .where(eq(schema.listings.categoryId, categoryId));
+
+      if (relatedListings.length > 0) {
+        return res.status(400).json({
+          error:
+            "Bu kategoride ilanlar var. Kategoriyi silmeden önce ilanları başka bir kategoriye taşıyın.",
+        });
+      }
+
+      // Kategoriyi sil
+      const [deletedCategory] = await db
+        .delete(schema.categories)
+        .where(eq(schema.categories.id, categoryId))
+        .returning();
+
+      if (!deletedCategory) {
+        return res.status(404).json({ error: "Kategori bulunamadı" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      res.status(500).json({ error: "Kategori silinemedi" });
+    }
+  });
+
+  // Ödeme ayarları için yeni API rotaları
+  app.get("/api/admin/payment-settings", async (req, res) => {
+    // Admin yetkisi kontrolü
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      console.log("Ödeme ayarları getiriliyor");
+
+      // Mevcut ayarları getir
+      const [settings] = await db
+        .select()
+        .from(schema.payment_settings)
+        .limit(1);
+
+      console.log("Veritabanından gelen ayarlar:", settings);
+
+      // Eğer ayarlar yoksa varsayılan değerlerle oluştur
+      if (!settings) {
+        const [newSettings] = await db
+          .insert(schema.payment_settings)
+          .values({
+            premium_listing_price: 0,
+            listing_duration: 30,
+            premium_member_price: 0,
+            default_payment_gateway: "paytr",
+            paytr_merchant_id: "",
+            paytr_secret_key: "",
+            paytr_merchant_key: "",
+            paytr_sandbox: true,
+            iyzico_api_key: "",
+            iyzico_secret_key: "",
+            iyzico_base_url: "https://sandbox-api.iyzipay.com",
+            stripe_public_key: "",
+            stripe_secret_key: "",
+            stripe_webhook_secret: "",
+            stripe_currency: "try",
+            updated_by: req.session.adminId,
+          })
+          .returning();
+
+        return res.json(newSettings);
+      }
+
+      // Mevcut ayarları gönder
+      res.json({
+        premium_listing_price: settings.premium_listing_price ?? 0,
+        listing_duration: settings.listing_duration ?? 30,
+        premium_member_price: settings.premium_member_price ?? 0,
+        default_payment_gateway: settings.default_payment_gateway ?? "paytr",
+        paytr_merchant_id: settings.paytr_merchant_id ?? "",
+        paytr_secret_key: settings.paytr_secret_key ?? "",
+        paytr_merchant_key: settings.paytr_merchant_key ?? "",
+        paytr_sandbox: settings.paytr_sandbox ?? true,
+        iyzico_api_key: settings.iyzico_api_key ?? "",
+        iyzico_secret_key: settings.iyzico_secret_key ?? "",
+        iyzico_base_url:
+          settings.iyzico_base_url ?? "https://sandbox-api.iyzipay.com",
+        stripe_public_key: settings.stripe_public_key ?? "",
+        stripe_secret_key: settings.stripe_secret_key ?? "",
+        stripe_webhook_secret: settings.stripe_webhook_secret ?? "",
+        stripe_currency: settings.stripe_currency ?? "try",
+      });
+    } catch (error) {
+      console.error("Ödeme ayarları getirme hatası:", error);
+      res.status(500).json({ error: "Ödeme ayarları alınamadı" });
+    }
+  });
+
+  app.put("/api/admin/payment-settings", async (req, res) => {
+    // Admin yetkisi kontrolü
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      // Gelen verileri valide et
+      const validatedData = schema.insertPaymentSettingsSchema.parse(req.body);
+
+      // Mevcut ayarları kontrol et
+      let [existingSettings] = await db
+        .select()
+        .from(schema.payment_settings)
+        .limit(1);
+
+      // Verileri güncelle veya yeni kayıt oluştur
+      if (existingSettings) {
+        // Mevcut kaydı güncelle
+        [existingSettings] = await db
+          .update(schema.payment_settings)
+          .set({
+            ...validatedData,
+            updated_by: req.session.adminId,
+            updated_at: new Date(),
+          })
+          .returning();
+      } else {
+        // Yeni kayıt oluştur
+        [existingSettings] = await db
+          .insert(schema.payment_settings)
+          .values({
+            ...validatedData,
+            updated_by: req.session.adminId,
+            updated_at: new Date(),
+          })
+          .returning();
+      }
+
+      console.log("Ödeme ayarları güncellendi:", existingSettings);
+      res.json(existingSettings);
+    } catch (error) {
+      console.error("Ödeme ayarları güncelleme hatası:", error);
+      res.status(500).json({
+        error: "Ayarlar güncellenirken bir hata oluştu",
+        details: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Mesaj silme endpoint'i
+  app.delete("/api/messages/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const messageId = parseInt(req.params.id);
+      if (isNaN(messageId)) {
+        return res.status(400).json({ error: "Geçersiz mesaj ID" });
+      }
+
+      // Mesajı bul ve yetki kontrolü yap
+      const [message] = await db
+        .select()
+        .from(schema.messages)
+        .where(eq(schema.messages.id, messageId));
+
+      if (!message) {
+        return res.status(404).json({ error: "Mesaj bulunamadı" });
+      }
+
+      // Kullanıcının bu mesajı silme yetkisi var mı kontrol et
+      if (message.senderId !== req.user!.id) {
+        return res.status(403).json({ error: "Bu mesajı silme yetkiniz yok" });
+      }
+
+      // Mesaja ait dosyaları sil
+      if (message.files && Array.isArray(message.files)) {
+        for (const file of message.files) {
+          try {
+            await deleteMessageFile(file);
+          } catch (error) {
+            console.error("Dosya silme hatası:", error);
+            // Dosya silme hatası olsa bile devam et
+          }
+        }
+      }
+
+      // Mesajı sil
+      await db.delete(schema.messages).where(eq(schema.messages.id, messageId));
+
+      // WebSocket ile silme bildirimi gönder
+      const conversation = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, message.conversationId))
+        .execute();
+
+      if (conversation && conversation.length > 0) {
+        const otherUserId =
+          conversation[0].senderId === req.user!.id
+            ? conversation[0].receiverId
+            : conversation[0].senderId;
+
+        sendMessageToUser(req.user!.id, {
+          type: "message_deleted",
+          messageId,
+          conversationId: message.conversationId,
+        });
+
+        sendMessageToUser(otherUserId, {
+          type: "message_deleted",
+          messageId,
+          conversationId: message.conversationId,
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Mesaj silme hatası:", error);
+      res.status(500).json({ error: "Mesaj silinemedi" });
+    }
+  });
+
+  // Listings routes
+  app.post("/api/listings", upload.array("images", 5), async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const sanitizedInput = sanitizeObject({
+        title: req.body.title,
+        description: req.body.description,
+        city: req.body.city,
+        categoryId: req.body.categoryId,
+        listingType: req.body.listingType,
+        contactPerson: req.body.contactPerson,
+        phone: req.body.phone,
+      });
+
+      const {
+        title,
+        description,
+        city,
+        categoryId,
+        listingType,
+        contactPerson,
+        phone,
+      } = sanitizedInput;
+
+      if (!title || !description || !city || !categoryId) {
+        return res.status(400).json({ error: "Zorunlu alanları doldurunuz" });
+      }
+
+      // Resimleri yükle
+      let imageUrls: string[] = [];
+      if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+        try {
+          imageUrls = await imageService.uploadMultipleImages(req.files);
+        } catch (error: any) {
+          return res.status(400).json({ error: error.message });
+        }
+      }
+
+      // Enhanced free listing validation
+      if (listingType === "standard") {
+        // Get user's current status including active listings
+        const [user] = await db
+          .select()
+          .from(schema.users)
+          .where(eq(schema.users.id, req.user!.id));
+
+        if (user.used_free_ad === 1) {
+          console.log(
+            `User ${user.id} attempted to create standard listing but has used_free_ad=1`,
+          );
+          return res.status(400).json({
+            error:
+              "Ücretsiz ilan hakkınızı kullanmışsınız. Sadece öncelikli (premium) ilan verebilirsiniz.",
+          });
+        }
+
+        // Check if user has any active listings
+        const [existingListing] = await db
+          .select()
+          .from(schema.listings)
+          .where(
+            and(
+              eq(schema.listings.userId, req.user!.id),
+              eq(schema.listings.active, true),
+              eq(schema.listings.listingType, "standard"),
+            ),
+          );
+
+        if (existingListing) {
+          console.log(
+            `User ${user.id} attempted to create standard listing but has active listing ${existingListing.id}`,
+          );
+          return res.status(400).json({
+            error: "Zaten aktif bir ücretsiz ilanınız bulunmaktadır.",
+          });
+        }
+      }
+
+      // Get the client's IP address
+      const forwarded = req.headers["x-forwarded-for"] as string;
+      const user_ip = forwarded
+        ? forwarded.split(",")[0].trim()
+        : req.ip || null;
+
+      const listing = await storage.createListing({
+        title,
+        description,
+        city,
+        categoryId: Number(categoryId),
+        listingType: listingType || "standard",
+        contactPerson: contactPerson || "",
+        phone: phone || "",
+        userId: req.user!.id,
+        images: imageUrls,
+        paymentStatus: null,
+        approved: false,
+        views: 0,
+        active: true,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 gün sonra
+        user_ip,
+      });
+
+      console.log(
+        `New listing created: ${listing.id} by user ${req.user!.id} (Type: ${listingType})`,
+      );
+      return res.status(201).json(listing);
+    } catch (error) {
+      console.error("Error creating listing:", error);
+      return res.status(500).json({ error: "İlan oluşturulamadı" });
+    }
+  });
+
+  app.get("/api/listings/user", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const listings = await storage.getUserListings(req.user!.id);
+    res.json(listings);
+  });
+
+  // Delete listing endpoint with improved logging
+  app.delete("/api/listings/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const listingId = parseInt(req.params.id);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID" });
+      }
+
+      console.log(
+        `Attempting to delete listing ${listingId} by user ${req.user!.id}`,
+      );
+
+      // Find the listing
+      const [listing] = await db
+        .select()
+        .from(schema.listings)
+        .where(eq(schema.listings.id, listingId));
+
+      if (!listing) {
+        console.log(`Listing ${listingId} not found`);
+        return res.status(404).json({ error: "İlan bulunamadı" });
+      }
+
+      // User can only delete their own listing
+      if (listing.userId !== req.user!.id) {
+        console.log(
+          `Unauthorized deletion attempt of listing ${listingId} by user ${req.user!.id}`,
+        );
+        return res.status(403).json({ error: "Bu ilanı silme yetkiniz yok" });
+      }
+
+      console.log(
+        `Deleting listing ${listingId} - Status: approved=${listing.approved}, active=${listing.active}`,
+      );
+
+      // Delete associated images if they exist
+      if (listing.images && listing.images.length > 0) {
+        console.log(
+          `Deleting ${listing.images.length} images for listing ${listingId}`,
+        );
+        try {
+          await imageService.deleteMultipleImages(listing.images);
+          console.log(`Successfully deleted images for listing ${listingId}`);
+        } catch (imageError) {
+          console.error(
+            `Error deleting images for listing ${listingId}:`,
+            imageError,
+          );
+          // Continue with listing deletion even if image deletion fails
+        }
+      }
+
+      // Delete the listing regardless of its status
+      const result = await db
+        .delete(schema.listings)
+        .where(
+          and(
+            eq(schema.listings.id, listingId),
+            eq(schema.listings.userId, req.user!.id),
+          ),
+        )
+        .returning();
+
+      if (!result.length) {
+        console.error(`Failed to delete listing ${listingId}`);
+        return res.status(500).json({ error: "İlan silinemedi" });
+      }
+
+      console.log(`Successfully deleted listing ${listingId}`);
+      res.json({
+        success: true,
+        message: "İlan başarıyla silindi",
+        listing: result[0],
+      });
+    } catch (error) {
+      console.error("İlan silme hatası:", error);
+      res.status(500).json({ error: "İlan silinemedi" });
+    }
+  });
+
+  // PayTR ödeme başlatma endpoint'i
+  app.post("/api/payments/create", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const listingId = parseInt(req.body.listingId);
+
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID" });
+      }
+
+      // İlanı kontrol et
+      const [listing] = await db
+        .select()
+        .from(schema.listings)
+        .where(eq(schema.listings.id, listingId));
+
+      if (!listing) {
+        return res.status(404).json({ error: "İlan bulunamadı" });
+      }
+
+      if (listing.userId !== req.user!.id) {
+        return res
+          .status(403)
+          .json({ error: "Bu ilan için ödeme yapamazsınız" });
+      }
+
+      // Test modu için merchant id ve hash değerleri
+      const merchant_id = process.env.PAYTR_MERCHANT_ID;
+      const merchant_key = process.env.PAYTR_MERCHANT_KEY;
+      const merchant_salt = process.env.PAYTR_MERCHANT_SALT;
+
+      if (!merchant_id || !merchant_key || !merchant_salt) {
+        console.error("PayTR credentials missing");
+        return res
+          .status(500)
+          .json({ error: "Ödeme sistemi yapılandırması eksik" });
+      }
+
+      // Test modu için sabit tutar: 1 TL
+      const amount = "100"; // 1.00 TL
+
+      // Benzersiz sipariş numarası oluştur
+      const merchant_oid = `TST_${Date.now()}_${listingId}`;
+
+      // Test modu için email (zorunlu alan)
+      const email = req.user!.email || "test@example.com";
+
+      // Test modu için kullanıcı bilgileri
+      const user_name = req.user!.username || "Test User";
+
+      // Test modu için adres bilgileri (zorunlu alanlar)
+      const user_address = "Test Adres";
+      const user_phone = "05555555555";
+
+      // PayTR isteği için token oluştur
+      const merchant_ok_url = `${process.env.APP_URL}/payment/success`;
+      const merchant_fail_url = `${process.env.APP_URL}/payment/fail`;
+
+      // Test modu parametreleri
+      const test_mode = 1;
+      const debug_on = 1;
+      const timeout_limit = 30;
+      const currency = "TL";
+      const no_installment = 0;
+      const max_installment = 0;
+      const lang = "tr";
+
+      // Kullanıcı IP'sini al
+      const forwarded = req.headers["x-forwarded-for"] as string;
+      const user_ip = forwarded ? forwarded.split(",")[0].trim() : req.ip;
+
+      // PayTR için zorunlu parametreler
+      const merchant = {
+        merchant_id: process.env.PAYTR_MERCHANT_ID!,
+        merchant_key: process.env.PAYTR_MERCHANT_KEY!,
+        merchant_salt: process.env.PAYTR_MERCHANT_SALT!,
+        email: req.user!.email,
+        payment_amount: amount, // Kuruş cinsinden (ör: 49900 = 499.00 TL)
+        merchant_oid: merchant_oid,
+        user_name: req.user!.username,
+        user_address: "Türkiye",
+        user_phone: req.user!.phone || "",
+        merchant_ok_url: `${process.env.APP_URL}/api/payments/success`,
+        merchant_fail_url: `${process.env.APP_URL}/api/payments/fail`,
+        user_basket: JSON.stringify([["Öncelikli İlan", "1", amount]]),
+        user_ip: user_ip,
+        timeout_limit: "30",
+        debug_on: process.env.NODE_ENV === "development" ? "1" : "0",
+        test_mode: process.env.NODE_ENV === "development" ? "1" : "0",
+        no_installment: "0",
+        max_installment: "0",
+        currency: "TL",
+        lang: "tr",
+      };
+
+      // Hash string'i oluştur
+      const hashStr = `${merchant.merchant_id}${merchant.user_ip}${merchant.merchant_oid}${merchant.email}${merchant.payment_amount}${merchant.user_basket}${merchant.no_installment}${merchant.max_installment}${merchant.currency}${merchant.test_mode}`;
+
+      // PayTR token'ı oluştur
+      const paytr_token = crypto
+        .createHmac("sha256", merchant.merchant_salt)
+        .update(hashStr + merchant.merchant_key)
+        .digest("base64");
+
+      // Ödeme durumunu güncelle
+      await db
+        .update(schema.listings)
+        .set({
+          paymentStatus: "pending",
+          active: false, // Ödeme tamamlanana kadar ilanı aktif etme
+        })
+        .where(eq(schema.listings.id, listingId));
+
+      // Token'ı döndür
+      res.json({
+        token: paytr_token,
+        merchant_oid: merchant_oid,
+      });
+    } catch (error) {
+      console.error("Ödeme başlatma hatası:", error);
+      res.status(500).json({ error: "Ödeme başlatılamadı" });
+    }
+  });
+
+  // PayTR ödeme sonucu notification endpoint'i
+  app.post("/api/payments/notification", async (req, res) => {
+    try {
+      const { merchant_oid, status, total_amount, hash } = req.body;
+
+      // Hash doğrulaması
+      const hashStr = `${merchant_oid}${process.env.PAYTR_MERCHANT_SALT!}${status}${total_amount}`;
+      const calculatedHash = crypto
+        .createHmac("sha256", process.env.PAYTR_MERCHANT_KEY!)
+        .update(hashStr)
+        .digest("base64");
+
+      if (hash !== calculatedHash) {
+        console.error("Hash doğrulama hatası");
+        return res.status(400).send("PAYTR notification failed");
+      }
+
+      // merchant_oid'den listing ID'yi çıkar
+      const [_, listingId] = merchant_oid.split("_");
+
+      if (!listingId) {
+        console.error("Geçersiz merchant_oid:", merchant_oid);
+        return res.status(400).send("PAYTR notification failed");
+      }
+
+      // Ödeme durumunu güncelle
+      if (status === "success") {
+        await db
+          .update(schema.listings)
+          .set({
+            paymentStatus: "completed",
+            active: true, // Ödeme tamamlandığında ilanı aktif et
+            approved: true, // Ödeme tamamlandığında ilanı onayla
+          })
+          .where(eq(schema.listings.id, parseInt(listingId)));
+
+        console.log(`Ödeme başarılı - Listing ID: ${listingId}`);
+      } else {
+        await db
+          .update(schema.listings)
+          .set({
+            paymentStatus: "failed",
+            active: false, // Başarısız ödemede ilanı aktif etme
+          })
+          .where(eq(schema.listings.id, parseInt(listingId)));
+
+        console.log(`Ödeme başarısız - Listing ID: ${listingId}`);
+      }
+
+      res.send("OK");
+    } catch (error) {
+      console.error("PayTR notification hatası:", error);
+      res.status(500).send("PAYTR notification failed");
+    }
+  });
+
+  // PayTR ödeme başarılı callback endpoint'i
+  app.post("/api/payments/success", async (req, res) => {
+    const { merchant_oid } = req.body;
+
+    try {
+      // merchant_oid'den listing ID'yi çıkar
+      const [_, listingId] = merchant_oid.split("_");
+
+      if (!listingId) {
+        throw new Error("Geçersiz merchant_oid");
+      }
+
+      // Kullanıcıyı başarılı sayfasına yönlendir
+      res.redirect("/dashboard?payment=success");
+    } catch (error) {
+      console.error("Ödeme başarılı callback hatası:", error);
+      res.redirect("/payment?error=callback");
+    }
+  });
+
+  // PayTR ödeme başarısız callback endpoint'i
+  app.post("/api/payments/fail", async (req, res) => {
+    const { merchant_oid } = req.body;
+
+    try {
+      // merchant_oid'den listing ID'yi çıkar
+      const [_, listingId] = merchant_oid.split("_");
+
+      if (!listingId) {
+        throw new Error("Geçersiz merchant_oid");
+      }
+
+      // Kullanıcıyı hata sayfasına yönlendir
+      res.redirect("/payment?error=failed");
+    } catch (error) {
+      console.error("Ödeme başarısız callback hatası:", error);
+      res.redirect("/payment?error=callback");
+    }
+  });
+
+  // Kullanıcı detaylarını getiren endpoint
+  app.get("/api/users/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: "Geçersiz kullanıcı ID" });
+      }
+
+      // Kullanıcı bilgilerini getir
+      const [user] = await db
+        .select({
+          id: schema.users.id,
+          username: schema.users.username,
+          profileImage: schema.users.profileImage,
+          avatar: schema.users.avatar,
+          gender: schema.users.gender,
+          lastSeen: schema.users.lastSeen,
+          profileVisibility: schema.users.profileVisibility,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.id, userId));
+
+      if (!user) {
+        return res.status(404).json({ error: "Kullanıcı bulunamadı" });
+      }
+
+      // Kullanıcı profili gizli ise sadece temel bilgileri gönder
+      // Profil görünürlük kontrolü - boolean değeri stringe dönüştürmeden kontrol et
+      if (user.profileVisibility === true && userId !== req.user!.id) {
+        return res.json({
+          id: user.id,
+          username: user.username,
+          profileImage: user.profileImage,
+          avatar: user.avatar,
+          gender: user.gender,
+        });
+      }
+
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user details:", error);
+      res.status(500).json({ error: "Kullanıcı bilgileri alınamadı" });
+    }
+  });
+
+  app.put("/api/listings/:id", upload.array("images", 5), async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const listingId = parseInt(req.params.id);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID" });
+      }
+
+      const sanitizedInput = sanitizeObject({
+        title: req.body.title,
+        description: req.body.description,
+        city: req.body.city,
+        categoryId: req.body.categoryId,
+        listingType: req.body.listingType,
+        contactPerson: req.body.contactPerson,
+        phone: req.body.phone,
+      });
+
+      // İlan güncelleme işlemi öncesi veri kontrolü
+      if (
+        !sanitizedInput.title ||
+        !sanitizedInput.description ||
+        !sanitizedInput.city ||
+        !sanitizedInput.categoryId
+      ) {
+        return res.status(400).json({ error: "Zorunlu alanları doldurunuz" });
+      }
+
+      // Check user's free listing status
+      const [user] = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, req.user!.id));
+
+      // Get original listing to check if it's a renewal
+      const [originalListing] = await db
+        .select()
+        .from(schema.listings)
+        .where(eq(schema.listings.id, listingId));
+
+      if (!originalListing) {
+        return res.status(404).json({ error: "İlan bulunamadı" });
+      }
+
+      // If user has used their free listing and tries to renew as standard, block it
+      if (
+        user.used_free_ad === 1 &&
+        sanitizedInput.listingType === "standard"
+      ) {
+        console.log(
+          `User ${user.id} with used_free_ad=1 attempted to renew listing ${listingId} as standard`,
+        );
+        return res.status(400).json({
+          error:
+            "Ücretsiz ilan hakkınızı kullandığınız için sadece öncelikli (premium) ilan verebilirsiniz.",
+        });
+      }
+
+      // Resimleri yükle
+      let imageUrls: string[] = [];
+      if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+        try {
+          imageUrls = await imageService.uploadMultipleImages(req.files);
+        } catch (error: any) {
+          return res.status(400).json({ error: error.message });
+        }
+      }
+
+      // Get the client's IP address
+      const forwarded = req.headers["x-forwarded-for"] as string;
+      const user_ip = forwarded
+        ? forwarded.split(",")[0].trim()
+        : req.ip || null;
+
+      const updates = {
+        ...sanitizedInput,
+        categoryId: Number(sanitizedInput.categoryId),
+        images: imageUrls.length > 0 ? imageUrls : undefined,
+        user_ip: user_ip ?? null,
+        approved: false,
+        active: true,
+        createdAt: new Date(),
+      };
+
+      console.log("Attempting to update listing with data:", updates);
+
+      const listing = await storage.updateListing(
+        listingId,
+        req.user!.id,
+        updates,
+      );
+
+      console.log("Listing updated successfully:", listing);
+      res.json(listing);
+    } catch (error) {
+      console.error("İlan güncelleme hatası:", error);
+      res.status(500).json({ error: "İlan güncellenemedi" });
+    }
+  });
+
+  app.get("/api/listings/categories", async (_req, res) => {
+    try {
+      const categories = await storage.getCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      res.status(500).json({ error: "Failed to fetch categories" });
+    }
+  });
+
+  app.get("/api/categories", async (_req, res) => {
+    try {
+      const categories = await storage.getCategories();
+
+      // Get listing counts efficiently with a single query
+      const countResults = await db
+        .select({
+          categoryId: schema.listings.categoryId,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(schema.listings)
+        .where(
+          and(
+            eq(schema.listings.approved, true),
+            eq(schema.listings.active, true),
+          ),
+        )
+        .groupBy(schema.listings.categoryId);
+
+      // Create an efficient lookup map
+      const countsMap = Object.fromEntries(
+        countResults.map((r) => [r.categoryId, r.count]),
+      );
+
+      // Map categories with counts, only adding listingCount if > 0
+      const categoriesWithCount = categories.map((category) => {
+        const count = countsMap[category.id];
+        return count ? { ...category, listingCount: count } : category;
+      });
+
+      res.json(categoriesWithCount);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      res.status(500).json({ error: "Failed to fetch categories" });
+    }
+  });
+
+  app.get("/api/categories/:slug", async (req, res) => {
+    const category = await storage.getCategoryBySlug(req.params.slug);
+    if (!category)
+      return res.status(404).json({ error: "Kategori bulunamadı" });
+    res.json(category);
+  });
+
+  // Onay bekleyen ilanlar endpoint'i
+  app.put("/api/admin/listings/:id/approve", async (req, res) => {
+    if (!req.session?.adminId) return res.sendStatus(401);
+    try {
+      const listingId = parseInt(req.params.id);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID" });
+      }
+
+      // İlanı bul
+      const [listing] = await db
+        .select()
+        .from(schema.listings)
+        .where(eq(schema.listings.id, listingId));
+
+      if (!listing) {
+        return res.status(404).json({ error: "İlan bulunamadı" });
+      }
+
+      // İlanı onayla
+      await db
+        .update(schema.listings)
+        .set({ approved: true })
+        .where(eq(schema.listings.id, listingId));
+
+      // Eğer standart ilan onaylandıysa used_free_ad değerini 1 yap
+      if (listing.listingType === "standard") {
+        await db
+          .update(schema.users)
+          .set({ used_free_ad: 1 })
+          .where(eq(schema.users.id, Number(listing.userId)));
+
+        console.log(
+          `Used free ad updated for user ${listing.userId} after approving standard listing ${listingId}`,
+        );
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error approving listing:", error);
+      res.status(500).json({ error: "İlan onaylanamadı" });
+    }
+  });
+
+  app.put("/api/admin/listings/:id/deactivate", async (req, res) => {
+    if (!req.session?.adminId) return res.sendStatus(401);
+    try {
+      const listingId = parseInt(req.params.id);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID" });
+      }
+
+      const result = await db
+        .update(schema.listings)
+        .set({ active: false })
+        .where(eq(schema.listings.id, listingId))
+        .returning();
+
+      if (!result.length) {
+        return res.status(404).json({ error: "İlan bulunamadı" });
+      }
+
+      console.log("Listing deactivated:", result[0]);
+      res.json({ success: true, listing: result[0] });
+    } catch (error) {
+      console.error("Error deactivating listing:", error);
+      res.status(500).json({ error: "İlan pasif duruma getirilemedi" });
+    }
+  });
+
+  // Mesaj silme endpoint'i
+  app.delete("/api/messages/:id", async (req, res) => {
+    if (!req.isAuthenticated())
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+
+    try {
+      const messageId = parseInt(req.params.id);
+      if (isNaN(messageId)) {
+        return res.status(400).json({ error: "Geçersiz mesaj ID" });
+      }
+
+      // Mesajı bul
+      const [message] = await db
+        .select()
+        .from(schema.messages)
+        .where(eq(schema.messages.id, messageId));
+
+      if (!message) {
+        return res.status(404).json({ error: "Mesaj bulunamadı" });
+      }
+
+      // Sadece mesajı gönderen kişi silebilir
+      if (message.senderId !== req.user!.id) {
+        return res.status(403).json({ error: "Bu mesajı silme yetkiniz yok" });
+      }
+
+      // Eğer mesajda dosya varsa, dosyaları sil
+      if (message.files && message.files.length > 0) {
+        try {
+          await Promise.all(
+            message.files.map((file) => deleteMessageFile(file)),
+          );
+        } catch (error) {
+          console.error("Dosya silme hatası:", error);
+          // Dosya silme hatası olsa bile mesajı silmeye devam et
+        }
+      }
+
+      // Mesajı sil
+      await db.delete(schema.messages).where(eq(schema.messages.id, messageId));
+
+      // WebSocket ile mesaj silindi bildirimi gönder
+      broadcastMessage("message_deleted", {
+        conversationId: message.conversationId,
+        messageId,
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Mesaj silme hatası:", error);
+      res.status(500).json({ error: "Mesaj silinemedi" });
+    }
+  });
+
+  // Konuşma mesajlarını getir endpoint'i
+  app.get("/api/conversations/:id/messages", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const conversationId = parseInt(req.params.id);
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Geçersiz konuşma ID" });
+      }
+
+      // Konuşmayı bul ve kullanıcının yetkisi var mı kontrol et
+      const [conversation] = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId));
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Konuşma bulunamadı" });
+      }
+
+      if (
+        conversation.senderId !== req.user!.id &&
+        conversation.receiverId !== req.user!.id
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Bu konuşmaya erişim yetkiniz yok" });
+      }
+
+      // Mesajları getir
+      const messages = await db
+        .select()
+        .from(schema.messages)
+        .where(eq(schema.messages.conversationId, conversationId))
+        .orderBy(asc(schema.messages.createdAt));
+
+      res.json(messages);
+    } catch (error) {
+      console.error("Mesajları getirme hatası:", error);
+      res.status(500).json({ error: "Mesajlar yüklenemedi" });
+    }
+  });
+
+  app.delete("/api/admin/listings/:id/delete", async (req, res) => {
+    if (!req.session?.adminId) return res.sendStatus(401);
+    try {
+      const listingId = parseInt(req.params.id);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID" });
+      }
+
+      // First get the listing to access its images
+      const listing = await db
+        .select()
+        .from(schema.listings)
+        .where(eq(schema.listings.id, listingId))
+        .limit(1);
+
+      if (!listing.length) {
+        return res.status(404).json({ error: "İlan bulunamadı" });
+      }
+
+      // Delete associated images if they exist
+      if (listing[0].images && listing[0].images.length > 0) {
+        await imageService.deleteMultipleImages(listing[0].images);
+      }
+
+      // Delete all messages in conversations related to this listing
+      const conversations = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.listingId, listingId));
+
+      for (const conversation of conversations) {
+        await db
+          .delete(schema.messages)
+          .where(eq(schema.messages.conversationId, conversation.id));
+      }
+
+      // Delete all conversations related to this listing
+      await db
+        .delete(schema.conversations)
+        .where(eq(schema.conversations.listingId, listingId));
+
+      // Finally delete the listing
+      const result = await db
+        .delete(schema.listings)
+        .where(eq(schema.listings.id, listingId))
+        .returning();
+
+      console.log("Listing and related data deleted:", {
+        listingId,
+        conversationsCount: conversations.length,
+        imagesCount: listing[0].images?.length || 0,
+      });
+
+      res.json({
+        success: true,
+        deletedData: {
+          listing: result[0],
+          conversationsCount: conversations.length,
+          imagesCount: listing[0].images?.length || 0,
+        },
+      });
+    } catch (error) {
+      console.error("Error deleting listing:", error);
+      res.status(500).json({ error: "İlan ve ilgili veriler silinemedi" });
+    }
+  });
+
+  app.get("/api/admin/listings/pending", async (req, res) => {
+    if (!req.session?.adminId) return res.sendStatus(401);
+    try {
+      const [pending] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(schema.listings)
+        .where(
+          and(
+            eq(schema.listings.approved, false),
+            eq(schema.listings.active, true),
+          ),
+        );
+
+      const listings = await db
+        .select({
+          id: schema.listings.id,
+          title: schema.listings.title,
+          createdAt: schema.listings.createdAt,
+          listingType: schema.listings.listingType,
+          categoryName: schema.categories.name,
+          categoryId: schema.listings.categoryId,
+        })
+        .from(schema.listings)
+        .leftJoin(
+          schema.categories,
+          eq(schema.listings.categoryId, schema.categories.id),
+        )
+        .where(
+          and(
+            eq(schema.listings.approved, false),
+            eq(schema.listings.active, true),
+          ),
+        )
+        .orderBy(asc(schema.listings.createdAt));
+
+      res.json(listings);
+    } catch (error) {
+      console.error("Error fetching pending listings:", error);
+      res.status(500).json({ error: "İlanlar yüklenemedi" });
+    }
+  });
+
+  // Aktif ilanlar endpoint'i
+  app.get("/api/admin/listings/active", async (req, res) => {
+    if (!req.session?.adminId) return res.sendStatus(401);
+    try {
+      const listings = await db
+        .select({
+          id: schema.listings.id,
+          title: schema.listings.title,
+          createdAt: schema.listings.createdAt,
+          endDate: schema.listings.expiresAt,
+          viewCount: schema.listings.views,
+          city: schema.listings.city,
+          listingType: schema.listings.listingType,
+          categoryName: schema.categories.name,
+          active: schema.listings.active,
+          approved: schema.listings.approved,
+        })
+        .from(schema.listings)
+        .leftJoin(
+          schema.categories,
+          eq(schema.listings.categoryId, schema.categories.id),
+        )
+        .where(
+          and(
+            eq(schema.listings.approved, true),
+            eq(schema.listings.active, true),
+          ),
+        )
+        .orderBy(desc(schema.listings.createdAt));
+
+      res.json(listings);
+    } catch (error) {
+      console.error("Error fetching active listings:", error);
+      res.status(500).json({ error: "İlanlar yüklenemedi" });
+    }
+  });
+
+  // Pasif ilanlar endpoint'i
+  app.get("/api/admin/listings/inactive", async (req, res) => {
+    console.log("Admin session state:", {
+      sessionId: req.sessionID,
+      adminId: req.session?.adminId,
+      isAdmin: req.session?.isAdmin,
+    });
+
+    if (!req.session?.adminId) {
+      console.log("Unauthorized access attempt to inactive listings");
+      return res.sendStatus(401);
+    }
+
+    try {
+      console.log("Fetching inactive listings...");
+      const listings = await db
+        .select({
+          id: schema.listings.id,
+          title: schema.listings.title,
+          createdAt: schema.listings.createdAt,
+          endDate: schema.listings.expiresAt,
+          viewCount: schema.listings.views,
+          city: schema.listings.city,
+          listingType: schema.listings.listingType,
+          categoryName: schema.categories.name,
+          active: schema.listings.active,
+          approved: schema.listings.approved,
+        })
+        .from(schema.listings)
+        .leftJoin(
+          schema.categories,
+          eq(schema.listings.categoryId, schema.categories.id),
+        )
+        .where(eq(schema.listings.active, false))
+        .orderBy(desc(schema.listings.createdAt));
+
+      console.log("Found inactive listings:", listings);
+      res.json(listings);
+    } catch (error) {
+      console.error("Error fetching inactive listings:", error);
+      res.status(500).json({ error: "İlanlar yüklenemedi" });
+    }
+  });
+
+  // Update view count with proper SQL template literal syntax
+  app.get("/api/listings/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID'si" });
+      }
+
+      const listing = await storage.getListing(id, req.user?.id);
+      if (!listing) {
+        return res.status(404).json({ error: "İlan bulunamadı" });
+      }
+
+      // Increment view count using proper SQL template literal syntax
+      await db.execute(sql`
+        UPDATE listings
+        SET views = COALESCE(views, 0) + 1
+        WHERE id = ${id};
+      `);
+
+      const updatedListing = await storage.getListing(id, req.user?.id);
+      res.json(updatedListing);
+    } catch (error) {
+      console.error("Listing fetch error:", error);
+      res.status(500).json({ error: "İlan yüklenirken bir hata oluştu" });
+    }
+  });
+
+  // Add this endpoint after the existing admin listing endpoints
+  app.get("/api/admin/listings/:id", async (req, res) => {
+    console.log("Admin session check:", {
+      adminId: req.session?.adminId,
+      isAdmin: req.session?.isAdmin,
+      sessionID: req.sessionID,
+    });
+
+    if (!req.session?.adminId) {
+      console.log("Unauthorized access attempt to admin listing");
+      return res.sendStatus(401);
+    }
+
+    try {
+      const listingId = parseInt(req.params.id);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID" });
+      }
+
+      console.log("Fetching admin listing details for ID:", listingId);
+
+      // Get the listing with user and category information
+      const listing = await db.query.listings.findFirst({
+        where: eq(schema.listings.id, listingId),
+        with: {
+          user: true,
+          category: true,
+        },
+      });
+
+      if (!listing) {
+        console.log("Listing not found:", listingId);
+        return res.status(404).json({ error: "İlan bulunamadı" });
+      }
+
+      // Convert the images to full URLs if they exist
+      if (listing.images) {
+        listing.images = getImagesUrls(listing.images);
+      }
+
+      console.log("Successfully retrieved listing:", listing.id);
+      res.json({ listing });
+    } catch (error) {
+      console.error("Error fetching listing:", error);
+      res.status(500).json({ error: "İlan yüklenirken bir hata oluştu" });
+    }
+  });
+
+  // Add this endpoint after the existing admin listing endpoints
+  app.put("/api/listings/:id/activate", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const listingId = parseInt(req.params.id);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID" });
+      }
+
+      await storage.activateListing(listingId, req.user!.id);
+      res.json({ success: true, message: "İlan aktif hale getirildi" });
+    } catch (error) {
+      console.error("İlan aktifleştirme hatası:", error);
+      res.status(500).json({
+        error:
+          error instanceof Error ? error.message : "İlan aktifleştirilemedi",
+      });
+    }
+  });
+
+  // Add this endpoint after the existing admin listing endpoints
+  app.put("/api/listings/:id/deactivate", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const listingId = parseInt(req.params.id);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID" });
+      }
+
+      await storage.deactivateListing(listingId, req.user!.id);
+      res.json({ success: true, message: "İlan pasif hale getirildi" });
+    } catch (error) {
+      console.error("İlan pasifleştirme hatası:", error);
+      res.status(500).json({
+        error:
+          error instanceof Error ? error.message : "İlan pasifleştirilemedi",
+      });
+    }
+  });
+
+  // Add new route handler for message files
+  app.get("/api/messages/conversation/:id/files", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const conversationId = parseInt(req.params.id);
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Geçersiz konuşma ID" });
+      }
+
+      // Get all messages with files for the conversation
+      const messages = await db
+        .select({
+          id: schema.messages.id,
+          files: schema.messages.files,
+          createdAt: schema.messages.createdAt,
+        })
+        .from(schema.messages)
+        .where(
+          and(
+            eq(schema.messages.conversationId, conversationId),
+            sql`${schema.messages.files} IS NOT NULL AND array_length(${schema.messages.files}, 1) > 0`,
+          ),
+        )
+        .orderBy(desc(schema.messages.createdAt));
+
+      // Transform messages to include only file information
+      const files = messages.reduce((acc: any[], message) => {
+        if (message.files && message.files.length > 0) {
+          const messageFiles = message.files.map((file: string) => ({
+            messageId: message.id,
+            fileKey: file,
+            createdAt: message.createdAt,
+          }));
+          return [...acc, ...messageFiles];
+        }
+        return acc;
+      }, []);
+
+      res.json(files);
+    } catch (error) {
+      console.error("Error fetching message files:", error);
+      res.status(500).json({ error: "Dosyalar yüklenirken bir hata oluştu" });
+    }
+  });
+
+  // Add markAsRead endpoint to handle message read status
+  app.post("/api/conversations/:id/mark-read", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const conversationId = parseInt(req.params.id);
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Geçersiz konuşma ID" });
+      }
+
+      // Verify the user is part of this conversation
+      const conversation = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId))
+        .limit(1);
+
+      if (!conversation.length) {
+        return res.status(404).json({ error: "Konuşma bulunamadı" });
+      }
+
+      if (
+        conversation[0].senderId !== req.user!.id &&
+        conversation[0].receiverId !== req.user!.id
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Bu konuşmaya erişim izniniz yok" });
+      }
+
+      await storage.markMessagesAsRead(conversationId, req.user!.id);
+      res.sendStatus(200);
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+      res.status(500).json({ error: "Mesajlar okundu olarak işaretlenemedi" });
+    }
+  });
+
+  // Kullanıcı bilgilerini getir
+  app.get("/api/users/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: "Geçersiz kullanıcı ID" });
+      }
+
+      const [user] = await db
+        .select({
+          id: schema.users.id,
+          lastSeen: schema.users.lastSeen,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.id, userId));
+
+      if (!user) {
+        return res.status(404).json({ error: "Kullanıcı bulunamadı" });
+      }
+
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ error: "Kullanıcı bilgileri alınamadı" });
+    }
+  });
+
+  app.get("/api/conversations/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const conversationId = parseInt(req.params.id);
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Geçersiz konuşma ID" });
+      }
+
+      const [conversation] = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId));
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Konuşma bulunamadı" });
+      }
+
+      // Kullanıcının bu konuşmaya erişim yetkisi var mı kontrol et
+      if (
+        conversation.senderId !== req.user!.id &&
+        conversation.receiverId !== req.user!.id
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Bu konuşmaya erişim izniniz yok" });
+      }
+
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error fetching conversation:", error);
+      res.status(500).json({ error: "Konuşma bilgileri alınamadı" });
+    }
+  });
+
+  // Email doğrulama endpoint'i
+  app.get("/api/verify-email", async (req, res) => {
+    try {
+      const token = req.query.token as string;
+      console.log("Email verification attempt with token:", token);
+
+      if (!token) {
+        console.log("Verification failed: Missing token");
+        return res.status(400).json({ error: "Doğrulama token'ı eksik" });
+      }
+
+      // Get user by verification token
+      const user = await storage.getUserByVerificationToken(token);
+      console.log(
+        "Found user for verification:",
+        user ? `Yes - ${user.email}` : "No",
+      );
+
+      if (!user) {
+        console.log("Verification failed: Invalid or used token");
+        return res
+          .status(400)
+          .json({ error: "Geçersiz veya kullanılmış doğrulama token'ı" });
+      }
+
+      // Check if user is already verified
+      if (user.emailVerified) {
+        console.log("User already verified:", user.email);
+        return res
+          .status(400)
+          .json({ error: "Email adresi zaten doğrulanmış" });
+      }
+
+      // Check if the token has expired (24 hours)
+      if (isTokenExpired(user.createdAt)) {
+        console.log("Verification failed: Token expired");
+        return res.status(400).json({
+          error:
+            "Doğrulama token'ının süresi dolmuş. Lütfen yeni bir doğrulama maili talep edin.",
+        });
+      }
+
+      try {
+        await storage.verifyUser(user.id);
+        console.log("User email verified successfully:", user.email);
+
+        // Clear verification token after successful verification
+        await storage.clearVerificationToken(user.id);
+
+        // Başarılı yanıt gönder - artık giriş bilgilerini içermeyecek
+        res.json({
+          message: "Email adresiniz başarıyla doğrulandı. Lütfen giriş yapın.",
+          redirectTo: "/auth",
+        });
+      } catch (verifyError) {
+        console.error("Error during user verification:", verifyError);
+        res
+          .status(500)
+          .json({ error: "Kullanıcı doğrulama işlemi başarısız oldu" });
+      }
+    } catch (error) {
+      console.error("Email doğrulama hatası:", error);
+      res
+        .status(500)
+        .json({ error: "Email doğrulama sırasında bir hata oluştu" });
+    }
+  });
+
+  app.post("/api/register", async (req, res) => {
+    const { username, email, password, ip_address } = req.body;
+
+    try {
+      // Check if username exists
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({
+          field: "username",
+          message: "Bu kullanıcı adı zaten kullanılıyor",
+        });
+      }
+
+      // Check if email exists
+      const existingEmail = await storage.getUserByEmail(email);
+      if (existingEmail) {
+        return res.status(400).json({
+          field: "email",
+          message: "Bu email adresi zaten kullanılıyor",
+        });
+      }
+
+      console.log("Registration attempt with email:", email);
+      const verificationToken = randomBytes(32).toString("hex");
+      console.log("Generating verification token for:", email);
+
+      const hashedPassword = await hashPassword(password);
+      console.log("Creating user in database:", { username, email });
+
+      const user = await storage.createUser({
+        username,
+        email,
+        password: hashedPassword,
+        verificationToken,
+        emailVerified: false,
+        ip_address,
+      });
+
+      // Prepare and send verification email
+      console.log("Preparing verification email for:", email);
+      const emailParams = generateVerificationEmail(email, verificationToken);
+      console.log("Sending verification email with params:", {
+        to: emailParams.to,
+        subject: emailParams.subject,
+        hasText: !!emailParams.text,
+        hasHtml: !!emailParams.html,
+      });
+
+      const emailSent = await sendEmail(emailParams);
+      if (emailSent) {
+        console.log("Verification email sent successfully to:", email);
+        // Do not log in the user automatically
+        res.status(201).json({
+          message:
+            "Registration successful. Please check your email to verify your account.",
+        });
+      } else {
+        console.error("Failed to send verification email to:", email);
+        // Delete the created user if email fails
+        await storage.deleteUser(user.id);
+        return res
+          .status(500)
+          .json({ error: "Failed to send verification email" });
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      res.status(500).json({ error: "Registration failed" });
+    }
+  });
+
+  app.put("/api/admin/listings/:id/reject", async (req, res) => {
+    if (!req.session?.adminId) return res.sendStatus(401);
+    try {
+      const listingId = parseInt(req.params.id);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID" });
+      }
+
+      const result = await db
+        .update(schema.listings)
+        .set({ active: false, approved: false })
+        .where(eq(schema.listings.id, listingId))
+        .returning();
+
+      if (!result.length) {
+        return res.status(404).json({ error: "İlan bulunamadı" });
+      }
+
+      console.log("Listing rejected:", result[0]);
+      res.json({ success: true, listing: result[0] });
+    } catch (error) {
+      console.error("Error rejecting listing:", error);
+      res.status(500).json({ error: "İlan reddedilemedi" });
+    }
+  });
+
+  // Favori işlemleri için yeni endpoint'ler
+  app.post("/api/favorites", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { listingId } = req.body;
+      if (!listingId) {
+        return res.status(400).json({ error: "Listing ID gerekli" });
+      }
+
+      const favorite = await storage.addToFavorites(req.user!.id, listingId);
+      res.status(201).json(favorite);
+    } catch (error) {
+      console.error("Error adding favorite:", error);
+      res.status(500).json({ error: "Favorilere eklenemedi" });
+    }
+  });
+
+  app.delete("/api/favorites/:listingId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const listingId = parseInt(req.params.listingId);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz listing ID" });
+      }
+
+      await storage.removeFromFavorites(req.user!.id, listingId);
+      res.sendStatus(200);
+    } catch (error) {
+      console.error("Error removing favorite:", error);
+      res.status(500).json({ error: "Favorilerden çıkarılamadı" });
+    }
+  });
+
+  app.get("/api/favorites/check/:listingId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const listingId = parseInt(req.params.listingId);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz listing ID" });
+      }
+
+      const isFavorite = await storage.isFavorite(req.user!.id, listingId);
+      res.json({ isFavorite });
+    } catch (error) {
+      console.error("Error checking favorite status:", error);
+      res.status(500).json({ error: "Favori durumu kontrol edilemedi" });
+    }
+  });
+
+  // Add this endpoint after the existing favorites endpoints
+  app.get("/api/favorites", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const favorites = await db
+        .select({
+          listing: schema.listings,
+          category: schema.categories,
+        })
+        .from(schema.favorites)
+        .innerJoin(
+          schema.listings,
+          eq(schema.favorites.listingId, schema.listings.id),
+        )
+        .leftJoin(
+          schema.categories,
+          eq(schema.listings.categoryId, schema.categories.id),
+        )
+        .where(eq(schema.favorites.userId, req.user!.id));
+
+      const listings = favorites.map((f) => ({
+        ...f.listing,
+        category: f.category,
+      }));
+
+      res.json(listings);
+    } catch (error) {
+      console.error("Error fetching favorites:", error);
+      res.status(500).json({ error: "Favoriler yüklenemedi" });
+    }
+  });
+
+  app.post(
+    "/api/user/profile-image",
+    upload.single("image"),
+    async (req, res) => {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      try {
+        if (!req.file) {
+          return res.status(400).json({ error: "Resim yüklenemedi" });
+        }
+
+        // Upload the image using imageService
+        const imageUrl = await imageService.uploadSingleImage(req.file);
+
+        // Update user's profile image in database
+        await db
+          .update(schema.users)
+          .set({ profileImage: imageUrl })
+          .where(eq(schema.users.id, req.user!.id));
+
+        res.json({ imageUrl });
+      } catch (error) {
+        console.error("Error uploading profile image:", error);
+        res.status(500).json({ error: "Profil resmi yüklenemedi" });
+      }
+    },
+  );
+
+  // Delete entire conversation endpoint
+  app.delete("/api/conversations/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const conversationId = parseInt(req.params.id);
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Geçersiz konuşma ID" });
+      }
+
+      // Verify user has access to this conversation
+      const [conversation] = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId));
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Konuşma bulunamadı" });
+      }
+
+      if (
+        conversation.senderId !== req.user!.id &&
+        conversation.receiverId !== req.user!.id
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Bu konuşmayı silme yetkiniz yok" });
+      }
+
+      // Delete all messages in the conversation
+      await db
+        .delete(schema.messages)
+        .where(eq(schema.messages.conversationId, conversationId));
+
+      // Delete the conversation itself
+      await db
+        .delete(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      res.status(500).json({ error: "Konuşma silinemedi" });
+    }
+  });
+
+  // İlanı aktif etme endpoint'i
+  app.put("/api/admin/listings/:id/activate", async (req, res) => {
+    if (!req.session?.adminId) return res.sendStatus(401);
+    try {
+      const listingId = parseInt(req.params.id);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID" });
+      }
+
+      const result = await db
+        .update(schema.listings)
+        .set({
+          active: true,
+          approved: true, // İlan aktif edilirken aynı zamanda onaylanmalı
+        })
+        .where(eq(schema.listings.id, listingId))
+        .returning();
+
+      if (!result.length) {
+        return res.status(404).json({ error: "İlan bulunamadı" });
+      }
+
+      console.log("Listing activated:", result[0]);
+      res.json({ success: true, listing: result[0] });
+    } catch (error) {
+      console.error("Error activating listing:", error);
+      res.status(500).json({ error: "İlan aktif edilemedi" });
+    }
+  });
+  // Admin routes içine eklenecek yeni endpoint'ler
+  app.get("/api/admin/users", async (req, res) => {
+    if (!req.session?.adminId) return res.sendStatus(401);
+    try {
+      // Filtre parametrelerini al
+      const { gender, usedAd, status, yuksekUye } = req.query;
+
+      // Temel sorgu oluştur
+      let query = db.select().from(schema.users);
+
+      // Filtreleri uygula
+      if (gender && gender !== "all") {
+        query = query.where(eq(schema.users.gender, gender as string));
+      }
+      if (usedAd && usedAd !== "all") {
+        query = query.where(
+          eq(schema.users.used_free_ad, usedAd === "yes" ? 1 : 0),
+        );
+      }
+      if (status && status !== "all") {
+        query = query.where(eq(schema.users.status, status as string));
+      }
+      if (yuksekUye && yuksekUye !== "all") {
+        query = query.where(eq(schema.users.yuksekUye, yuksekUye === "yes"));
+      }
+
+      const users = await query;
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Kullanıcılar yüklenemedi" });
+    }
+  });
+
+  // Kullanıcı durumunu güncelleme endpoint'i (ban/unban)
+  app.patch("/api/admin/users/:id/status", async (req, res) => {
+    if (!req.session?.adminId) return res.sendStatus(401);
+    try {
+      const userId = parseInt(req.params.id);
+      const { status } = req.body;
+
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: "Ge �ersiz kullanıcı ID" });
+      }
+
+      const [updatedUser] = await db
+        .update(schema.users)
+        .set({ status })
+        .where(eq(schema.users.id, userId))
+        .returning();
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: "Kullanıcı bulunamadı" });
+      }
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      res.status(500).json({ error: "Kullanıcı durumu güncellenemedi" });
+    }
+  });
+
+  // Kullanıcı silme endpoint'i
+  app.delete("/api/admin/users/:id", async (req, res) => {
+    if (!req.session?.adminId) return res.sendStatus(401);
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: "Geçersiz kullanıcı ID" });
+      }
+
+      await storage.deleteUser(userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ error: "Kullanıcı silinemedi" });
+    }
+  });
+
+  // Mesaj silme endpoint'ini güncelle
+  app.delete("/api/messages/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const messageId = parseInt(req.params.id);
+      if (isNaN(messageId)) {
+        return res.status(400).json({ error: "Geçersiz mesaj ID" });
+      }
+
+      // Önce mesajı getir
+      const [message] = await db
+        .select()
+        .from(schema.messages)
+        .where(
+          and(
+            eq(schema.messages.id, messageId),
+            eq(schema.messages.senderId, req.user!.id),
+          ),
+        );
+
+      if (!message) {
+        return res
+          .status(404)
+          .json({ error: "Mesaj bulunamadı veya silme yetkiniz yok" });
+      }
+
+      // Eğer mesajda dosyalar varsa, önce onları sil
+      if (message.files && message.files.length > 0) {
+        try {
+          for (const fileKey of message.files) {
+            await deleteMessageFile(fileKey);
+          }
+        } catch (error) {
+          console.error("Error deleting message files:", error);
+          // Dosya silme hatası olsa bile mesaj silinmeye devam edecek
+        }
+      }
+
+      // Mesajı sil
+      const deleteEvent = await storage.deleteMessage(messageId, req.user!.id);
+      res.json(deleteEvent);
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      res.status(500).json({ error: "Mesaj silinemedi" });
+    }
+  });
+
+  // Poll for message events (deletions)
+  app.get("/api/conversations/:id/events", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const conversationId = parseInt(req.params.id);
+      const since = new Date(
+        (req.query.since as string) || new Date().toISOString(),
+      );
+
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Geçersiz konuşma ID" });
+      }
+
+      // Verify user has access to this conversation
+      const [conversation] = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId));
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Konuşma bulunamadı" });
+      }
+
+      if (
+        conversation.senderId !== req.user!.id &&
+        conversation.receiverId !== req.user!.id
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Bu konuşmaya erişim izniniz yok" });
+      }
+
+      const events = await storage.getMessageEvents(conversationId, since);
+      res.json(events);
+    } catch (error) {
+      console.error("Error fetching message events:", error);
+      res.status(500).json({ error: "Mesaj olayları alınamadı" });
+    }
+  });
+
+  // Sent conversations endpoint (renamed from /api/conversations/user)
+  app.get("/api/conversations/sent", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      console.log("Fetching sent conversations for user:", req.user!.id);
+      const conversations = await db
+        .select({
+          id: schema.conversations.id,
+          listingId: schema.conversations.listingId,
+          senderId: schema.conversations.senderId,
+          receiverId: schema.conversations.receiverId,
+          createdAt: schema.conversations.createdAt,
+          listingTitle: schema.listings.title,
+        })
+        .from(schema.conversations)
+        .leftJoin(
+          schema.listings,
+          eq(schema.conversations.listingId, schema.listings.id),
+        )
+        .where(eq(schema.conversations.senderId, req.user!.id))
+        .orderBy(desc(schema.conversations.createdAt));
+
+      console.log("Found sent conversations:", conversations);
+      res.json(conversations);
+    } catch (error) {
+      console.error("Konuşmalar yüklenirken hata:", error);
+      res.status(500).json({ error: "Konuşmalar yüklenemedi" });
+    }
+  });
+
+  // New received conversations endpoint
+  app.get("/api/conversations/received", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      console.log("Fetching received conversations for user:", req.user!.id);
+      const conversations = await db
+        .select({
+          id: schema.conversations.id,
+          listingId: schema.conversations.listingId,
+          senderId: schema.conversations.senderId,
+          receiverId: schema.conversations.receiverId,
+          createdAt: schema.conversations.createdAt,
+          listingTitle: schema.listings.title,
+        })
+        .from(schema.conversations)
+        .leftJoin(
+          schema.listings,
+          eq(schema.conversations.listingId, schema.listings.id),
+        )
+        .where(eq(schema.conversations.receiverId, req.user!.id))
+        .orderBy(desc(schema.conversations.createdAt));
+
+      console.log("Found received conversations:", conversations);
+      res.json(conversations);
+    } catch (error) {
+      console.error("Konuşmalar yüklenirken hata:", error);
+      res.status(500).json({ error: "Konuşmalar yüklenemedi" });
+    }
+  });
+
+  // Get messages for a conversation
+  app.get("/api/conversations/:id/messages", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const conversationId = parseInt(req.params.id);
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Geçersiz konuşma ID" });
+      }
+
+      // Verify user has access to this conversation
+      const [conversation] = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId))
+        .limit(1);
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Konuşma bulunamadı" });
+      }
+
+      if (
+        conversation.senderId !== req.user!.id &&
+        conversation.receiverId !== req.user!.id
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Bu konuşmaya erişim izniniz yok" });
+      }
+
+      const messages = await db
+        .select({
+          id: schema.messages.id,
+          conversationId: schema.messages.conversationId,
+          senderId: schema.messages.senderId,
+          message: schema.messages.content, // Change this to match your schema
+          createdAt: schema.messages.createdAt,
+        })
+        .from(schema.messages)
+        .where(eq(schema.messages.conversationId, conversationId))
+        .orderBy(asc(schema.messages.createdAt));
+
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ error: "Mesajlar yüklenemedi" });
+    }
+  });
+
+  // Delete a message
+  app.delete("/api/messages/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const messageId = parseInt(req.params.id);
+      if (isNaN(messageId)) {
+        return res.status(400).json({ error: "Geçersiz mesaj ID" });
+      }
+
+      // Önce mesajı getir
+      const [message] = await db
+        .select()
+        .from(schema.messages)
+        .where(
+          and(
+            eq(schema.messages.id, messageId),
+            eq(schema.messages.senderId, req.user!.id),
+          ),
+        );
+
+      if (!message) {
+        return res
+          .status(404)
+          .json({ error: "Mesaj bulunamadı veya silme yetkiniz yok" });
+      }
+
+      // Eğer mesajda dosyalar varsa, önce onları sil
+      if (message.files && message.files.length > 0) {
+        try {
+          for (const fileKey of message.files) {
+            await deleteMessageFile(fileKey);
+          }
+        } catch (error) {
+          console.error("Error deleting message files:", error);
+          // Dosya silme hatası olsa bile mesaj silinmeye devam edecek
+        }
+      }
+
+      // Mesajı sil
+      const deleteEvent = await storage.deleteMessage(messageId, req.user!.id);
+      res.json(deleteEvent);
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      res.status(500).json({ error: "Mesaj silinemedi" });
+    }
+  });
+
+  // Poll for message events (deletions)
+  app.get("/api/conversations/:id/events", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const conversationId = parseInt(req.params.id);
+      const since = new Date(
+        (req.query.since as string) || new Date().toISOString(),
+      );
+
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Geçersiz konuşma ID" });
+      }
+
+      // Verify user has access to this conversation
+      const [conversation] = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId));
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Konuşma bulunamadı" });
+      }
+
+      if (
+        conversation.senderId !== req.user!.id &&
+        conversation.receiverId !== req.user!.id
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Bu konuşmaya erişim izniniz yok" });
+      }
+
+      const events = await storage.getMessageEvents(conversationId, since);
+      res.json(events);
+    } catch (error) {
+      console.error("Error fetching message events:", error);
+      res.status(500).json({ error: "Mesaj olayları alınamadı" });
+    }
+  });
+
+  app.get("/api/listings", async (req, res) => {
+    const { categorySlug, categoryId, city, page = "1", limit } = req.query;
+    const pageSize = limit ? parseInt(limit as string) : 10;
+    const currentPage = parseInt(page as string);
+
+    if (categorySlug) {
+      const category = await storage.getCategoryBySlug(categorySlug as string);
+      if (!category) return res.json({ listings: [], total: 0 });
+
+      const search = req.query.search as string;
+      const cityParam = req.query.city
+        ? turkishCities.find(
+            (c) =>
+              c
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9]/g, "") ===
+              (req.query.city as string)
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9]/g, ""),
+          )
+        : undefined;
+
+      console.log("Search query:", search);
+      console.log("City param:", cityParam); // Debug için log ekledim
+
+      const result = await storage.getListingsByCategory(
+        category.id,
+        cityParam,
+        search ? search.trim() : undefined,
+        pageSize,
+        (currentPage - 1) * pageSize,
+      );
+
+      return res.json(result);
+    }
+
+    const listings = await storage.getAllListings();
+    res.json({ listings, total: listings.length });
+  });
+
+  // Tekil ilan detayı için endpoint
+  app.get("/api/listings/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID'si" });
+      }
+
+      const listing = await storage.getListing(id, req.user?.id);
+      if (!listing) {
+        return res.status(404).json({ error: "İlan bulunamadı" });
+      }
+
+      // Increment view count using proper SQL template literal syntax
+      await db.execute(sql`
+        UPDATE listings
+        SET views = COALESCE(views, 0) + 1
+        WHERE id = ${id};
+      `);
+
+      const updatedListing = await storage.getListing(id, req.user?.id);
+      res.json(updatedListing);
+    } catch (error) {
+      console.error("Listing fetch error:", error);
+      res.status(500).json({ error: "İlan yüklenirken bir hata oluştu" });
+    }
+  });
+
+  // Admin routes
+  app.get("/api/admin/user", async (req, res) => {
+    if (!req.session?.adminId || !req.session?.isAdmin) {
+      return res.sendStatus(401);
+    }
+
+    try {
+      const [admin] = await db
+        .select()
+        .from(schema.admin_users)
+        .where(eq(schema.admin_users.id, req.session.adminId));
+
+      if (!admin) {
+        return res.sendStatus(401);
+      }
+
+      return res.json({
+        id: admin.id,
+        username: admin.username,
+        type: "admin",
+      });
+    } catch (error) {
+      console.error("Admin fetch error:", error);
+      return res.status(500).json({ message: "Admin bilgileri alınamadı" });
+    }
+  });
+
+  // User routes
+  app.get("/api/user", async (req, res) => {
+    if (req.session?.adminId) {
+      try {
+        const [admin] = await db
+          .select()
+          .from(schema.admin_users)
+          .where(eq(schema.admin_users.id, req.session.adminId));
+        if (admin) {
+          return res.json({
+            id: admin.id,
+            username: admin.username,
+            type: "admin",
+          });
+        }
+      } catch (error) {
+        console.error("Admin fetch error:", error);
+        return res.status(500).json({ message: "Admin bilgileri alınamadı" });
+      }
+    }
+    return res.sendStatus(401);
+  });
+
+  // Update the admin login endpoint with better logging
+  app.post("/api/admin/login", async (req, res) => {
+    const { username, password } = req.body;
+    try {
+      console.log("Admin login attempt for username:", username);
+      const [result] = await db
+        .select()
+        .from(schema.admin_users)
+        .where(eq(schema.admin_users.username, username));
+
+      if (!result) {
+        console.log("Admin user not found:", username);
+        return res
+          .status(401)
+          .json({ message: "Hatalı kullanıcı adı veya şifre" });
+      }
+
+      const isValid = await comparePasswords(password, result.password);
+      if (!isValid) {
+        console.log("Invalid password for admin:", username);
+        return res
+          .status(401)
+          .json({ message: "Hatalı kullanıcı adı veya şifre" });
+      }
+
+      req.session.adminId = result.id;
+      req.session.isAdmin = true;
+      await req.session.save();
+      console.log("Admin session created:", {
+        adminId: req.session.adminId,
+        isAdmin: req.session.isAdmin,
+        sessionID: req.sessionID,
+      });
+
+      res.json({ success: true, userId: result.id });
+    } catch (error) {
+      console.error("Admin login error:", error);
+      res.status(500).json({ message: "Bir hata oluştu" });
+    }
+  });
+
+  app.put("/api/user/profile", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const {
+        username,
+        password,
+        email,
+        profileVisibility,
+        gender,
+        age,
+        city,
+        aboutMe,
+      } = req.body;
+
+      if (!username) {
+        return res.status(400).json({ error: "Kullanıcı adı zorunludur" });
+      }
+
+      // Email validation if provided
+      if (email) {
+        if (email.length < 5 || email.length > 50) {
+          return res.status(400).json({
+            error: "Email adresi 5-50 karakter arasında olmalıdır",
+          });
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[s@]+$/.test(email)) {
+          return res.status(400).json({
+            error: "Geçerli bir email adresi giriniz",
+          });
+        }
+
+        const existingUser = await storage.getUserByEmail(email);
+        if (existingUser && existingUser.id !== req.user!.id) {
+          return res.status(400).json({
+            error:
+              "Bu email adresi başka bir kullanıcı tarafından kullanılıyor",
+          });
+        }
+      }
+
+      // Age validation
+      if (age !== undefined && (age < 18 || age > 90)) {
+        return res.status(400).json({
+          error: "Yaş 18-90 arasında olmalıdır",
+        });
+      }
+
+      // City validation
+      if (city && !turkishCities.includes(city)) {
+        return res.status(400).json({
+          error: "Geçerli bir şehir seçiniz",
+        });
+      }
+
+      // About me validation
+      if (aboutMe && aboutMe.length > 1000) {
+        return res.status(400).json({
+          error: "Hakkımda alanı en fazla 1000 karakter olabilir",
+        });
+      }
+
+      const updates: any = {
+        username,
+        profileVisibility: profileVisibility ?? false,
+        gender: gender || "unspecified",
+        age: age || null,
+        city: city || null,
+        aboutMe: aboutMe || null,
+      };
+
+      if (password && password.trim()) {
+        const passwordValidation = validatePassword(password, username);
+        if (!passwordValidation.valid) {
+          return res.status(400).json({ error: passwordValidation.message });
+        }
+        updates.password = await hashPassword(password);
+      }
+
+      const updatedUser = await storage.updateUser(req.user!.id, updates);
+      req.login(updatedUser, (err) => {
+        if (err) {
+          console.error("Login session update error:", err);
+          return res.status(500).json({ error: "Session güncellenemedi" });
+        }
+        res.json(updatedUser);
+      });
+    } catch (error) {
+      console.error("Profil güncelleme hatası:", error);
+      res.status(500).json({ error: "Profil güncellenemedi" });
+    }
+  });
+
+  app.delete("/api/user", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      await storage.deleteUser(req.user!.id);
+      req.logout((err) => {
+        if (err) return res.status(500).json({ error: "Oturum kapatılamadı" });
+        res.sendStatus(200);
+      });
+    } catch (error) {
+      console.error("Hesap silme hatası:", error);
+      res.status(500).json({ error: "Hesap silinemedi" });
+    }
+  });
+
+  // Update the conversations endpoint to include better logging
+  // Sent conversations endpoint (renamed from /api/conversations/user)
+  app.get("/api/conversations/sent", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      console.log("Fetching sent conversations for user:", req.user!.id);
+      const conversations = await db
+        .select({
+          id: schema.conversations.id,
+          listingId: schema.conversations.listingId,
+          senderId: schema.conversations.senderId,
+          receiverId: schema.conversations.receiverId,
+          createdAt: schema.conversations.createdAt,
+          listingTitle: schema.listings.title,
+        })
+        .from(schema.conversations)
+        .leftJoin(
+          schema.listings,
+          eq(schema.conversations.listingId, schema.listings.id),
+        )
+        .where(eq(schema.conversations.senderId, req.user!.id))
+        .orderBy(desc(schema.conversations.createdAt));
+
+      console.log("Found sent conversations:", conversations);
+      res.json(conversations);
+    } catch (error) {
+      console.error("Konuşmalar yüklenirken hata:", error);
+      res.status(500).json({ error: "Konuşmalar yüklenemedi" });
+    }
+  });
+
+  // New received conversations endpoint
+  app.get("/api/conversations/received", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      console.log("Fetching received conversations for user:", req.user!.id);
+      const conversations = await db
+        .select({
+          id: schema.conversations.id,
+          listingId: schema.conversations.listingId,
+          senderId: schema.conversations.senderId,
+          receiverId: schema.conversations.receiverId,
+          createdAt: schema.conversations.createdAt,
+          listingTitle: schema.listings.title,
+        })
+        .from(schema.conversations)
+        .leftJoin(
+          schema.listings,
+          eq(schema.conversations.listingId, schema.listings.id),
+        )
+        .where(eq(schema.conversations.receiverId, req.user!.id))
+        .orderBy(desc(schema.conversations.createdAt));
+
+      console.log("Found received conversations:", conversations);
+      res.json(conversations);
+    } catch (error) {
+      console.error("Konuşmalar yüklenirken hata:", error);
+      res.status(500).json({ error: "Konuşmalar yüklenemedi" });
+    }
+  });
+
+  // Get messages for a conversation
+  app.get("/api/conversations/:id/messages", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const conversationId = parseInt(req.params.id);
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Geçersiz konuşma ID" });
+      }
+
+      // Verify user has access to this conversation
+      const [conversation] = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId))
+        .limit(1);
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Konuşma bulunamadı" });
+      }
+
+      if (
+        conversation.senderId !== req.user!.id &&
+        conversation.receiverId !== req.user!.id
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Bu konuşmaya erişim izniniz yok" });
+      }
+
+      const messages = await db
+        .select({
+          id: schema.messages.id,
+          conversationId: schema.messages.conversationId,
+          senderId: schema.messages.senderId,
+          message: schema.messages.content, // Change this to match your schema
+          createdAt: schema.messages.createdAt,
+        })
+        .from(schema.messages)
+        .where(eq(schema.messages.conversationId, conversationId))
+        .orderBy(asc(schema.messages.createdAt));
+
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ error: "Mesajlar yüklenemedi" });
+    }
+  });
+
+  // Delete a message
+  app.delete("/api/messages/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const messageId = parseInt(req.params.id);
+      if (isNaN(messageId)) {
+        return res.status(400).json({ error: "Geçersiz mesaj ID" });
+      }
+
+      // Önce mesajı getir
+      const [message] = await db
+        .select()
+        .from(schema.messages)
+        .where(
+          and(
+            eq(schema.messages.id, messageId),
+            eq(schema.messages.senderId, req.user!.id),
+          ),
+        );
+
+      if (!message) {
+        return res
+          .status(404)
+          .json({ error: "Mesaj bulunamadı veya silme yetkiniz yok" });
+      }
+
+      // Eğer mesajda dosyalar varsa, önce onları sil
+      if (message.files && message.files.length > 0) {
+        try {
+          for (const fileKey of message.files) {
+            await deleteMessageFile(fileKey);
+          }
+        } catch (error) {
+          console.error("Error deleting message files:", error);
+          // Dosya silme hatası olsa bile mesaj silinmeye devam edecek
+        }
+      }
+
+      // Mesajı sil
+      const deleteEvent = await storage.deleteMessage(messageId, req.user!.id);
+      res.json(deleteEvent);
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      res.status(500).json({ error: "Mesaj silinemedi" });
+    }
+  });
+
+  // Poll for message events (deletions)
+  app.get("/api/conversations/:id/events", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const conversationId = parseInt(req.params.id);
+      const since = new Date(
+        (req.query.since as string) || new Date().toISOString(),
+      );
+
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Geçersiz konuşma ID" });
+      }
+
+      // Verify user has access to this conversation
+      const [conversation] = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId));
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Konuşma bulunamadı" });
+      }
+
+      if (
+        conversation.senderId !== req.user!.id &&
+        conversation.receiverId !== req.user!.id
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Bu konuşmaya erişim izniniz yok" });
+      }
+
+      const events = await storage.getMessageEvents(conversationId, since);
+      res.json(events);
+    } catch (error) {
+      console.error("Error fetching message events:", error);
+      res.status(500).json({ error: "Mesaj olayları alınamadı" });
+    }
+  });
+
+  // Add this endpoint after the existing admin listing endpoints
+  app.get("/api/admin/listings/:id", async (req, res) => {
+    console.log("Admin session check:", {
+      adminId: req.session?.adminId,
+      isAdmin: req.session?.isAdmin,
+      sessionID: req.sessionID,
+    });
+
+    if (!req.session?.adminId) {
+      console.log("Unauthorized access attempt to admin listing");
+      return res.sendStatus(401);
+    }
+
+    try {
+      const listingId = parseInt(req.params.id);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID" });
+      }
+
+      console.log("Fetching admin listing details for ID:", listingId);
+
+      // Get the listing with user and category information
+      const listing = await db.query.listings.findFirst({
+        where: eq(schema.listings.id, listingId),
+        with: {
+          user: true,
+          category: true,
+        },
+      });
+
+      if (!listing) {
+        console.log("Listing not found:", listingId);
+        return res.status(404).json({ error: "İlan bulunamadı" });
+      }
+
+      // Convert the images to full URLs if they exist
+      if (listing.images) {
+        listing.images = getImagesUrls(listing.images);
+      }
+
+      console.log("Successfully retrieved listing:", listing.id);
+      res.json({ listing });
+    } catch (error) {
+      console.error("Error fetching listing:", error);
+      res.status(500).json({ error: "İlan yüklenirken bir hata oluştu" });
+    }
+  });
+
+  // Add this endpoint after the existing admin listing endpoints
+  app.put("/api/listings/:id/activate", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const listingId = parseInt(req.params.id);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID" });
+      }
+
+      await storage.activateListing(listingId, req.user!.id);
+      res.json({ success: true, message: "İlan aktif hale getirildi" });
+    } catch (error) {
+      console.error("İlan aktifleştirme hatası:", error);
+      res.status(500).json({
+        error:
+          error instanceof Error ? error.message : "İlan aktifleştirilemedi",
+      });
+    }
+  });
+
+  // Add this endpoint after the existing admin listing endpoints
+  app.put("/api/listings/:id/deactivate", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const listingId = parseInt(req.params.id);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID" });
+      }
+
+      await storage.deactivateListing(listingId, req.user!.id);
+      res.json({ success: true, message: "İlan pasif hale getirildi" });
+    } catch (error) {
+      console.error("İlan pasifleştirme hatası:", error);
+      res.status(500).json({
+        error:
+          error instanceof Error ? error.message : "İlan pasifleştirilemedi",
+      });
+    }
+  });
+
+  // Add new route handler for message files
+  app.get("/api/messages/conversation/:id/files", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const conversationId = parseInt(req.params.id);
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Geçersiz konuşma ID" });
+      }
+
+      // Get all messages with files for the conversation
+      const messages = await db
+        .select({
+          id: schema.messages.id,
+          files: schema.messages.files,
+          createdAt: schema.messages.createdAt,
+        })
+        .from(schema.messages)
+        .where(
+          and(
+            eq(schema.messages.conversationId, conversationId),
+            sql`${schema.messages.files} IS NOT NULL AND array_length(${schema.messages.files}, 1) > 0`,
+          ),
+        )
+        .orderBy(desc(schema.messages.createdAt));
+
+      // Transform messages to include only file information
+      const files = messages.reduce((acc: any[], message) => {
+        if (message.files && message.files.length > 0) {
+          const messageFiles = message.files.map((file: string) => ({
+            messageId: message.id,
+            fileKey: file,
+            createdAt: message.createdAt,
+          }));
+          return [...acc, ...messageFiles];
+        }
+        return acc;
+      }, []);
+
+      res.json(files);
+    } catch (error) {
+      console.error("Error fetching message files:", error);
+      res.status(500).json({ error: "Dosyalar yüklenirken bir hata oluştu" });
+    }
+  });
+
+  // Add markAsRead endpoint to handle message read status
+  app.post("/api/conversations/:id/mark-read", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const conversationId = parseInt(req.params.id);
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Geçersiz konuşma ID" });
+      }
+
+      // Verify the user is part of this conversation
+      const conversation = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId))
+        .limit(1);
+
+      if (!conversation.length) {
+        return res.status(404).json({ error: "Konuşma bulunamadı" });
+      }
+
+      if (
+        conversation[0].senderId !== req.user!.id &&
+        conversation[0].receiverId !== req.user!.id
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Bu konuşmaya erişim izniniz yok" });
+      }
+
+      await storage.markMessagesAsRead(conversationId, req.user!.id);
+      res.sendStatus(200);
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+      res.status(500).json({ error: "Mesajlar okundu olarak işaretlenemedi" });
+    }
+  });
+
+  // Kullanıcı bilgilerini getir
+  app.get("/api/users/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: "Geçersiz kullanıcı ID" });
+      }
+
+      const [user] = await db
+        .select({
+          id: schema.users.id,
+          lastSeen: schema.users.lastSeen,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.id, userId));
+
+      if (!user) {
+        return res.status(404).json({ error: "Kullanıcı bulunamadı" });
+      }
+
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ error: "Kullanıcı bilgileri alınamadı" });
+    }
+  });
+
+  app.get("/api/conversations/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const conversationId = parseInt(req.params.id);
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Geçersiz konuşma ID" });
+      }
+
+      const [conversation] = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId));
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Konuşma bulunamadı" });
+      }
+
+      // Kullanıcının bu konuşmaya erişim yetkisi var mı kontrol et
+      if (
+        conversation.senderId !== req.user!.id &&
+        conversation.receiverId !== req.user!.id
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Bu konuşmaya erişim izniniz yok" });
+      }
+
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error fetching conversation:", error);
+      res.status(500).json({ error: "Konuşma bilgileri alınamadı" });
+    }
+  });
+
+  // Email doğrulama endpoint'i
+  app.get("/api/verify-email", async (req, res) => {
+    try {
+      const token = req.query.token as string;
+      console.log("Email verification attempt with token:", token);
+
+      if (!token) {
+        console.log("Verification failed: Missing token");
+        return res.status(400).json({ error: "Doğrulama token'ı eksik" });
+      }
+
+      // Get user by verification token
+      const user = await storage.getUserByVerificationToken(token);
+      console.log(
+        "Found user for verification:",
+        user ? `Yes - ${user.email}` : "No",
+      );
+
+      if (!user) {
+        console.log("Verification failed: Invalid or used token");
+        return res
+          .status(400)
+          .json({ error: "Geçersiz veya kullanılmış doğrulama token'ı" });
+      }
+
+      // Check if user is already verified
+      if (user.emailVerified) {
+        console.log("User already verified:", user.email);
+        return res
+          .status(400)
+          .json({ error: "Email adresi zaten doğrulanmış" });
+      }
+
+      // Check if the token has expired (24 hours)
+      if (isTokenExpired(user.createdAt)) {
+        console.log("Verification failed: Token expired");
+        return res.status(400).json({
+          error:
+            "Doğrulama token'ının süresi dolmuş. Lütfen yeni bir doğrulama maili talep edin.",
+        });
+      }
+
+      try {
+        await storage.verifyUser(user.id);
+        console.log("User email verified successfully:", user.email);
+
+        // Clear verification token after successful verification
+        await storage.clearVerificationToken(user.id);
+
+        // Başarılı yanıt gönder - artık giriş bilgilerini içermeyecek
+        res.json({
+          message: "Email adresiniz başarıyla doğrulandı. Lütfen giriş yapın.",
+          redirectTo: "/auth",
+        });
+      } catch (verifyError) {
+        console.error("Error during user verification:", verifyError);
+        res
+          .status(500)
+          .json({ error: "Kullanıcı doğrulama işlemi başarısız oldu" });
+      }
+    } catch (error) {
+      console.error("Email doğrulama hatası:", error);
+      res
+        .status(500)
+        .json({ error: "Email doğrulama sırasında bir hata oluştu" });
+    }
+  });
+
+  app.post("/api/register", async (req, res) => {
+    const { username, email, password } = req.body;
+
+    try {
+      // Check if username exists
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({
+          field: "username",
+          message: "Bu kullanıcı adı zaten kullanılıyor",
+        });
+      }
+
+      // Check if email exists
+      const existingEmail = await storage.getUserByEmail(email);
+      if (existingEmail) {
+        return res.status(400).json({
+          field: "email",
+          message: "Bu email adresi zaten kullanılıyor",
+        });
+      }
+
+      console.log("Registration attempt with email:", email);
+      const verificationToken = randomBytes(32).toString("hex");
+      console.log("Generating verification token for:", email);
+
+      const hashedPassword = await hashPassword(password);
+      console.log("Creating user in database:", { username, email });
+
+      const user = await storage.createUser({
+        username,
+        email,
+        password: hashedPassword,
+        verificationToken,
+        emailVerified: false,
+      });
+
+      // Prepare and send verification email
+      console.log("Preparing verification email for:", email);
+      const emailParams = generateVerificationEmail(email, verificationToken);
+      console.log("Sending verification email with params:", {
+        to: emailParams.to,
+        subject: emailParams.subject,
+        hasText: !!emailParams.text,
+        hasHtml: !!emailParams.html,
+      });
+
+      const emailSent = await sendEmail(emailParams);
+      if (emailSent) {
+        console.log("Verification email sent successfully to:", email);
+        // Do not log in the user automatically
+        res.status(201).json({
+          message:
+            "Registration successful. Please check your email to verify your account.",
+        });
+      } else {
+        console.error("Failed to send verification email to:", email);
+        // Delete the created user if email fails
+        await storage.deleteUser(user.id);
+        return res
+          .status(500)
+          .json({ error: "Failed to send verification email" });
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      res.status(500).json({ error: "Registration failed" });
+    }
+  });
+
+  app.put("/api/admin/listings/:id/reject", async (req, res) => {
+    if (!req.session?.adminId) return res.sendStatus(401);
+    try {
+      const listingId = parseInt(req.params.id);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID" });
+      }
+
+      const result = await db
+        .update(schema.listings)
+        .set({ active: false, approved: false })
+        .where(eq(schema.listings.id, listingId))
+        .returning();
+
+      if (!result.length) {
+        return res.status(404).json({ error: "İlan bulunamadı" });
+      }
+
+      console.log("Listing rejected:", result[0]);
+      res.json({ success: true, listing: result[0] });
+    } catch (error) {
+      console.error("Error rejecting listing:", error);
+      res.status(500).json({ error: "İlan reddedilemedi" });
+    }
+  });
+
+  // Favori işlemleri için yeni endpoint'ler
+  app.post("/api/favorites", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { listingId } = req.body;
+      if (!listingId) {
+        return res.status(400).json({ error: "Listing ID gerekli" });
+      }
+
+      const favorite = await storage.addToFavorites(req.user!.id, listingId);
+      res.status(201).json(favorite);
+    } catch (error) {
+      console.error("Error adding favorite:", error);
+      res.status(500).json({ error: "Favorilere eklenemedi" });
+    }
+  });
+
+  app.delete("/api/favorites/:listingId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const listingId = parseInt(req.params.listingId);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz listing ID" });
+      }
+
+      await storage.removeFromFavorites(req.user!.id, listingId);
+      res.sendStatus(200);
+    } catch (error) {
+      console.error("Error removing favorite:", error);
+      res.status(500).json({ error: "Favorilerden çıkarılamadı" });
+    }
+  });
+
+  app.get("/api/favorites/check/:listingId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const listingId = parseInt(req.params.listingId);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz listing ID" });
+      }
+
+      const isFavorite = await storage.isFavorite(req.user!.id, listingId);
+      res.json({ isFavorite });
+    } catch (error) {
+      console.error("Error checking favorite status:", error);
+      res.status(500).json({ error: "Favori durumu kontrol edilemedi" });
+    }
+  });
+
+  // Add this endpoint after the existing favorites endpoints
+  app.get("/api/favorites", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const favorites = await db
+        .select({
+          listing: schema.listings,
+          category: schema.categories,
+        })
+        .from(schema.favorites)
+        .innerJoin(
+          schema.listings,
+          eq(schema.favorites.listingId, schema.listings.id),
+        )
+        .leftJoin(
+          schema.categories,
+          eq(schema.listings.categoryId, schema.categories.id),
+        )
+        .where(eq(schema.favorites.userId, req.user!.id));
+
+      const listings = favorites.map((f) => ({
+        ...f.listing,
+        category: f.category,
+      }));
+
+      res.json(listings);
+    } catch (error) {
+      console.error("Error fetching favorites:", error);
+      res.status(500).json({ error: "Favoriler yüklenemedi" });
+    }
+  });
+
+  app.post(
+    "/api/user/profile-image",
+    upload.single("image"),
+    async (req, res) => {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      try {
+        if (!req.file) {
+          return res.status(400).json({ error: "Resim yüklenemedi" });
+        }
+
+        // Upload the image using imageService
+        const imageUrl = await imageService.uploadSingleImage(req.file);
+
+        // Update user's profile image in database
+        await db
+          .update(schema.users)
+          .set({ profileImage: imageUrl })
+          .where(eq(schema.users.id, req.user!.id));
+
+        res.json({ imageUrl });
+      } catch (error) {
+        console.error("Error uploading profile image:", error);
+        res.status(500).json({ error: "Profil resmi yüklenemedi" });
+      }
+    },
+  );
+
+  // Delete entire conversation endpoint
+  app.delete("/api/conversations/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const conversationId = parseInt(req.params.id);
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Geçersiz konuşma ID" });
+      }
+
+      // Verify user has access to this conversation
+      const [conversation] = await db
+        .select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId));
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Konuşma bulunamadı" });
+      }
+
+      if (
+        conversation.senderId !== req.user!.id &&
+        conversation.receiverId !== req.user!.id
+      ) {
+        return res
+          .status(403)
+          .json({ error: "Bu konuşmayı silme yetkiniz yok" });
+      }
+
+      // Delete all messages in the conversation
+      await db
+        .delete(schema.messages)
+        .where(eq(schema.messages.conversationId, conversationId));
+
+      // Delete the conversation itself
+      await db
+        .delete(schema.conversations)
+        .where(eq(schema.conversations.id, conversationId));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      res.status(500).json({ error: "Konuşma silinemedi" });
+    }
+  });
+
+  // İlanı aktif etme endpoint'i
+  app.put("/api/admin/listings/:id/activate", async (req, res) => {
+    if (!req.session?.adminId) return res.sendStatus(401);
+    try {
+      const listingId = parseInt(req.params.id);
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Geçersiz ilan ID" });
+      }
+
+      const result = await db
+        .update(schema.listings)
+        .set({
+          active: true,
+          approved: true, // İlan aktif edilirken aynı zamanda onaylanmalı
+        })
+        .where(eq(schema.listings.id, listingId))
+        .returning();
+
+      if (!result.length) {
+        return res.status(404).json({ error: "İlan bulunamadı" });
+      }
+
+      console.log("Listing activated:", result[0]);
+      res.json({ success: true, listing: result[0] });
+    } catch (error) {
+      console.error("Error activating listing:", error);
+      res.status(500).json({ error: "İlan aktif edilemedi" });
+    }
+  });
+  // Admin routes içine eklenecek yeni endpoint'ler
+  app.get("/api/admin/users", async (req, res) => {
+    if (!req.session?.adminId) return res.sendStatus(401);
+    try {
+      // Filtre parametrelerini al
+      const { gender, usedAd, status, yuksekUye } = req.query;
+
+      // Temel sorgu oluştur
+      let query = db.select().from(schema.users);
+
+      // Filtreleri uygula
+      if (gender && gender !== "all") {
+        query = query.where(eq(schema.users.gender, gender as string));
+      }
+      if (usedAd && usedAd !== "all") {
+        query = query.where(
+          eq(schema.users.used_free_ad, usedAd === "yes" ? 1 : 0),
+        );
+      }
+      if (status && status !== "all") {
+        query = query.where(eq(schema.users.status, status as string));
+      }
+      if (yuksekUye && yuksekUye !== "all") {
+        query = query.where(eq(schema.users.yuksekUye, yuksekUye === "yes"));
+      }
+
+      const users = await query;
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Kullanıcılar yüklenemedi" });
+    }
+  });
+
+  // Kullanıcı durumunu güncelleme endpoint'i (ban/unban)
+  app.patch("/api/admin/users/:id/status", async (req, res) => {
+    if (!req.session?.adminId) return res.sendStatus(401);
+    try {
+      const userId = parseInt(req.params.id);
+      const { status } = req.body;
+
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: "Geçersiz kullanıcı ID" });
+      }
+
+      const [updatedUser] = await db
+        .update(schema.users)
+        .set({ status })
+        .where(eq(schema.users.id, userId))
+        .returning();
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: "Kullanıcı bulunamadı" });
+      }
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      res.status(500).json({ error: "Kullanıcı durumu güncellenemedi" });
+    }
+  });
+
+  // Kullanıcı silme endpoint'i
+  app.delete("/api/admin/users/:id", async (req, res) => {
+    if (!req.session?.adminId) return res.sendStatus(401);
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: "Geçersiz kullanıcı ID" });
+      }
+
+      await storage.deleteUser(userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ error: "Kullanıcı silinemedi" });
+    }
+  });
+
+  // Mesaj silme endpoint'ini güncelle
+  app.delete("/api/messages/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const messageId = parseInt(req.params.id);
+      if (isNaN(messageId)) {
+        return res.status(400).json({ error: "Geçersiz mesaj ID" });
+      }
+
+      // Önce mesajı getir
+      const [message] = await db
+        .select()
+        .from(schema.messages)
+        .where(
+          and(
+            eq(schema.messages.id, messageId),
+            eq(schema.messages.senderId, req.user!.id),
+          ),
+        );
+
+      if (!message) {
+        return res
+          .status(404)
+          .json({ error: "Mesaj bulunamadı veya silme yetkiniz yok" });
+      }
+
+      // Eğer mesajda dosyalar varsa, önce onları sil
+      if (message.files && message.files.length > 0) {
+        try {
+          for (const fileKey of message.files) {
+            await deleteMessageFile(fileKey);
+          }
+        } catch (error) {
+          console.error("Error deleting message files:", error);
+          // Dosya silme hatası olsa bile mesaj silinmeye devam edecek
+        }
+      }
+
+      // Mesajı sil
+      const deleteEvent = await storage.deleteMessage(messageId, req.user!.id);
+      res.json(deleteEvent);
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      res.status(500).json({ error: "Mesaj silinemedi" });
+    }
+  });
+
+  // PayTR ödeme başlatma endpoint'i
+  app.post("/api/payments/create", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const { listingId, amount } = req.body;
+
+      // Ödeme için benzersiz bir ID oluştur
+      const merchant_oid = `${Date.now()}_${listingId}_${req.user!.id}`;
+
+      // PayTR için zorunlu parametreler
+      const merchant = {
+        merchant_id: process.env.PAYTR_MERCHANT_ID!,
+        merchant_key: process.env.PAYTR_MERCHANT_KEY!,
+        merchant_salt: process.env.PAYTR_MERCHANT_SALT!,
+        email: req.user!.email,
+        payment_amount: amount, // Kuruş cinsinden (ör: 49900 = 499.00 TL)
+        merchant_oid: merchant_oid,
+        user_name: req.user!.username,
+        user_address: "Türkiye",
+        user_phone: req.user!.phone || "",
+        merchant_ok_url: `${process.env.APP_URL}/api/payments/success`,
+        merchant_fail_url: `${process.env.APP_URL}/api/payments/fail`,
+        user_basket: JSON.stringify([["Öncelikli İlan", amount, 1]]),
+        user_ip: req.ip,
+        timeout_limit: "30",
+        debug_on: process.env.NODE_ENV === "development" ? "1" : "0",
+        test_mode: process.env.NODE_ENV === "development" ? "1" : "0",
+        no_installment: "0",
+        max_installment: "0",
+        currency: "TL",
+      };
+
+      // Hash oluşturma
+      const hashStr = `${merchant.merchant_id}${merchant.user_ip}${merchant.merchant_oid}${merchant.email}${merchant.payment_amount}${merchant.user_basket}${merchant.no_installment}${merchant.max_installment}${merchant.currency}${merchant.test_mode}`;
+      const paytr_token = crypto
+        .createHmac("sha256", merchant.merchant_salt)
+        .update(hashStr + merchant.merchant_key)
+        .digest("base64");
+
+      // Ödeme kaydını oluştur
+      await db
+        .update(schema.listings)
+        .set({
+          paymentStatus: "pending",
+          active: false, // Ödeme tamamlanana kadar ilanı aktif etme
+        })
+        .where(eq(schema.listings.id, parseInt(listingId)));
+
+      // Token'ı döndür
+      res.json({
+        token: paytr_token,
+        merchant_oid: merchant_oid,
+      });
+    } catch (error) {
+      console.error("Ödeme başlatma hatası:", error);
+      res.status(500).json({ error: "Ödeme başlatılamadı" });
+    }
+  });
+
+  // PayTR ödeme başarılı callback endpoint'i
+  app.post("/api/payments/success", async (req, res) => {
+    const { merchant_oid } = req.body;
+
+    try {
+      // merchant_oid'den listing ID'yi çıkar
+      const [_, listingId] = merchant_oid.split("_");
+
+      if (!listingId) {
+        throw new Error("Geçersiz merchant_oid");
+      }
+
+      // İlanı aktifleştir ve ödeme durumunu güncelle
+      await db
+        .update(schema.listings)
+        .set({
+          paymentStatus: "completed",
+          active: true, // Ödeme tamamlandığında ilanı aktif et
+          approved: true, // Ödeme tamamlandığında ilanı onayla
+        })
+        .where(eq(schema.listings.id, parseInt(listingId)));
+
+      // Kullanıcıyı başarılı sayfasına yönlendir
+      res.redirect("/dashboard?payment=success");
+    } catch (error) {
+      console.error("Ödeme başarılı callback hatası:", error);
+      res.redirect("/payment?error=callback");
+    }
+  });
+
+  // PayTR ödeme başarısız callback endpoint'i
+  app.post("/api/payments/fail", async (req, res) => {
+    const { merchant_oid } = req.body;
+
+    try {
+      // merchant_oid'den listing ID'yi çıkar
+      const [_, listingId] = merchant_oid.split("_");
+
+      if (!listingId) {
+        throw new Error("Geçersiz merchant_oid");
+      }
+
+      // Ödeme durumunu güncelle
+      await db
+        .update(schema.listings)
+        .set({
+          paymentStatus: "failed",
+          active: false, // Başarısız ödemede ilanı aktif etme
+        })
+        .where(eq(schema.listings.id, parseInt(listingId)));
+
+      // Kullanıcıyı hata sayfasına yönlendir
+      res.redirect("/payment?error=failed");
+    } catch (error) {
+      console.error("Ödeme başarısız callback hatası:", error);
+      res.redirect("/payment?error=callback");
+    }
+  });
+
+  // PayTR ödeme durumu kontrol endpoint'i
+  app.get("/api/payments/status/:listingId", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const listingId = parseInt(req.params.listingId);
+
+      // İlanın ödeme durumunu kontrol et
+      const [listing] = await db
+        .select({
+          paymentStatus: schema.listings.paymentStatus,
+          active: schema.listings.active,
+        })
+        .from(schema.listings)
+        .where(
+          and(
+            eq(schema.listings.id, listingId),
+            eq(schema.listings.userId, req.user!.id),
+          ),
+        );
+
+      if (!listing) {
+        return res.status(404).json({ error: "İlan bulunamadı" });
+      }
+
+      res.json({
+        status: listing.paymentStatus,
+        active: listing.active,
+      });
+    } catch (error) {
+      console.error("Ödeme durumu kontrol hatası:", error);
+      res.status(500).json({ error: "Ödeme durumu kontrol edilemedi" });
+    }
+  });
+
+  // Kategori oluşturma endpoint'i
+  app.post("/api/admin/categories", async (req, res) => {
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+    try {
+      const { name, parentId, slug } = req.body;
+
+      // Kategori adı kontrolü
+      if (!name || name.trim().length === 0) {
+        return res.status(400).json({ error: "Kategori adı gerekli" });
+      }
+
+      // Slug kontrolü ve oluşturma
+      let finalSlug = slug;
+      if (!finalSlug) {
+        finalSlug = name
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "");
+      }
+
+      // Slug benzersizlik kontrolü
+      const existingCategory = await db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.slug, finalSlug))
+        .limit(1);
+
+      if (existingCategory.length > 0) {
+        return res.status(400).json({ error: "Bu slug zaten kullanılıyor" });
+      }
+
+      // Yeni kategoriyi oluştur
+      const [newCategory] = await db
+        .insert(schema.categories)
+        .values({
+          name: name.trim(),
+          parentId: parentId || null,
+          slug: finalSlug,
+          order: 0,
+        })
+        .returning();
+
+      res.status(201).json(newCategory);
+    } catch (error) {
+      console.error("Kategori oluşturma hatası:", error);
+      res.status(500).json({ error: "Kategori oluşturulamadı" });
+    }
+  });
+
+  // Kategori silme endpoint'i
+  app.delete("/api/admin/categories/:id", async (req, res) => {
+    if (!req.session?.adminId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const categoryId = parseInt(req.params.id);
+      if (isNaN(categoryId)) {
+        return res.status(400).json({ error: "Geçersiz kategori ID" });
+      }
+
+      // Önce alt kategorileri kontrol et
+      const subCategories = await db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.parentId, categoryId));
+
+      if (subCategories.length > 0) {
+        return res.status(400).json({
+          error: "Bu kategori silinemez çünkü alt kategorileri var",
+        });
+      }
+
+      // Kategoriye ait ilanları kontrol et
+      const listingCount = await storage.getCategoryListingCount(categoryId);
+      if (listingCount > 0) {
+        return res.status(400).json({
+          error: "Bu kategori silinemez çünkü içinde ilanlar var",
+        });
+      }
+
+      // Tüm kontroller başarılı, kategoriyi sil
+      await storage.deleteCategory(categoryId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Kategori silme hatası:", error);
+      res.status(500).json({ error: "Kategori silinemedi" });
+    }
+  });
+
+  return httpServer;
+}
+
+const turkishCities = [
+  "Adana",
+  "Adıyaman",
+  "Afyonkarahisar",
+  "Ağrı",
+  "Amasya",
+  "Ankara",
+  "Antalya",
+  "Artvin",
+  "Aydın",
+  "Balıkesir",
+  "Bilecik",
+  "Bingöl",
+  "Bitlis",
+  "Bolu",
+  "Burdur",
+  "Bursa",
+  "Çanakkale",
+  "Çankırı",
+  "Çorum",
+  "Denizli",
+  "Diyarbakır",
+  "Edirne",
+  "Elazığ",
+  "Erzincan",
+  "Erzurum",
+  "Eskişehir",
+  "Gaziantep",
+  "Giresun",
+  "Gümüşhane",
+  "Hakkari",
+  "Hatay",
+  "Isparta",
+  "İçel (Mersin)",
+  "İstanbul",
+  "İzmir",
+  "Kars",
+  "Kastamonu",
+  "Kayseri",
+  "Kırklareli",
+  "Kırşehir",
+  "Kocaeli",
+  "Konya",
+  "Kütahya",
+  "Malatya",
+  "Manisa",
+  "Kahramanmaraş",
+  "Mardin",
+  "Muğla",
+  "Muş",
+  "Nevşehir",
+  "Niğde",
+  "Ordu",
+  "Rize",
+  "Sakarya",
+  "Samsun",
+  "Siirt",
+  "Sinop",
+  "Sivas",
+  "Tekirdağ",
+  "Tokat",
+  "Trabzon",
+  "Tunceli",
+  "Şanlıurfa",
+  "Uşak",
+  "Van",
+  "Yozgat",
+  "Zonguldak",
+  "Aksaray",
+  "Bayburt",
+  "Karaman",
+  "Kırıkkale",
+  "Batman",
+  "Şırnak",
+  "Bartın",
+  "Ardahan",
+  "Iğdır",
+  "Yalova",
+  "Karabük",
+  "Kilis",
+  "Osmaniye",
+  "Düzce",
+];
