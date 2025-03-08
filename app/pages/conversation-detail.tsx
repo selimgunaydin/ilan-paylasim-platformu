@@ -21,10 +21,14 @@ import { getProfileImageUrl } from "@/lib/avatar";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
 import {
-  CheckCheck,
-  Check,
-  ExternalLink,
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  MessageSquare,
+  ExternalLink,
+  Trash2,
+  Check,
+  CheckCheck,
   FileText,
   Image,
   File,
@@ -32,12 +36,11 @@ import {
   Video,
   Archive,
   Files,
-  Trash2,
   Info,
   X,
   Maximize2,
-  ChevronLeft,
-  ChevronRight,
+  ChevronDown,
+  Download,
 } from "lucide-react";
 
 // Dosya tipine göre ikon döndüren yardımcı fonksiyon
@@ -171,72 +174,95 @@ type Conversation = {
 
 // Mesaj içeriği bileşeni
 const MessageContent = ({ message, isOwnMessage }: { message: Message; isOwnMessage: boolean }) => {
-  const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
+  // Mesaj içeriğini URL'leri bağlantıya dönüştürerek göster
+  const renderMessageContent = () => {
+    // URL regex
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    
+    // Mesaj içeriğini parçalara ayır
+    const parts = message.content.split(urlRegex);
+    
+    // URL'leri bul
+    const urls = message.content.match(urlRegex) || [];
+    
+    // Parçaları ve URL'leri birleştir
+    const result = [];
+    for (let i = 0; i < parts.length; i++) {
+      if (parts[i]) {
+        // Normal metin
+        result.push(<span key={`text-${i}`}>{parts[i]}</span>);
+      }
+      
+      // URL varsa ekle
+      if (urls[i - 1]) {
+        result.push(
+          <a 
+            key={`url-${i-1}`} 
+            href={urls[i - 1]} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className={`underline ${isOwnMessage ? 'text-blue-200' : 'text-blue-500'}`}
+          >
+            {urls[i - 1]}
+          </a>
+        );
+      }
+    }
+    
+    return result;
+  };
 
   return (
-    <div className="space-y-2">
-      {message.content && (
-        <div className="flex items-end gap-2">
-          <p className="break-all break-words whitespace-pre-wrap overflow-wrap-anywhere">
-            {message.content}
-          </p>
-          {isOwnMessage && (
-            <span className="text-xs text-muted-foreground">
-              {message.isRead ? (
-                <CheckCheck className="h-4 w-4" />
-              ) : (
-                <Check className="h-4 w-4" />
-              )}
-            </span>
-          )}
-        </div>
-      )}
+    <div className="break-words">
+      <div className="whitespace-pre-wrap">{renderMessageContent()}</div>
+      
+      {/* Dosya ekleri */}
       {message.files && message.files.length > 0 && (
-        <div className="mt-2 space-y-2 bg-black/10 p-2 rounded-md">
+        <div className="mt-2 space-y-2">
           {message.files.map((file, index) => {
-            const fileName = file.split("/").pop() || file;
-            const fileUrl = `https://message-images.ilandaddy.com/${file}`;
-            const fileType = getFileType(fileName);
-
+            const fileType = getFileType(file);
+            const fileName = file.split("/").pop() || "dosya";
+            
             return (
-              <div key={index} className="space-y-2">
+              <div key={index} className="rounded-md overflow-hidden border bg-background/80">
                 {fileType === "image" ? (
-                  // Resim görüntüleyici
-                  <div className="cursor-pointer" onClick={() => setSelectedImage(fileUrl)}>
+                  <div className="relative group">
                     <img
-                      src={fileUrl}
+                      src={file}
                       alt={fileName}
-                      className="max-w-full h-auto rounded-lg hover:opacity-90 transition-opacity"
+                      className="max-h-48 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => window.open(file, "_blank")}
                     />
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="secondary" size="sm" onClick={() => window.open(file, "_blank")}>
+                        <Maximize2 className="h-4 w-4 mr-1" /> Görüntüle
+                      </Button>
+                    </div>
                   </div>
                 ) : fileType === "video" || fileType === "audio" ? (
-                  // Video veya ses oynatıcı
-                  <MediaPlayer src={fileUrl} type={fileType} fileName={fileName} />
+                  <MediaPlayer src={file} type={fileType} fileName={fileName} />
                 ) : (
-                  // Diğer dosya türleri için link
-                  <div className="flex items-center gap-2">
+                  <div className="p-3 flex items-center gap-2">
                     {getFileIcon(fileName)}
                     <a
-                      href={fileUrl}
+                      href={file}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`text-sm hover:underline ${
-                        isOwnMessage
-                          ? "text-primary-foreground/90 hover:text-primary-foreground"
-                          : "text-foreground/90 hover:text-foreground"
-                      }`}
+                      className="text-sm text-primary hover:underline flex-1 truncate"
                     >
                       {fileName}
                     </a>
+                    <Button variant="ghost" size="sm" asChild>
+                      <a href={file} download={fileName}>
+                        <Download className="h-4 w-4" />
+                      </a>
+                    </Button>
                   </div>
                 )}
               </div>
             );
           })}
         </div>
-      )}
-      {selectedImage && (
-        <ImageViewer src={selectedImage} onClose={() => setSelectedImage(null)} />
       )}
     </div>
   );
@@ -253,6 +279,7 @@ export default function ConversationDetail() {
   const socket = useWebSocket();
   const endRef = React.useRef<HTMLDivElement>(null);
   const { scrollToBottom } = useAutoScroll(endRef);
+  const messagesContainerRef = React.useRef<HTMLDivElement>(null);
 
   // Konuşma detaylarını getir
   const { data: conversation } = useQuery<Conversation>({
@@ -332,7 +359,11 @@ export default function ConversationDetail() {
 
   // Mesajlar değiştiğinde local state'i güncelle
   React.useEffect(() => {
-    setLocalMessages(messages);
+    // Mesajları tarih sırasına göre sırala (eskiden yeniye)
+    const sortedMessages = [...messages].sort((a, b) => 
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+    setLocalMessages(sortedMessages);
   }, [messages]);
 
   // WebSocket event handler
@@ -350,6 +381,7 @@ export default function ConversationDetail() {
         setLocalMessages((prevMessages) => {
           const messageExists = prevMessages.some((msg: Message) => msg.id === newMessage.id);
           if (messageExists) return prevMessages;
+          // Yeni mesajı sona ekle (kronolojik sıra)
           return [...prevMessages, newMessage];
         });
 
@@ -429,10 +461,41 @@ export default function ConversationDetail() {
     };
   }, [id, queryClient, user?.id, markConversationAsReadMutation, scrollToBottom, socket, refetchMessages]);
 
-  // Scroll to bottom when messages change
+  // Mesajlar yüklendiğinde otomatik scroll
   React.useEffect(() => {
-    scrollToBottom();
+    if (localMessages?.length > 0) {
+      scrollToBottom();
+    }
   }, [localMessages, scrollToBottom]);
+
+  // Scroll pozisyonunu kaydet
+  const [scrollPosition, setScrollPosition] = React.useState(0);
+  const [isScrolledToBottom, setIsScrolledToBottom] = React.useState(true);
+
+  // Scroll olayını dinle
+  React.useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      setScrollPosition(scrollTop);
+      
+      // En alta yakın mı kontrol et (20px tolerans)
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 20;
+      setIsScrolledToBottom(isAtBottom);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Yeni mesaj geldiğinde, eğer kullanıcı zaten en alttaysa otomatik scroll yap
+  React.useEffect(() => {
+    if (isScrolledToBottom) {
+      scrollToBottom();
+    }
+  }, [localMessages?.length, isScrolledToBottom, scrollToBottom]);
 
   // İlan detaylarını getir
   const { data: listing } = useQuery<Listing>({
@@ -578,92 +641,126 @@ export default function ConversationDetail() {
         )}
         <CardContent className="p-4 flex-1 flex flex-col">
           {/* Mesaj listesi alanı */}
-          <div className="space-y-4 flex-1 overflow-y-auto mb-20 md:mb-6">
-            {localMessages?.map((message) => (
-              <div
-                key={message.id}
-                className={`flex items-start gap-2 ${
-                  message.senderId === user?.id
-                    ? "flex-row-reverse"
-                    : "flex-row"
-                }`}
-              >
-                {/* Profil fotoğrafı ve kullanıcı adı */}
-                <div className="flex flex-col items-center gap-1">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage
-                      src={getProfileImageUrl(
-                        message.senderId === user?.id
-                          ? user.profileImage
-                          : otherUser?.profileImage,
-                        message.senderId === user?.id
-                          ? user.gender
-                          : otherUser?.gender || "unspecified",
-                        message.senderId === user?.id
-                          ? user.avatar
-                          : otherUser?.avatar,
-                      )}
-                      alt="Profil"
-                    />
-                    <AvatarFallback>
-                      {message.senderId === user?.id
-                        ? user.username?.charAt(0).toUpperCase()
-                        : otherUser?.username?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-xs text-muted-foreground">
-                    {message.senderId === user?.id
-                      ? user.username
-                      : otherUser?.username}
-                  </span>
-                </div>
-
-                {/* Mesaj baloncuğu */}
-                <div
-                  className={`max-w-[70%] rounded-lg p-3 ${
-                    message.senderId === user?.id
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
-                  }`}
-                >
-                  <div className="flex justify-between items-start gap-4">
-                    <MessageContent
-                      message={message}
-                      isOwnMessage={message.senderId === user?.id}
-                    />
-                    {/* Silme butonu */}
-                    {message.senderId === user?.id && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="opacity-70 hover:opacity-100 duration-200 text-gray-100 hover:text-red-400 -mt-1 -mr-2 p-1 rounded-full hover:bg-black/10"
-                        onClick={() => handleDeleteMessage(message.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                  <div
-                    className={`text-xs mt-2 ${
-                      message.senderId === user?.id
-                        ? "text-primary-foreground/80"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {new Date(message.createdAt).toLocaleString("tr-TR")}
-                  </div>
+          <div 
+            ref={messagesContainerRef}
+            className="space-y-4 flex-1 overflow-y-auto mb-20 md:mb-6 px-1 md:px-2 scroll-smooth"
+          >
+            {localMessages?.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center p-6 bg-muted rounded-lg">
+                  <MessageSquare className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-muted-foreground">Henüz mesaj yok. Konuşmayı başlatmak için bir mesaj gönderin.</p>
                 </div>
               </div>
-            ))}
+            ) : (
+              localMessages?.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex items-start gap-2 ${
+                    message.senderId === user?.id
+                      ? "flex-row-reverse"
+                      : "flex-row"
+                  } animate-in fade-in duration-200`}
+                >
+                  {/* Profil fotoğrafı ve kullanıcı adı */}
+                  <div className="flex flex-col items-center gap-1">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage
+                        src={getProfileImageUrl(
+                          message.senderId === user?.id
+                            ? user.profileImage
+                            : otherUser?.profileImage,
+                          message.senderId === user?.id
+                            ? user.gender
+                            : otherUser?.gender || "unspecified",
+                          message.senderId === user?.id
+                            ? user.avatar
+                            : otherUser?.avatar,
+                        )}
+                        alt="Profil"
+                      />
+                      <AvatarFallback>
+                        {message.senderId === user?.id
+                          ? user.username?.charAt(0).toUpperCase()
+                          : otherUser?.username?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-xs text-muted-foreground">
+                      {message.senderId === user?.id
+                        ? user.username
+                        : otherUser?.username}
+                    </span>
+                  </div>
+
+                  {/* Mesaj baloncuğu */}
+                  <div
+                    className={`max-w-[70%] rounded-lg p-3 group hover:shadow-md transition-shadow duration-200 ${
+                      message.senderId === user?.id
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted shadow-sm"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start gap-4">
+                      <MessageContent
+                        message={message}
+                        isOwnMessage={message.senderId === user?.id}
+                      />
+                      {/* Silme butonu */}
+                      {message.senderId === user?.id && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity duration-200 text-gray-100 hover:text-red-400 -mt-1 -mr-2 p-1 rounded-full hover:bg-black/10"
+                          onClick={() => handleDeleteMessage(message.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <div
+                      className={`text-xs mt-2 flex items-center gap-1 ${
+                        message.senderId === user?.id
+                          ? "text-primary-foreground/80"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {new Date(message.createdAt).toLocaleString("tr-TR")}
+                      {message.senderId === user?.id && (
+                        <span className="ml-1">
+                          {message.isRead ? (
+                            <CheckCheck className="h-3 w-3 text-blue-400" />
+                          ) : (
+                            <Check className="h-3 w-3" />
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
             <div ref={endRef} />
           </div>
 
           {/* Mesaj gönderme formu */}
-          <div className="fixed bottom-[52px] md:bottom-0 left-0 right-0 bg-background p-2 md:p-4 border-t md:relative md:bottom-auto md:left-auto md:right-auto md:bg-transparent md:border-0 w-full max-w-full overflow-hidden z-10">
+          <div className="fixed bottom-[52px] md:bottom-0 left-0 right-0 bg-background p-2 md:p-4 border-t md:relative md:bottom-auto md:left-auto md:right-auto md:bg-transparent md:border-0 w-full max-w-full overflow-hidden z-10 shadow-md md:shadow-none">
             <div className="max-w-screen-lg mx-auto">
+              {!isScrolledToBottom && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="absolute bottom-[80px] right-4 rounded-full p-2 shadow-md bg-background z-20"
+                  onClick={scrollToBottom}
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              )}
               <MessageForm
                 conversationId={parseInt(id)}
-                onSuccess={refetchMessages}
+                onSuccess={() => {
+                  refetchMessages();
+                  scrollToBottom();
+                }}
               />
               {/* Gizlilik ve bilgi uyarıları - Sadece PC görünümünde */}
               <p className="hidden md:block text-xs text-muted-foreground mt-4">
