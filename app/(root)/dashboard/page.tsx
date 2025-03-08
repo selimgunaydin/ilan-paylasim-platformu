@@ -1,14 +1,32 @@
-'use client'
-
 import React from 'react'
-import MyListings from '@/pages/my-listings'
 import { redirect } from 'next/navigation'
+import { Listing } from '@shared/schema'
+import MyListings from '@/pages/my-listings'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/api/auth/[...nextauth]/route'
 
-// Not: Bu sayfa için sunucu tarafında auth kontrolü yapmalısınız
-// Bunu middleware kullanarak yapabilirsiniz
-export default function DashboardPage() {
-  // Bu kısım client component içinde kontrol edilmelidir
+async function getListings() {
+  const session = await getServerSession(authOptions)
+
+  if (!session) {
+    redirect('/auth')
+  }
+
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/listings/user`)
+
+  if (!res.ok) {
+    throw new Error('İlanlar getirilemedi')
+  }
+
+  return res.json()
+}
+
+export default async function DashboardPage() {
+  const listings = await getListings()
+
   return (
-    <MyListings />
+    <div className="container mx-auto px-4 py-8">
+      <MyListings initialListings={listings} />
+    </div>
   )
 } 

@@ -1,3 +1,5 @@
+'use client'
+
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -5,8 +7,12 @@ import { Listing } from "@shared/schema";
 import { Card, CardContent } from "@app/components/ui/card";
 import ListingCard from "@app/components/listing-card";
 
+interface MyListingsProps {
+  initialListings: Listing[];
+}
+
 // İlanlarım sayfası - Dashboard'daki İlanlar tab içeriğinin aynısı
-export default function MyListings() {
+export default function MyListings({ initialListings }: MyListingsProps) {
   const router = useRouter();
   const { toast } = useToast();
 
@@ -66,6 +72,7 @@ export default function MyListings() {
         if (!res.ok) throw new Error("Failed to fetch listings");
         return res.json();
       }),
+    initialData: initialListings,
   });
 
   // Her kategori için ilanları filtrele
