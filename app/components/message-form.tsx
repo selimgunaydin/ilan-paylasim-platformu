@@ -3,7 +3,18 @@ import { Button } from "@app/components/ui/button";
 import { Textarea } from "@app/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Paperclip, X, Image as ImageIcon, FileText, Music, Video, Archive, File, Send, Trash2, Mic } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { Paperclip } from "lucide-react";
+import { X } from "lucide-react";
+import { Image as ImageIcon } from "lucide-react";
+import { FileText } from "lucide-react";
+import { Music } from "lucide-react";
+import { Video } from "lucide-react";
+import { Archive } from "lucide-react";
+import { File as FileIcon } from "lucide-react";
+import { Send } from "lucide-react";
+import { Trash2 } from "lucide-react";
+import { Mic } from "lucide-react";
 
 // Check if audio format is supported
 const getSupportedAudioFormat = () => {
@@ -93,7 +104,7 @@ const getFileIcon = (file: File) => {
   if (file.type.includes('pdf') || file.type.includes('document') || file.type.includes('text')) {
     return <FileText className="h-4 w-4" />;
   }
-  return <File className="h-4 w-4" />;
+  return <FileIcon className="h-4 w-4" />;
 };
 
 // Dosya önizleme bileşeni
@@ -221,7 +232,10 @@ export function MessageForm({
             try {
               // iPhone için özel dosya oluşturma yöntemi
               if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                setSelectedFiles(prev => [...prev, audioBlob]);
+                const iPhoneFile = new File([audioBlob], fileName, {
+                  type: mimeType,
+                });
+                setSelectedFiles(prev => [...prev, iPhoneFile]);
               } else {
                 // Diğer cihazlar için normal File oluşturma
                 const file = new File([audioBlob], fileName, {
@@ -394,15 +408,8 @@ export function MessageForm({
 
       // Dosyaları FormData'ya ekle
       selectedFiles.forEach((file, index) => {
-        // Blob kontrolü
-        if (file instanceof Blob) {
-          // iPhone için özel işlem
-          const extension = 'mp4'; // Varsayılan uzantı
-          const fileName = `voice-${Date.now()}-${index}.${extension}`;
-          formData.append('files', new File([file], fileName, { type: 'audio/mp4' }));
-        } else {
-          formData.append('files', file);
-        }
+        // Blob kontrolü artık gerekli değil, çünkü tüm dosyalar File nesnesi
+        formData.append('files', file);
       });
 
       if (conversationId) {
