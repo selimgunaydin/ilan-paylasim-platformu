@@ -223,8 +223,7 @@ export async function POST(request: NextRequest) {
         fileTypes: fileTypes.length > 0 ? fileTypes : undefined
       })
       .returning();
-    
-    // WebSocket bildirimi yorumunu kaldırıyorum
+  
     
     return NextResponse.json(
       { 
