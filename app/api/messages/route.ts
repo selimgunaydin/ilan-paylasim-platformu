@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from '../../../server/db';
+import { db } from '@/lib/db';
 import { eq } from "drizzle-orm";
 import { messages, conversations } from '@shared/schema';
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
-import { storage } from '../../../server/storage';
-import { sanitizeInput } from '../../../server/utils/sanitize';
-import { uploadMessageFile } from '../../../server/services/r2';
-import { WebSocketManager } from '../../../server/websocket';
+import { storage } from '@/lib/storage';
+import { sanitizeInput } from '@/lib/sanitize';
 import { getToken } from "next-auth/jwt";
+import { uploadMessageFile } from "@/lib/r2";
+import { WebSocketManager } from "@/lib/websocket";
 
 declare global {
   var wsManager: WebSocketManager | undefined;

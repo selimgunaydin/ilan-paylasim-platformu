@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { db } from '../../../../../../server/db';
+import { db } from '@/lib/db';
 import { listings } from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import { checkAdminAuth } from '@/utils/check-admin';

@@ -3,13 +3,13 @@ import {
   DeleteObjectCommand,
   DeleteObjectsCommand,
 } from "@aws-sdk/client-s3";
-import { r2Client } from "../utils/cloudflare";
+import { r2Client } from "./cloudflare";
 import { randomBytes } from "crypto";
 import {
   isAllowedFileSize,
   ALLOWED_IMAGE_TYPES,
   FILE_SIZE_LIMITS
-} from "../utils/file-constants";
+} from "./file-constants";
 import multer from "multer";
 import sharp from 'sharp';
 

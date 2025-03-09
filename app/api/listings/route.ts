@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { db } from '../../../server/db'
+import { db } from '@/lib/db';
 import { listings, categories } from '@shared/schema'
 import { eq, and, inArray, or, ilike, sql, SQL } from 'drizzle-orm'
 import jwt from 'jsonwebtoken'
 import { v4 as uuidv4 } from 'uuid'
-import { storage } from '../../../server/storage'
-import { getMessageFilesUrls } from '../../../server/services/r2'
+import { storage } from '@/lib/storage';
 import { getToken } from 'next-auth/jwt';
 // Türkiye'deki tüm şehirlerin listesi
 const turkishCities = [

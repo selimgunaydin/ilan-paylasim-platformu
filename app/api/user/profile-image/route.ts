@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { db } from '../../../../server/db';
+import { db } from "@/lib/db";
 import { users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
-import { deleteMessageFile } from '../../../../server/services/r2';
+import { deleteMessageFile } from '@/lib/r2';
 import { getToken } from 'next-auth/jwt';
 export async function DELETE(request: NextRequest) {
   try {

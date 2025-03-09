@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { db } from '../../../../../../server/db';
+import { db } from '@/lib/db';
 import { listings, conversations, messages } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
-import { imageService } from '../../../../../../server/services/image-service';
+import { imageService } from '@/lib/image-service';
 
 // Admin yetkilendirme kontrolü fonksiyonu
 import { checkAdminAuth } from '@/utils/check-admin';

@@ -1,7 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 import { parse, UrlWithParsedQuery } from 'url';
-import { verifyWSToken } from './routes/messages';
+import { verifyWSToken } from '@/utils/verifyWSToken';
 import { IncomingMessage } from 'http';
 
 interface AuthenticatedWebSocket extends WebSocket {

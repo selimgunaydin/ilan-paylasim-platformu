@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from '../../../../server/db';
+import { db } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
@@ -7,7 +7,7 @@ import { conversations, messages } from '@shared/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
-import { sanitizeInput } from '../../../../server/utils/sanitize';
+import { sanitizeInput } from '@/lib/sanitize';
 import { getToken } from "next-auth/jwt";
 
 // Dosya türü belirleme fonksiyonu

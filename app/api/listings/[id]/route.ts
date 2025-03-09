@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { db } from '../../../../server/db';
+import { db } from "@/lib/db";
 import { listings, conversations, messages } from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import { getToken } from 'next-auth/jwt';
-import { imageService } from '../../../../server/services/image-service';
+import { imageService } from '@/lib/image-service';
 import { v4 as uuidv4 } from 'uuid';
-import { storage } from 'server/storage';
+import { storage } from '@/lib/storage';
 // Tekil ilan detayı API'si
 export async function GET(
   request: NextRequest,

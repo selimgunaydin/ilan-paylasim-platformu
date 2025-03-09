@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { db } from '../../../../server/db';
+import { db } from "@/lib/db";
 import { payment_settings } from '@shared/schema';
 import { insertPaymentSettingsSchema } from '@shared/schema';
 import jwt from 'jsonwebtoken';

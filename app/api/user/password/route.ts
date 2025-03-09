@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { db } from '../../../../server/db';
+import { db } from "@/lib/db";
 import { users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
-import { hashPassword, comparePasswords } from '../../../../server/auth';
+import { hashPassword, comparePasswords } from '@/api/auth/[...nextauth]/route';
 import { getToken } from 'next-auth/jwt';
 // Kullanıcı şifre değiştirme API'si
 export async function PUT(request: NextRequest) {

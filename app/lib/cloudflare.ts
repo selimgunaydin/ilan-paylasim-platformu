@@ -1,5 +1,5 @@
 // Bu dosya artık kullanılmıyor, tüm R2 işlemleri server/services/r2.ts'e taşındı
-import { r2Client, LISTING_BUCKET_URL, LISTING_BUCKET_NAME, MESSAGE_BUCKET_URL, MESSAGE_BUCKET_NAME } from "../services/r2";
+import { r2Client, LISTING_BUCKET_URL, LISTING_BUCKET_NAME, MESSAGE_BUCKET_URL, MESSAGE_BUCKET_NAME } from "./r2";
 
 export {
   r2Client,

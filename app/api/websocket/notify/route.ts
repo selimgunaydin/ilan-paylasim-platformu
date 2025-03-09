@@ -1,10 +1,26 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import jwt from 'jsonwebtoken';
-import { sendMessageToUser, broadcastMessage } from '../../../../server/routes';
 import { getToken } from 'next-auth/jwt';
 // JWT token kontrolü
 
+export function sendMessageToUser(userId: number | string, message: any) {
+  const numericUserId =
+    typeof userId === "string" ? parseInt(userId, 10) : userId;
+  if (wsManager) {
+    wsManager.sendToUser(numericUserId, message);
+  } else {
+    console.error("WebSocket yöneticisi bulunamadı");
+  }
+}
+
+export function broadcastMessage(type: string, data: any) {
+  if (wsManager) {
+    wsManager.broadcast({ type, ...data });
+  } else {
+    console.error("WebSocket yöneticisi bulunamadı");
+  }
+}
 
 // WebSocket bildirim API'si
 export async function POST(request: NextRequest) {

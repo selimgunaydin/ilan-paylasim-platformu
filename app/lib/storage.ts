@@ -19,10 +19,10 @@ import { eq, and, gte, ilike, sql, or, inArray, ne, asc } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
-import { getMessageFilesUrls } from "./services/r2";
+import { getMessageFilesUrls } from "./r2";
 import { randomBytes } from "crypto";
 import { SQL } from "drizzle-orm";
-import { imageService } from "./services/image-service";
+import { imageService } from "./image-service";
 
 interface MessageDeleteEvent {
   messageId: number;

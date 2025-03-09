@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { db } from '../../../../../server/db';
+
 import { categories } from '@shared/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
-import { storage } from '../../../../../server/storage';
+
 import { checkAdminAuth } from '@/utils/check-admin';
+import { db } from '@/lib/db';
+import { storage } from '@/lib/storage';
 
 // Kategori güncelleme API'si
 export async function PATCH(
