@@ -45,7 +45,6 @@ Bu proje, kullanıcıların ilan ekleyebileceği, mesajlaşabileceği ve ilanlar
 - **Backend**
   - Express.js
   - Next.js API Routes
-  - WebSocket
   - Drizzle ORM
   - PostgreSQL (Neon)
   - Redis

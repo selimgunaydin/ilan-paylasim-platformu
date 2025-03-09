@@ -6,7 +6,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@app/components/ui/button";
 import { Card, CardContent } from "@app/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { useWebSocket } from "@/hooks/use-websocket";
 import { Message, Conversation } from "@/types";
 import {
   ArrowLeft,
@@ -115,8 +114,9 @@ export default function ChatDetail() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [message, setMessage] = React.useState("");
   const [uploading, setUploading] = React.useState(false);
-  const socket = useWebSocket();
   const firstRender = React.useRef(true);
+  const endRef = React.useRef<HTMLDivElement>(null);
+  const { scrollToBottom } = useAutoScroll(endRef);
 
   const { data: conversation } = useQuery<Conversation>({
     queryKey: ["/api/conversations", id],
@@ -160,18 +160,10 @@ export default function ChatDetail() {
       }
       return response.json();
     },
-    onSuccess: (data) => {
-      // WebSocket üzerinden mesaj okundu bildirimi gönder
-      if (socket) {
-        socket.send(JSON.stringify({
-          type: "message_read",
-          conversationId: parseInt(id),
-          messages: data.updatedMessages
-        }));
-      }
-
+    onSuccess: () => {
       // Yerel durumu güncelle
-      queryClient.invalidateQueries(["/api/conversations", id, "messages"]);
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations", id, "messages"] });
+      queryClient.invalidateQueries({ queryKey: ["conversations", "received"] });
     },
     onError: (error) => {
       console.error("Mesaj okundu işaretleme hatası:", error);
@@ -207,7 +199,11 @@ export default function ChatDetail() {
     },
     onSuccess: (data) => {
       if (data) { // null değilse (kullanıcı onayladıysa)
-        queryClient.invalidateQueries(["/api/conversations", id, "messages"]);
+        queryClient.invalidateQueries({ queryKey: ["/api/conversations", id, "messages"] });
+        toast({
+          title: "Mesaj silindi",
+          description: "Mesaj başarıyla silindi",
+        });
       }
     },
     onError: (error) => {
@@ -279,337 +275,296 @@ export default function ChatDetail() {
     deleteMessageMutation.mutate(messageId);
   };
 
+  // Mesajlar yüklendiğinde otomatik scroll
   React.useEffect(() => {
-    if (!socket) return;
+    if (messages.length > 0) {
+      scrollToBottom();
+    }
+  }, [messages, scrollToBottom]);
 
-    const handleWebSocketMessage = (event: CustomEvent) => {
-      try {
-        const data = event.detail;
-        console.log("WebSocket mesajı alındı:", data);
-        if (
-          data.type === "new_message" &&
-          data.conversationId === parseInt(id)
-        ) {
-          queryClient.invalidateQueries({
-            queryKey: ["/api/conversations", id, "messages"],
-          });
-          markMessagesAsReadMutation.mutate();
-        }
-        if (
-          data.type === "message_deleted" &&
-          data.conversationId === parseInt(id)
-        ) {
-          queryClient.invalidateQueries({
-            queryKey: ["/api/conversations", id, "messages"],
-          });
-        }
-      } catch (error) {
-        console.error("WebSocket mesaj işleme hatası:", error);
-      }
-    };
-
-    window.addEventListener('websocket-message', handleWebSocketMessage as EventListener);
+  // Düzenli mesaj kontrolü
+  React.useEffect(() => {
+    const messageCheckInterval = setInterval(() => {
+      refetchMessages();
+    }, 10000); // 10 saniyede bir mesajları kontrol et
 
     return () => {
-      window.removeEventListener('websocket-message', handleWebSocketMessage as EventListener);
+      clearInterval(messageCheckInterval);
     };
-  }, [socket, id, queryClient, markMessagesAsReadMutation]);
+  }, [refetchMessages]);
 
-  React.useEffect(() => {
-    if (firstRender.current) {
-      const textarea = document.getElementById("point");
-      if (textarea) {
-        textarea.scrollIntoView({ behavior: "auto" });
-      }
-      firstRender.current = false;
-    }
-  }, []);
-
-  const { endRef } = useAutoScroll([messages]);
-
-  const searchParams = new URLSearchParams(window.location.search);
-  const referrerTab = searchParams.get("tab") || "received";
-
-  if (!user || !conversation) {
-    return null;
-  }
-
+  // Render
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
+    <div className="flex flex-col h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm p-4 flex items-center justify-between">
+        <div className="flex items-center space-x-4">
           <Button
             variant="ghost"
-            onClick={() => router.push(`/${referrerTab === "sent" ? "gonderilen" : "gelen"}-mesajlar`)}
-            className="flex items-center gap-2"
+            size="icon"
+            onClick={() => router.back()}
+            className="mr-2"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Geri
+            <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => router.push(`/mesajlar/${id}/dosyalar`)}
-              className="flex items-center gap-2"
-            >
-              <Files className="h-4 w-4" />
-              Dosyalar
-            </Button>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="shrink-0"
-                >
-                  <Info className="h-5 w-5 text-muted-foreground" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Dosya Gönderimi</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-2 text-sm">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <h4 className="font-medium mb-1">Resimler (max 2MB)</h4>
-                      <p className="text-xs text-muted-foreground">JPG, PNG, GIF, WEBP, HEIC</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium mb-1">Belgeler (max 20MB)</h4>
-                      <p className="text-xs text-muted-foreground">PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, CSV</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium mb-1">Medya (max 20MB)</h4>
-                      <p className="text-xs text-muted-foreground">MP3, WAV, OGG, MP4, WebM</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium mb-1">Arşiv (max 20MB)</h4>
-                      <p className="text-xs text-muted-foreground">ZIP, RAR</p>
-                    </div>
-                  </div>
-                  <div className="md:hidden border-t pt-2 mt-4">
-                    <h4 className="font-medium mb-2">Önemli Bilgiler</h4>
-                    <p className="text-xs text-muted-foreground">
-                      • Kişisel veya hassas bilgilerinizi paylaşmaktan kaçının.<br />
-                      • Her iki taraf da sohbetin tamamını silebilir ve bu işlem kalıcı olur.<br />
-                      • Silinen mesajlar veya sohbetler hiçbir şekilde sunucuda saklanmaz.<br />
-                      • Şifrelenmiş mesajlaşma kullanılarak maksimum gizlilik sağlanır<br />
-                      • Mesajlar 1 yıl, resim ve dosyalar 30 gün sonra otomatik temizlenir.
-                    </p>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+          <div>
+            <h1 className="text-lg font-semibold">Mesajlaşma</h1>
+            {conversation && (
+              <p className="text-sm text-gray-500">
+                {conversation.listingTitle}
+              </p>
+            )}
           </div>
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-6">
-          <div className="space-y-4 mb-6 max-h-[calc(100vh-250px)] md:max-h-[60vh] overflow-y-auto scroll-smooth">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.senderId === user?.id ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[70%] rounded-lg p-1 ${
-                    message.senderId === user?.id
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
-                  }`}
-                >
-                  <div className="flex justify-between items-start gap-4">
-                    <div className="flex-1">
-                      <p className="break-words whitespace-pre-wrap">
-                        {message.content}{" "}
-                      </p>
-                      {message.files && message.files.length > 0 && (
-                        <div className="mt-2 space-y-2">
-                          {message.files.map((file, index) => {
-                            const fileName = file.split("/").pop() || file;
-                            const fileType = fileName.split(".").pop()?.toLowerCase();
-                            const isVideo = ["mp4", "webm"].includes(fileType || "");
-                            const src = `https://message-images.ilandaddy.com/${file}`;
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`flex ${
+              msg.senderId === user?.id ? "justify-end" : "justify-start"
+            }`}
+          >
+            <div
+              className={`max-w-[80%] ${
+                msg.senderId === user?.id
+                  ? "bg-blue-500 text-white rounded-tl-lg rounded-tr-sm rounded-bl-lg"
+                  : "bg-gray-200 text-gray-800 rounded-tl-sm rounded-tr-lg rounded-br-lg"
+              } p-3 shadow-sm relative group`}
+            >
+              {/* Mesaj içeriği */}
+              {msg.content && (
+                <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+              )}
 
-                            return (
-                              <div key={index} className="flex items-center gap-2">
+              {/* Dosyalar */}
+              {msg.files && msg.files.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  {msg.files.map((file, index) => {
+                    const fileName = file.split("/").pop() || "dosya";
+                    const fileUrl = file;
+                    const fileType = fileName.split(".").pop()?.toLowerCase();
+                    const isImage = ["jpg", "jpeg", "png", "gif", "webp"].includes(
+                      fileType || ""
+                    );
+                    const isVideo = ["mp4", "webm", "mov"].includes(fileType || "");
+                    const isAudio = ["mp3", "wav", "ogg"].includes(fileType || "");
+
+                    if (isImage) {
+                      return (
+                        <Dialog key={index}>
+                          <DialogTrigger asChild>
+                            <div className="cursor-pointer">
+                              <img
+                                src={fileUrl}
+                                alt={fileName}
+                                className="max-h-48 rounded-md object-contain"
+                              />
+                              <div className="text-xs mt-1 flex items-center">
                                 {getFileIcon(fileName)}
-                                {isVideo ? (
-                                  <MediaPlayer src={src} type="video" fileName={fileName} />
-                                ) : (
-                                  <a
-                                    href={src}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={`text-sm hover:underline ${
-                                      message.senderId === user?.id
-                                        ? "text-primary-foreground/90 hover:text-primary-foreground"
-                                        : "text-foreground/90 hover:text-foreground"
-                                    }`}
-                                  >
-                                    {fileName}
-                                  </a>
-                                )}
+                                <span className="ml-1 truncate max-w-[200px]">
+                                  {fileName}
+                                </span>
                               </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                    {message.senderId === user?.id && (
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs opacity-70">
-                          {message.isRead ? (
-                            <div className="flex">
-                              <Check className="h-3 w-3" />
-                              <Check className="h-3 w-3 -ml-2" />
                             </div>
-                          ) : (
-                            <Check className="h-3 w-3" />
-                          )}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={`opacity-0 hover:opacity-100 transition-opacity -mt-1 -mr-2 ${
-                            message.senderId === user?.id
-                              ? "text-primary-foreground/60 hover:text-primary-foreground/90"
-                              : ""
-                          }`}
-                          onClick={() => handleDeleteMessage(message.id)}
+                          </DialogTrigger>
+                          <DialogContent className="max-w-4xl">
+                            <DialogHeader>
+                              <DialogTitle>{fileName}</DialogTitle>
+                            </DialogHeader>
+                            <div className="flex justify-center">
+                              <img
+                                src={fileUrl}
+                                alt={fileName}
+                                className="max-h-[80vh] object-contain"
+                              />
+                            </div>
+                            <div className="flex justify-end mt-4">
+                              <a
+                                href={fileUrl}
+                                download={fileName}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:underline flex items-center"
+                              >
+                                <Files className="h-4 w-4 mr-1" />
+                                İndir
+                              </a>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      );
+                    } else if (isVideo) {
+                      return (
+                        <Dialog key={index}>
+                          <DialogTrigger asChild>
+                            <div className="cursor-pointer">
+                              <div className="bg-gray-100 rounded-md p-2 flex items-center">
+                                <VideoIcon className="h-5 w-5 mr-2 text-blue-500" />
+                                <span className="truncate max-w-[200px]">
+                                  {fileName}
+                                </span>
+                              </div>
+                            </div>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-4xl">
+                            <DialogHeader>
+                              <DialogTitle>{fileName}</DialogTitle>
+                            </DialogHeader>
+                            <MediaPlayer
+                              src={fileUrl}
+                              type="video"
+                              fileName={fileName}
+                            />
+                            <div className="flex justify-end mt-4">
+                              <a
+                                href={fileUrl}
+                                download={fileName}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:underline flex items-center"
+                              >
+                                <Files className="h-4 w-4 mr-1" />
+                                İndir
+                              </a>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      );
+                    } else if (isAudio) {
+                      return (
+                        <div key={index} className="mt-2">
+                          <div className="bg-gray-100 rounded-md p-2">
+                            <div className="flex items-center mb-1">
+                              <Music className="h-5 w-5 mr-2 text-blue-500" />
+                              <span className="truncate max-w-[200px]">
+                                {fileName}
+                              </span>
+                            </div>
+                            <MediaPlayer
+                              src={fileUrl}
+                              type="audio"
+                              fileName={fileName}
+                            />
+                          </div>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <a
+                          key={index}
+                          href={fileUrl}
+                          download={fileName}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block"
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  <div
-                    className={`text-xs mt-2 ${
-                      message.senderId === user?.id
-                        ? "text-primary-foreground/80"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {new Date(message.createdAt).toLocaleString("tr-TR")}
-                  </div>
+                          <div className="bg-gray-100 rounded-md p-2 flex items-center">
+                            {getFileIcon(fileName)}
+                            <span className="ml-2 truncate max-w-[200px]">
+                              {fileName}
+                            </span>
+                          </div>
+                        </a>
+                      );
+                    }
+                  })}
                 </div>
+              )}
+
+              {/* Zaman ve durum */}
+              <div
+                className={`text-xs mt-1 flex justify-between items-center ${
+                  msg.senderId === user?.id
+                    ? "text-blue-100"
+                    : "text-gray-500"
+                }`}
+              >
+                <span>
+                  {new Date(msg.createdAt).toLocaleTimeString("tr-TR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+                {msg.senderId === user?.id && (
+                  <span className="flex items-center ml-2">
+                    {msg.isRead ? (
+                      <Check className="h-3 w-3 ml-1" />
+                    ) : (
+                      <Check className="h-3 w-3 ml-1" />
+                    )}
+                  </span>
+                )}
               </div>
-            ))}
-            <div className="h-4">
-              <div ref={endRef} className="h-px" />
+
+              {/* Silme butonu */}
+              {msg.senderId === user?.id && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute -right-8 top-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => handleDeleteMessage(msg.id)}
+                >
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                </Button>
+              )}
             </div>
           </div>
+        ))}
+        <div ref={endRef} />
+      </div>
 
-          <form
-            onSubmit={handleSendMessage}
-            className="fixed md:relative bottom-[52px] md:bottom-auto left-0 md:left-auto right-0 md:right-auto bg-white md:bg-transparent p-4 md:p-0 border-t md:border-0 w-full md:w-auto"
-          >
-            <div className="flex items-center gap-2 max-w-screen-lg mx-auto">
+      {/* Message Input */}
+      <div className="bg-white border-t p-4">
+        <form onSubmit={handleSendMessage} className="flex items-end space-x-2">
+          <div className="flex-1">
+            <Textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Mesajınızı yazın..."
+              className="min-h-[60px] resize-none"
+              disabled={uploading}
+            />
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              multiple
+              accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+            />
+            <div className="flex items-center mt-2">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="shrink-0"
                 onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
               >
-                <PaperclipIcon className="h-5 w-5" />
+                <PaperclipIcon className="h-5 w-5 mr-1" />
+                Dosya Ekle
               </Button>
-              <span id="point"></span>
-              <div className="flex-1 relative">
-                <Textarea
-                  id="messageTextarea"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Mesajınız..."
-                  className="min-h-[40px] max-h-[100px] py-2 resize-none overflow-hidden rounded-[25px] border-2 border-[#d5d5d5] !important focus-visible:ring-0 focus-visible:ring-offset-0 px-4"
-                />
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="hidden"
-                  multiple
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      const totalSize = Array.from(e.target.files).reduce(
-                        (acc, file) => acc + file.size,
-                        0,
-                      );
-                      if (totalSize > 20 * 1024 * 1024) {
-                        toast({
-                          title: "Hata",
-                          description: "Toplam dosya boyutu 20MB'ı geçemez",
-                          variant: "destructive",
-                        });
-                        e.target.value = "";
-                        return;
-                      }
-                    }
-                  }}
-                />
-              </div>
-
-              <Button
-                type="submit"
-                size="sm"
-                className="shrink-0 bg-blue-500 hover:bg-blue-600 text-white rounded-full h-10 w-10 p-0 flex items-center justify-center"
-                disabled={
-                  (!message.trim() &&
-                    (!fileInputRef.current?.files ||
-                      fileInputRef.current.files.length === 0)) ||
-                  uploading
-                }
-              >
-                <Send className="h-5 w-5" />
-              </Button>
+              {fileInputRef.current?.files?.length ? (
+                <span className="text-xs text-gray-500 ml-2">
+                  {fileInputRef.current.files.length} dosya seçildi
+                </span>
+              ) : null}
             </div>
-            <p className="hidden md:block text-xs text-muted-foreground mt-4">
-              • Kişisel veya hassas bilgilerinizi paylaşmaktan kaçının.<br />
-              • Her iki taraf da sohbetin tamamını silebilir ve bu işlem kalıcı olur.<br />
-              • Silinen mesajlar veya sohbetler hiçbir şekilde sunucuda saklanmaz.<br />
-              • Şifrelenmiş mesajlaşma kullanılarak maksimum gizlilik sağlanır<br />
-              • Mesajlar 1 yıl, resim ve dosyalar 30 gün sonra otomatik temizlenir.
-            </p>
-          </form>
-        </CardContent>
-      </Card>
-
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t md:hidden">
-        <div className="flex items-center justify-between w-full">
-          <Link href="/ilanlarim" className="flex-1 min-w-0">
-            <div className="flex flex-col items-center py-1.5 px-0.5">
-              <ListChecks className="h-4 w-4" />
-              <span className="text-[10px] truncate mt-0.5">İlanlarım</span>
-            </div>
-          </Link>
-          <Link href="/favorilerim" className="flex-1 min-w-0">
-            <div className="flex flex-col items-center py-1.5 px-0.5">
-              <Star className="h-4 w-4" />
-              <span className="text-[10px] truncate mt-0.5">Favorilerim</span>
-            </div>
-          </Link>
-          <Link href="/gonderilen" className="flex-1 min-w-0">
-            <div className="flex flex-col items-center py-1.5 px-0.5">
-              <Send className="h-4 w-4" />
-              <span className="text-[10px] truncate mt-0.5">Gönderilen</span>
-            </div>
-          </Link>
-          <Link href="/gelen" className="flex-1 min-w-0">
-            <div className="flex flex-col items-center py-1.5 px-0.5">
-              <MessageSquare className="h-4 w-4" />
-              <span className="text-[10px] truncate mt-0.5">Gelen</span>
-            </div>
-          </Link>
-          <Link href="/profilim" className="flex-1 min-w-0">
-            <div className="flex flex-col items-center py-1.5 px-0.5">
-              <User className="h-4 w-4" />
-              <span className="text-[10px] truncate mt-0.5">Profilim</span>
-            </div>
-          </Link>
-        </div>
+          </div>
+          <Button
+            type="submit"
+            disabled={
+              uploading ||
+              (!message.trim() &&
+                (!fileInputRef.current?.files ||
+                  fileInputRef.current.files.length === 0))
+            }
+            className="h-10"
+          >
+            {uploading ? "Gönderiliyor..." : <Send className="h-5 w-5" />}
+          </Button>
+        </form>
       </div>
     </div>
   );

@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
       })
       .returning();
     
-    // WebSocket bildirimi gönderme burada yapılabilir
+    // WebSocket bildirimi yorumunu kaldırıyorum
     
     return NextResponse.json(
       { 

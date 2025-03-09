@@ -8,11 +8,6 @@ import { storage } from '@/lib/storage';
 import { sanitizeInput } from '@/lib/sanitize';
 import { getToken } from "next-auth/jwt";
 import { uploadMessageFile } from "@/lib/r2";
-import { WebSocketManager } from "@/lib/websocket";
-
-declare global {
-  var wsManager: WebSocketManager | undefined;
-}
 
 interface UploadedFile extends File {
   fieldname: string;
@@ -164,24 +159,6 @@ export async function POST(request: NextRequest) {
       uploadedFiles,
       fileTypes
     );
-
-    // WebSocket bildirimi gönder
-    if (global.wsManager) {
-      // Alıcıya mesaj bildirimi gönder
-      global.wsManager.sendToUser(receiverId, {
-        type: 'new_message',
-        conversationId: parseInt(conversationId),
-        message: newMessage
-      });
-      
-      // Gönderene de mesaj bildirimi gönder (kendi mesajını görmesi için)
-      global.wsManager.sendToUser(userId, {
-        type: 'new_message',
-        conversationId: parseInt(conversationId),
-        message: newMessage,
-        isSender: true
-      });
-    }
 
     return NextResponse.json(newMessage, { status: 201 });
   } catch (error) {

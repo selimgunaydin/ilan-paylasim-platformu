@@ -18,7 +18,6 @@ import {
 } from "@app/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@app/components/ui/avatar";
 import { getProfileImageUrl } from "@/lib/avatar";
-import { useWebSocket } from "@/hooks/use-websocket";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
 import {
   ArrowLeft,
@@ -276,10 +275,13 @@ export default function ConversationDetail() {
   const router = useRouter();
   const searchParams = new URLSearchParams(window.location.search);
   const referrerTab = searchParams.get("tab") || "received";
-  const socket = useWebSocket();
   const endRef = React.useRef<HTMLDivElement>(null);
   const { scrollToBottom } = useAutoScroll(endRef);
   const messagesContainerRef = React.useRef<HTMLDivElement>(null);
+  
+  // Scroll pozisyonunu kaydet
+  const [scrollPosition, setScrollPosition] = React.useState(0);
+  const [isScrolledToBottom, setIsScrolledToBottom] = React.useState(true);
 
   // Konuşma detaylarını getir
   const { data: conversation } = useQuery<Conversation>({
@@ -359,6 +361,8 @@ export default function ConversationDetail() {
 
   // Mesajlar değiştiğinde local state'i güncelle
   React.useEffect(() => {
+    if (!messages || messages.length === 0) return;
+    
     // Mesajları tarih sırasına göre sırala (eskiden yeniye)
     const sortedMessages = [...messages].sort((a, b) => 
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
@@ -366,136 +370,47 @@ export default function ConversationDetail() {
     setLocalMessages(sortedMessages);
   }, [messages]);
 
-  // WebSocket event handler
-  React.useEffect(() => {
-    const handleWebSocketMessage = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const data = customEvent.detail;
-      console.log('WebSocket mesajı alındı (conversation-detail):', data);
-
-      // Yeni mesaj geldiğinde
-      if (data.type === 'new_message' && data.conversationId === parseInt(id as string)) {
-        const newMessage = data.message;
-
-        // Local state'i güncelle
-        setLocalMessages((prevMessages) => {
-          const messageExists = prevMessages.some((msg: Message) => msg.id === newMessage.id);
-          if (messageExists) return prevMessages;
-          // Yeni mesajı sona ekle (kronolojik sıra)
-          return [...prevMessages, newMessage];
-        });
-
-        // React Query cache'ini güncelle
-        queryClient.setQueryData(
-          ["/api/conversations", id, "messages"],
-          (oldData: Message[] | undefined) => {
-            if (!oldData) return [newMessage];
-            const messageExists = oldData.some((msg: Message) => msg.id === newMessage.id);
-            if (messageExists) return oldData;
-            return [...oldData, newMessage];
-          }
-        );
-
-        // Eğer mesajı alan bizsek okundu olarak işaretle
-        if (user?.id === newMessage.receiverId) {
-          markConversationAsReadMutation.mutate();
-          
-          // Mesaj okundu bilgisini gönder
-          socket.sendMessage({
-            type: 'message_read',
-            conversationId: parseInt(id as string),
-            messageId: newMessage.id,
-            senderId: newMessage.senderId
-          });
-        }
-        
-        // Otomatik scroll
-        scrollToBottom();
-      }
-
-      // Mesaj okundu bildirimi geldiğinde
-      if (data.type === 'message_read' && data.conversationId === parseInt(id as string)) {
-        const updateMessages = (messages: Message[]) =>
-          messages.map((msg: Message) => ({
-            ...msg,
-            isRead: msg.senderId === user?.id ? true : msg.isRead,
-          }));
-
-        setLocalMessages((prevMessages) => updateMessages(prevMessages));
-
-        queryClient.setQueryData(
-          ["/api/conversations", id, "messages"],
-          (oldData: Message[] | undefined) => {
-            if (!oldData) return [];
-            return updateMessages(oldData);
-          }
-        );
-      }
-      
-      // Mesaj iletim durumu bildirimi geldiğinde
-      if (data.type === 'message_delivery_status' && data.conversationId === parseInt(id as string)) {
-        console.log('Mesaj iletim durumu:', data.status, 'Mesaj ID:', data.messageId);
-        
-        // Burada UI'da mesaj durumunu gösterebilirsiniz
-        // Örneğin: Gönderildi, İletildi, Okundu gibi
-      }
-    };
-
-    window.addEventListener("websocket-message", handleWebSocketMessage);
-
-    // Bağlantı durumunu kontrol et ve gerekirse yeniden bağlan
-    if (!socket.isConnected) {
-      socket.connect().catch(error => {
-        console.error('WebSocket bağlantı hatası:', error);
-      });
-    }
-    
-    // Düzenli mesaj kontrolü
-    const messageCheckInterval = setInterval(() => {
-      refetchMessages();
-    }, 10000); // 10 saniyede bir mesajları kontrol et
-
-    return () => {
-      window.removeEventListener("websocket-message", handleWebSocketMessage);
-      clearInterval(messageCheckInterval);
-    };
-  }, [id, queryClient, user?.id, markConversationAsReadMutation, scrollToBottom, socket, refetchMessages]);
-
-  // Mesajlar yüklendiğinde otomatik scroll
-  React.useEffect(() => {
-    if (localMessages?.length > 0) {
-      scrollToBottom();
-    }
-  }, [localMessages, scrollToBottom]);
-
-  // Scroll pozisyonunu kaydet
-  const [scrollPosition, setScrollPosition] = React.useState(0);
-  const [isScrolledToBottom, setIsScrolledToBottom] = React.useState(true);
-
-  // Scroll olayını dinle
+  // Scroll olayını dinle - Objenin kendisine değil, current değerine bakarak optimizasyon
   React.useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = container;
-      setScrollPosition(scrollTop);
+      // Sadece scroll pozisyonu değiştiğinde state'i güncelle
+      if (scrollTop !== scrollPosition) {
+        setScrollPosition(scrollTop);
+      }
       
       // En alta yakın mı kontrol et (20px tolerans)
       const isAtBottom = scrollHeight - scrollTop - clientHeight < 20;
-      setIsScrolledToBottom(isAtBottom);
+      
+      // Sadece değişiklik varsa state'i güncelle (gereksiz render'ları önlemek için)
+      if (isAtBottom !== isScrolledToBottom) {
+        setIsScrolledToBottom(isAtBottom);
+      }
     };
 
     container.addEventListener('scroll', handleScroll);
     return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, []); // Sadece mount/unmount'ta çalıştır
 
-  // Yeni mesaj geldiğinde, eğer kullanıcı zaten en alttaysa otomatik scroll yap
-  React.useEffect(() => {
-    if (isScrolledToBottom) {
-      scrollToBottom();
+  // Hem mesajlar yüklendiğinde hem de yeni mesaj geldiğinde scroll işlemleri için tek fonksiyon
+  const scrollToBottomIfNeeded = React.useCallback(() => {
+    // Eğer kullanıcı zaten aşağıdaysa veya mesajlar ilk kez yükleniyorsa scroll yap
+    if (isScrolledToBottom || localMessages.length <= messages.length) {
+      setTimeout(() => {
+        scrollToBottom();
+      }, 50); // Daha kısa gecikme yeterli
     }
-  }, [localMessages?.length, isScrolledToBottom, scrollToBottom]);
+  }, [isScrolledToBottom, localMessages.length, messages.length, scrollToBottom]);
+
+  // Mesajlar değiştiğinde scroll kontrolü yap
+  React.useEffect(() => {
+    if (localMessages.length > 0) {
+      scrollToBottomIfNeeded();
+    }
+  }, [localMessages.length, scrollToBottomIfNeeded]);
 
   // İlan detaylarını getir
   const { data: listing } = useQuery<Listing>({

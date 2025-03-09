@@ -19,7 +19,7 @@ import {
   AlertDialogTrigger,
 } from "@app/components/ui/alert-dialog";
 import { useEffect } from "react";
-import { useWebSocket } from "@/hooks/use-websocket";
+import { useAuth } from "@/hooks/use-auth";
 
 // Tarih formatı yardımcı fonksiyonu
 const formatRelativeDate = (date: Date) => {
@@ -44,7 +44,6 @@ export default function ReceivedMessages() {
   const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const webSocket = useWebSocket();
 
   // Gelen mesajlar sorgusu
   const { data: receivedConversations, isLoading: isLoadingReceivedConversations } = useQuery<Conversation[]>({
@@ -54,33 +53,6 @@ export default function ReceivedMessages() {
       return res.json();
     }),
   });
-
-  // WebSocket event listener'ı
-  useEffect(() => {
-    // WebSocket olaylarını dinle
-    const handleWebSocketMessage = (event: CustomEvent) => {
-      try {
-        const data = event.detail;
-        if (data.type === "conversation_deleted") {
-          queryClient.invalidateQueries({ queryKey: ["conversations", "received"] });
-          toast({
-            title: "Konuşma silindi",
-            description: "Konuşma başarıyla silindi",
-          });
-        }
-      } catch (error) {
-        console.error("WebSocket mesaj işleme hatası:", error);
-      }
-    };
-
-    // Custom event listener'ı ekle
-    window.addEventListener('websocket-message', handleWebSocketMessage as EventListener);
-
-    // Cleanup
-    return () => {
-      window.removeEventListener('websocket-message', handleWebSocketMessage as EventListener);
-    };
-  }, [queryClient, toast]);
 
   // Konuşma silme mutation'ı
   const deleteMutation = useMutation({
