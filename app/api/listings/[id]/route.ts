@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { db } from "@/lib/db";
-import { listings, conversations, messages } from '@shared/schema';
+import { listings, conversations, messages } from '@/schemas/schema';
 import { eq, sql } from 'drizzle-orm';
 import { getToken } from 'next-auth/jwt';
 import { imageService } from '@/lib/image-service';

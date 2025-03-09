@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { categories } from '@shared/schema';
+import { categories } from '@/schemas/schema';
 import { db } from '@/lib/db';
 
 // Kategorileri getirme API'si

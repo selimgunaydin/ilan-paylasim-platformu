@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { db } from "@/lib/db";
-import { users } from '@shared/schema';
+import { users } from '@/schemas/schema';
 import { eq } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {

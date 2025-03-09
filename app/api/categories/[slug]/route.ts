@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { db } from "@/lib/db";
-import { categories } from '@shared/schema';
+import { categories } from '@/schemas/schema';
 import { eq } from 'drizzle-orm';
 
 // Slug parametresi ile kategori getirme API'si

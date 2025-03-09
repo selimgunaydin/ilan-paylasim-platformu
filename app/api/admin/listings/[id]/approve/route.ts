@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { listings, users } from '@shared/schema';
+import { listings, users } from '@/schemas/schema';
 import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 

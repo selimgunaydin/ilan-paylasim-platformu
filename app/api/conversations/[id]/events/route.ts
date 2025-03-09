@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { db } from '@/lib/db';
-import { conversations } from '@shared/schema'
+import { conversations } from '@/schemas/schema'
 import { eq } from 'drizzle-orm'
 import jwt from 'jsonwebtoken'
 import { storage } from '@/lib/storage';

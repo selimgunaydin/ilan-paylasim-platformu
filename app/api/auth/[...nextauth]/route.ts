@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
-import { users, admin_users } from '@shared/schema';
+import { users, admin_users } from '@/schemas/schema';
 import { eq } from "drizzle-orm";
 import 'next-auth/jwt'
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";

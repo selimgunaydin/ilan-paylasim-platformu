@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
 import jwt from "jsonwebtoken";
-import { conversations } from '@shared/schema';
+import { conversations } from '@/schemas/schema';
 import { getToken } from 'next-auth/jwt';
 interface JwtPayload {
   userId: number;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { Category, Listing } from "@shared/schema";
+import type { Category, Listing } from "@/schemas/schema";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { cn, createSeoUrl } from "@/lib/utils";

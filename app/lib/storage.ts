@@ -13,7 +13,7 @@ import {
   messages,
   favorites,
   admin_users,
-} from "@shared/schema";
+} from "@/schemas/schema";
 import { db } from "./db";
 import { eq, and, gte, ilike, sql, or, inArray, ne, asc } from "drizzle-orm";
 import session from "express-session";

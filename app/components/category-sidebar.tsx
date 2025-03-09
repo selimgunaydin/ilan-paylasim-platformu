@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Category } from "@shared/schema";
+import { Category } from "@/schemas/schema";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

@@ -1,6 +1,6 @@
 import { Button } from "@app/components/ui/button";
 import { Card, CardContent, CardHeader } from "@app/components/ui/card";
-import { Listing } from "@shared/schema";
+import { Listing } from "@/schemas/schema";
 import { format, addDays } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useMutation, useQueryClient } from "@tanstack/react-query";

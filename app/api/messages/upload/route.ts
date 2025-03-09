@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
-import { conversations, messages } from '@shared/schema';
+import { conversations, messages } from '@/schemas/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';

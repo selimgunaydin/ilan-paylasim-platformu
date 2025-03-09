@@ -1,6 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Category } from "@shared/schema";
+import { Category } from "@/schemas/schema";
 import { Button } from "@app/components/ui/button";
 import { Card } from "@app/components/ui/card";
 import { GripVertical, ChevronRight, ChevronDown } from "lucide-react";

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Category } from "@shared/schema";
+import { Category } from "@/schemas/schema";
 import IlanSearch from "@app/components/ilan-search";
 import { Footer } from "@app/components/ui/footer";
 

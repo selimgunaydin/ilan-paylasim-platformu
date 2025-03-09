@@ -26,7 +26,7 @@ import {
   FormMessage,
 } from "@app/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@app/components/ui/radio-group";
-import type { Category, Listing } from "@shared/schema";
+import type { Category, Listing } from "@/schemas/schema";
 import { turkishCities } from "@/lib/constants";
 import { queryClient } from "@/lib/queryClient";
 

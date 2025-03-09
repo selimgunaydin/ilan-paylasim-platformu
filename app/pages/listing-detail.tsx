@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader } from "@app/components/ui/card";
 import { Button } from "@app/components/ui/button";
 import { formatDistanceToNow, format } from "date-fns";
 import { tr } from "date-fns/locale";
-import type { Listing, Category } from "@shared/schema";
+import type { Listing, Category } from "@/schemas/schema";
 import { useToast } from "@/hooks/use-toast";
 import { AspectRatio } from "@app/components/ui/aspect-ratio";
 import { ImageGallery } from "@app/components/image-gallery";

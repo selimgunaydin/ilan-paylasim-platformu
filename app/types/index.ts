@@ -79,4 +79,4 @@ export interface FileGroup {
   createdAt: string;
 }
 
-export type { User } from '@shared/schema';
+export type { User } from '@/schemas/schema';

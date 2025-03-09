@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { admin_users } from '@shared/schema';
+import { admin_users } from '@/schemas/schema';
 import { eq, sql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { checkAdminAuth } from "@/utils/check-admin";

@@ -17,7 +17,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { Category } from "@shared/schema";
+import { Category } from "@/schemas/schema";
 import { Button } from "@app/components/ui/button";
 import { Input } from "@app/components/ui/input";
 import { Card } from "@app/components/ui/card";

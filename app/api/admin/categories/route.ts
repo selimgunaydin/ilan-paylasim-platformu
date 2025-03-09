@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { db } from "@/lib/db";
-import { categories } from '@shared/schema';
+import { categories } from '@/schemas/schema';
 import { eq, and, asc, sql } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import { checkAdminAuth } from '@/utils/check-admin';

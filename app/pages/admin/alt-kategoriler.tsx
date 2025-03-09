@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Category } from "@shared/schema";
+import { Category } from "@/schemas/schema";
 import { Button } from "@app/components/ui/button";
 import { Input } from "@app/components/ui/input";
 import { Card } from "@app/components/ui/card";

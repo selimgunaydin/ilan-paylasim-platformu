@@ -12,7 +12,7 @@ import { Input } from "@app/components/ui/input";
 import { Button } from "@app/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@app/components/ui/select";
 import { Switch } from "@app/components/ui/switch";
-import { insertPaymentSettingsSchema } from "@shared/schema";
+import { insertPaymentSettingsSchema } from "@/schemas/schema";
 import type { PaymentSettingsResponse } from "@/types/payment";
 import type { z } from "zod";
 
