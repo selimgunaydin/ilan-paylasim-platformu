@@ -13,7 +13,7 @@ async function getListings() {
   }
 
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/listings/user`)
-
+  console.log('DATDAT :', res)
   if (!res.ok) {
     throw new Error('İlanlar getirilemedi')
   }
