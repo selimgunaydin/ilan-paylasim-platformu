@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { db } from '../../../../server/db';
-import { listings } from '@shared/schema';
+import { listings, conversations, messages } from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
-import jwt from 'jsonwebtoken';
-import { storage } from '../../../../server/storage';
-import { v4 as uuidv4 } from 'uuid';
 import { getToken } from 'next-auth/jwt';
+import { imageService } from '../../../../server/services/image-service';
 // Tekil ilan detayı API'si
 export async function GET(
   request: NextRequest,
@@ -270,6 +268,101 @@ export async function PUT(
     console.error("İlan güncelleme hatası:", error);
     return NextResponse.json(
       { success: false, message: 'İlan güncellenemedi' },
+      { status: 500 }
+    );
+  }
+}
+
+// İlan silme API'si
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Auth token'ı al
+    const token = await getToken({ 
+      req: request, 
+      secret: process.env.NEXTAUTH_SECRET 
+    });
+
+    // Token yoksa, kullanıcı giriş yapmamış demektir
+    if (!token) {
+      return NextResponse.json(
+        { error: "Yetkilendirme gerekli" },
+        { status: 401 }
+      );
+    }
+
+    const listingId = parseInt(params.id);
+    if (isNaN(listingId)) {
+      return NextResponse.json(
+        { error: "Geçersiz ilan ID" },
+        { status: 400 }
+      );
+    }
+
+    // İlanı bul
+    const [listing] = await db
+      .select()
+      .from(listings)
+      .where(eq(listings.id, listingId));
+
+    if (!listing) {
+      return NextResponse.json(
+        { error: "İlan bulunamadı" },
+        { status: 404 }
+      );
+    }
+
+    // Kullanıcı sadece kendi ilanını silebilir
+    if (listing.userId !== parseInt(token.sub!)) {
+      return NextResponse.json(
+        { error: "Bu ilanı silme yetkiniz yok" },
+        { status: 403 }
+      );
+    }
+
+    // İlgili resimleri sil
+    if (listing.images && listing.images.length > 0) {
+      await imageService.deleteMultipleImages(listing.images);
+    }
+
+    // İlanla ilgili konuşmaları bul
+    const conversationsToDelete = await db
+      .select()
+      .from(conversations)
+      .where(eq(conversations.listingId, listingId));
+
+    // Her konuşma için mesajları sil
+    for (const conversation of conversationsToDelete) {
+      await db
+        .delete(messages)
+        .where(eq(messages.conversationId, conversation.id));
+    }
+
+    // Konuşmaları sil
+    await db
+      .delete(conversations)
+      .where(eq(conversations.listingId, listingId));
+
+    // İlanı sil
+    const [deletedListing] = await db
+      .delete(listings)
+      .where(eq(listings.id, listingId))
+      .returning();
+
+    return NextResponse.json({
+      success: true,
+      deletedData: {
+        listing: deletedListing,
+        conversationsCount: conversationsToDelete.length,
+        imagesCount: listing.images?.length || 0,
+      }
+    });
+  } catch (error) {
+    console.error("İlan silme hatası:", error);
+    return NextResponse.json(
+      { error: "İlan ve ilgili veriler silinemedi" },
       { status: 500 }
     );
   }

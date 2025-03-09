@@ -6,11 +6,13 @@ import { tr } from "date-fns/locale";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Power, PowerOff } from "lucide-react";
+import { FaEdit, FaToggleOff, FaTrash } from "react-icons/fa";
 
 interface ListingCardProps {
   listing: Listing;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onDeactivate?: () => void;
   isActive: boolean;
 }
 
@@ -18,6 +20,7 @@ export default function ListingCard({
   listing,
   onEdit,
   onDelete,
+  onDeactivate,
   isActive,
 }: ListingCardProps) {
   const { toast } = useToast();
@@ -141,42 +144,37 @@ export default function ListingCard({
             )}
           </p>
         </div>
-        <div className="flex gap-2 mt-4">
-          {/* Reddedilen veya süresi biten ilanlar için düzenle/yenile butonu */}
-          {(isRejected || isExpired) && (
-            <Button onClick={onEdit} variant="outline" className="flex-1">
-              {isRejected ? "Düzenle" : "Yenile"}
-            </Button>
-          )}
-
-          {/* Onaylanmış ve süresi dolmamış ilanlar için aktif/pasif yapma butonu */}
-          {canToggleStatus && (
+        <div className="flex justify-end space-x-2 mt-4">
+          {onEdit && (
             <Button
-              onClick={handleToggleStatus}
-              variant={listing.active ? "outline" : "default"}
-              className="flex-1 gap-2"
-              disabled={
-                activateMutation.isPending || deactivateMutation.isPending
-              }
+              variant="outline"
+              size="sm"
+              onClick={onEdit}
+              className="text-blue-600 hover:text-blue-700"
             >
-              {listing.active ? (
-                <>
-                  <PowerOff className="h-4 w-4" />
-                  Pasif Yap
-                </>
-              ) : (
-                <>
-                  <Power className="h-4 w-4" />
-                  Aktif Yap
-                </>
-              )}
+              <FaEdit className="h-4 w-4" />
             </Button>
           )}
-
-          {/* Her durumda sil butonu göster */}
-          <Button onClick={onDelete} variant="destructive" className="flex-1">
-            Sil
-          </Button>
+          {isActive && onDeactivate && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onDeactivate}
+              className="text-yellow-600 hover:text-yellow-700"
+            >
+              <FaToggleOff className="h-4 w-4" />
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onDelete}
+              className="text-red-600 hover:text-red-700"
+            >
+              <FaTrash className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -38,6 +38,27 @@ export default function MyListings({ initialListings }: MyListingsProps) {
     },
   });
 
+  const deactivateMutation = useMutation({
+    mutationFn: async (listingId: number) => {
+      const res = await fetch(`/api/listings/${listingId}/deactivate`, {
+        method: "PUT",
+      });
+      if (!res.ok) throw new Error("İlan pasif duruma getirilemedi");
+      return listingId;
+    },
+    onSuccess: async () => {
+      toast({ title: "İlan pasif duruma getirildi" });
+      await refetch();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Hata",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleEdit = (listingId: number) => {
     router.push(`/ilan-duzenle/${listingId}`);
   };
@@ -59,6 +80,29 @@ export default function MyListings({ initialListings }: MyListingsProps) {
         toast({
           title: "Hata",
           description: error.message || "İlan silinirken bir hata oluştu",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleDeactivate = async (listingId: number) => {
+    if (
+      window.confirm(
+        "İlanı pasif duruma getirmek istediğinizden emin misiniz?",
+      )
+    ) {
+      try {
+        await deactivateMutation.mutateAsync(listingId);
+        await refetch();
+        toast({
+          title: "Başarılı",
+          description: "İlan başarıyla pasif duruma getirildi",
+        });
+      } catch (error: any) {
+        toast({
+          title: "Hata",
+          description: error.message || "İlan pasif duruma getirilirken bir hata oluştu",
           variant: "destructive",
         });
       }
@@ -149,6 +193,7 @@ export default function MyListings({ initialListings }: MyListingsProps) {
                       isActive={true}
                       onEdit={() => handleEdit(listing.id)}
                       onDelete={() => handleDelete(listing.id)}
+                      onDeactivate={() => handleDeactivate(listing.id)}
                     />
                   ))}
                   {activeCount === 0 && (
