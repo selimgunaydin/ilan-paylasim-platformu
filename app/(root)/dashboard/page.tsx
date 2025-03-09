@@ -4,6 +4,7 @@ import { Listing } from '@shared/schema'
 import MyListings from '@/pages/my-listings'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/api/auth/[...nextauth]/route'
+import { headers } from 'next/headers'
 
 async function getListings() {
   const session = await getServerSession(authOptions)
@@ -12,8 +13,16 @@ async function getListings() {
     redirect('/auth')
   }
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/listings/user`)
-  console.log('DATDAT :', res)
+  const headersList = headers()
+  const cookies = headersList.get('cookie')
+
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/listings/user`, {
+    headers: {
+      'Cookie': cookies || '',
+    },
+    cache: 'no-store'
+  })
+
   if (!res.ok) {
     throw new Error('İlanlar getirilemedi')
   }
