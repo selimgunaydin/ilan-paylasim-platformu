@@ -1,3 +1,4 @@
+'use client'
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@app/components/ui/button";
@@ -27,8 +28,8 @@ export default function ListingDetailAdmin() {
       }
       const data = await res.json();
       console.log("Received listing data:", data); // Add response logging
-      if (!data || !data.listing) throw new Error("İlan bulunamadı");
-      return data.listing;
+      if (!data) throw new Error("İlan bulunamaqwedı");
+      return data;
     },
     enabled: !!id,
     retry: 1,
@@ -99,11 +100,11 @@ export default function ListingDetailAdmin() {
     }
   };
 
-  if (isLoading) return <div className="p-8 text-center">Yükleniyor...</div>;
-  if (isError || !listing) return <div className="p-8 text-center text-red-500">İlan bulunamadı</div>;
+  if (isLoading) return <div className="p-8 text-center mt-24">Yükleniyor...</div>;
+  if (isError || !listing) return <div className="p-8 text-center text-red-500 mt-24">İlan bulunamadı</div>;
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 mt-24">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">İlan İnceleme</h1>
         <Button variant="outline" onClick={() => router.push('/yonetim/onaybekleyenilanlar')}>

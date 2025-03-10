@@ -1,32 +1,27 @@
 'use client'
 
+import * as React from "react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { Button } from "@app/components/ui/button";
-import ManagementHome from "@/pages/management-home";
-import { Loader2 } from "lucide-react";
-export default function AdminDashboardPage() {
-  const { admin, isLoading, logoutMutation } = useAdminAuth();
-  const router = useRouter();
+import { AdminHeader } from "@app/components/ui/admin-header";
 
-  useEffect(() => {
-    if (!isLoading && !admin) {
-      router.push('/yonetim');
-    }
-  }, [admin, isLoading, router]);
-
-  if (isLoading) {
-    return <div className="flex items-center justify-center h-screen">
-      <Loader2 className="w-8 h-8 animate-spin" />
-    </div>;
-  }
-
-  if (!admin) {
-    return null;
-  }
+export default function ManagementHome({ children }: { children?: React.ReactNode }) {
+  const { admin } = useAdminAuth();
 
   return (
-      <ManagementHome />
+    <div className="min-h-screen bg-gray-50">
+      {/* Ana İçerik */}
+      <main className="pt-16">
+        <div className="container mx-auto px-4 py-8">
+          {children ?? (
+            <div className="space-y-4">
+              <h1 className="text-2xl font-bold">Hoş Geldiniz, {admin?.username}</h1>
+              <p className="text-gray-600">
+                Yönetim panelinden ilanları yönetebilir ve sistem ayarlarını düzenleyebilirsiniz.
+              </p>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
   );
-} 
+}
