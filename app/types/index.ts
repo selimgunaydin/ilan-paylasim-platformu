@@ -53,6 +53,7 @@ export interface Conversation {
     gender?: string;
     avatar?: string;
   };
+  unreadCount: number;
 }
 
 export interface Listing {

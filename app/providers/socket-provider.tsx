@@ -8,13 +8,11 @@ import { useToast } from '@/hooks/use-toast';
 type SocketContextType = {
   socket: Socket | null;
   isConnected: boolean;
-  unreadCount: number;
 };
 
 const SocketContext = createContext<SocketContextType>({
   socket: null,
-  isConnected: false,
-  unreadCount: 0,
+  isConnected: false
 });
 
 export const useSocket = () => {
@@ -28,30 +26,8 @@ export const useSocket = () => {
 export function SocketProvider({ children }: { children: React.ReactNode }) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const { user } = useAuth();
   const { toast } = useToast();
-
-  // Okunmamış mesaj sayısını al
-  const fetchUnreadCount = async () => {
-    try {
-      const response = await fetch('/api/messages/unread/count');
-      if (response.ok) {
-        const data = await response.json();
-        setUnreadCount(data.count);
-      }
-    } catch (error) {
-      console.error('Okunmamış mesaj sayısı alınamadı:', error);
-    }
-  };
-
-  useEffect(() => {
-    if (user) {
-      fetchUnreadCount();
-    } else {
-      setUnreadCount(0);
-    }
-  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -94,16 +70,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       setIsConnected(false);
     });
 
-    // Yeni mesaj geldiğinde okunmamış mesaj sayısını güncelle
-    socketInstance.on('messageNotification', () => {
-      setUnreadCount((prev) => prev + 1);
-    });
-
-    // Mesaj okunduğunda sayıyı güncelle
-    socketInstance.on('messageRead', () => {
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    });
-
     setSocket(socketInstance);
 
     return () => {
@@ -112,7 +78,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   }, [user, toast]);
 
   return (
-    <SocketContext.Provider value={{ socket, isConnected, unreadCount }}>
+    <SocketContext.Provider value={{ socket, isConnected }}>
       {children}
     </SocketContext.Provider>
   );
