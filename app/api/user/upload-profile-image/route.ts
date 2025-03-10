@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { users } from '@/schemas/schema';
+import { db } from "@shared/db";
+import { users } from '@shared/schemas';
 import { eq } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { writeFile, mkdir } from 'fs/promises';

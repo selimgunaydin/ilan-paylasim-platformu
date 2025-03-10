@@ -2,7 +2,8 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
+    const responseClone = res.clone();
+    const text = await responseClone.text() || res.statusText;
     throw new Error(`${res.status}: ${text}`);
   }
 }
@@ -26,7 +27,11 @@ export async function apiRequest<ResponseType = unknown, RequestType = unknown>(
     cache: "no-store",
   });
 
-  await throwIfResNotOk(res);
+  // Response'u klonla ve hata kontrolü için kullan
+  const resForErrorCheck = res.clone();
+  await throwIfResNotOk(resForErrorCheck);
+  
+  // Orijinal response'u JSON olarak çözümle
   return res.json();
 }
 
@@ -67,11 +72,17 @@ export function getQueryFn<T>(
         
         let errorMessage = "API request failed";
         try {
-          const errorData = await res.json();
-          errorMessage = errorData.message || errorData.error || errorMessage;
+          const responseClone = res.clone();
+          const errorText = await responseClone.text();
+          
+          try {
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData.message || errorData.error || errorMessage;
+          } catch (jsonError) {
+            errorMessage = errorText || errorMessage;
+          }
         } catch (e) {
-          // JSON parse hatası, response text kullan
-          errorMessage = await res.text() || errorMessage;
+          console.error("Error reading response:", e);
         }
         
         throw new Error(errorMessage);

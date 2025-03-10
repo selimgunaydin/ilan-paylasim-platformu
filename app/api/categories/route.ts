@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { categories } from '@/schemas/schema';
-import { db } from '@/lib/db';
+import { categories } from '@shared/schemas';
+import { db } from '@shared/db';
 
 // Kategorileri getirme API'si
 export async function GET(request: NextRequest) {

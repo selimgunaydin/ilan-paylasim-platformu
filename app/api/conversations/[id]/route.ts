@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-import { conversations, messages, users, listings } from '@/schemas/schema'
+import { conversations, messages, users, listings } from '@shared/schemas'
 import { eq, and } from 'drizzle-orm'
 import jwt from 'jsonwebtoken'
 import { getToken } from 'next-auth/jwt'
-import { db } from '@/lib/db'
+import { db } from '@shared/db'
 
 export async function GET(
   request: NextRequest,

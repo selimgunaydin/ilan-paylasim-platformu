@@ -13,12 +13,12 @@ import {
   messages,
   favorites,
   admin_users,
-} from "@/schemas/schema";
-import { db } from "./db";
+} from "@shared/schemas";
+import { db } from "../../shared/db";
 import { eq, and, gte, ilike, sql, or, inArray, ne, asc } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
-import { pool } from "./db";
+import { pool } from "../../shared/db";
 import { getMessageFilesUrls } from "./r2";
 import { randomBytes } from "crypto";
 import { SQL } from "drizzle-orm";

@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-import { categories } from '@/schemas/schema';
+import { categories } from '@shared/schemas';
 import { eq, and, sql } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 
 import { checkAdminAuth } from '@/utils/check-admin';
-import { db } from '@/lib/db';
+import { db } from '@shared/db';
 import { storage } from '@/lib/storage';
 
 // Kategori güncelleme API'si

@@ -3,7 +3,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { Listing } from "@/schemas/schema";
+import { Listing } from "@shared/schemas";
 import { Card, CardContent } from "@app/components/ui/card";
 import ListingCard from "@app/components/listing-card";
 

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { db } from "@/lib/db";
-import { payment_settings } from '@/schemas/schema';
-import { insertPaymentSettingsSchema } from '@/schemas/schema';
+import { db } from "@shared/db";
+import { payment_settings } from '@shared/schemas';
+import { insertPaymentSettingsSchema } from '@shared/schemas';
 import jwt from 'jsonwebtoken';
 import { checkAdminAuth } from '@/utils/check-admin';
 

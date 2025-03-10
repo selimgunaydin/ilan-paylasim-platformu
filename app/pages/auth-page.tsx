@@ -2,7 +2,7 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertUserSchema, type InsertUser } from "@/schemas/schema";
+import { insertUserSchema, type InsertUser } from "@shared/schemas";
 import { Card, CardContent, CardHeader, CardTitle } from "@app/components/ui/card";
 import { Button } from "@app/components/ui/button";
 import { Input } from "@app/components/ui/input";

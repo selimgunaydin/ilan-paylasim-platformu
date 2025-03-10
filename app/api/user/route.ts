@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { db } from '@/lib/db';
-import { users, listings, conversations, messages, favorites } from '@/schemas/schema';
+import { db } from '@shared/db';
+import { users, listings, conversations, messages, favorites } from '@shared/schemas';
 import { eq, or } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import { getToken } from 'next-auth/jwt';
@@ -12,13 +12,13 @@ import { authOptions } from '../auth/[...nextauth]/route';
 export async function GET(request: NextRequest) {
   try {
     // NextAuth token'ını al
-    const token = await getToken({ 
+    const authToken = await getToken({ 
       req: request, 
       secret: process.env.NEXTAUTH_SECRET 
     });
 
     // Alternatif olarak session kontrolü
-    if (!token) {
+    if (!authToken) {
       const session = await getServerSession({ req: request, ...authOptions });
       if (session?.user) {
         // Session varsa kullanıcı bilgilerini döndür
@@ -39,14 +39,30 @@ export async function GET(request: NextRequest) {
 
           // Kullanıcı bilgilerinden password alanını kaldır
           const { password, verificationToken, resetPasswordToken, ...userWithoutSensitiveData } = user;
-          return NextResponse.json(userWithoutSensitiveData, { status: 200 });
+          
+          // JWT token oluştur ve kullanıcı bilgisine ekle
+          const userToken = jwt.sign(
+            { 
+              id: userId.toString(), 
+              email: user.email, 
+              username: user.username,
+              sub: userId.toString()
+            },
+            process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret',
+            { expiresIn: '30d' }
+          );
+          
+          return NextResponse.json({
+            ...userWithoutSensitiveData,
+            token: userToken
+          }, { status: 200 });
         }
       }
     }
 
     // NextAuth token varsa
-    if (token) {
-      const userId = parseInt(token.id);
+    if (authToken) {
+      const userId = parseInt(authToken.id);
       
       // Kullanıcıyı veritabanından bul
       const [user] = await db
@@ -78,8 +94,23 @@ export async function GET(request: NextRequest) {
 
       // Kullanıcı bilgilerinden password alanını kaldır
       const { password, verificationToken, resetPasswordToken, ...userWithoutSensitiveData } = user;
+      
+      // JWT token oluştur ve kullanıcı bilgisine ekle
+      const userToken = jwt.sign(
+        { 
+          id: userId.toString(), 
+          email: user.email, 
+          username: user.username,
+          sub: userId.toString()
+        },
+        process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret',
+        { expiresIn: '30d' }
+      );
 
-      return NextResponse.json(userWithoutSensitiveData, { status: 200 });
+      return NextResponse.json({
+        ...userWithoutSensitiveData,
+        token: userToken
+      }, { status: 200 });
     }
 
     // Hiçbir token bulunamadı veya geçerli değil

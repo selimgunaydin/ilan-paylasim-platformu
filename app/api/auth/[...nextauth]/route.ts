@@ -2,12 +2,12 @@ import NextAuth from "next-auth";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
-import { users, admin_users } from '@/schemas/schema';
+import { users, admin_users } from '@shared/schemas';
 import { eq } from "drizzle-orm";
 import 'next-auth/jwt'
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { db } from "@/lib/db";
+import { db } from "@shared/db";
 
 const scryptAsync = promisify(scrypt);
 

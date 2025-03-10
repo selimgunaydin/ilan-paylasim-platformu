@@ -1,6 +1,6 @@
 import React from 'react'
 import HomePage from '@/pages/home-page'
-import { Category } from '@/schemas/schema';
+import { Category } from '@shared/schemas';
 
 export default async function Home() {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/categories`);

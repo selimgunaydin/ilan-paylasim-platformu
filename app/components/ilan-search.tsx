@@ -13,7 +13,7 @@ import {
   SelectGroup,
 } from "@app/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
-import { Category } from "@/schemas/schema";
+import { Category } from "@shared/schemas";
 import { getQueryFn } from "@/lib/queryClient";
 
 // Category tipini genişleterek listingCount özelliğini ekleyelim

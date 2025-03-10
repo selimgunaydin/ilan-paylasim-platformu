@@ -1,6 +1,6 @@
 import React from 'react'
 import { redirect } from 'next/navigation'
-import { Listing } from '@/schemas/schema'
+import { Listing } from '@shared/schemas'
 import MyListings from '@/pages/my-listings'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/api/auth/[...nextauth]/route'

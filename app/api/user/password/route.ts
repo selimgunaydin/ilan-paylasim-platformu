@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { db } from "@/lib/db";
-import { users } from '@/schemas/schema';
+import { db } from "@shared/db";
+import { users } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import { hashPassword, comparePasswords } from '@/api/auth/[...nextauth]/route';

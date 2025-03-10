@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Listing } from "@/schemas/schema";
+import { Listing } from "@shared/schemas";
 import { Card, CardContent } from "@app/components/ui/card";
 import FavoriteCard from "@app/components/favorite-card";
 

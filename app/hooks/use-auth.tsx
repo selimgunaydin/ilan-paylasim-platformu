@@ -10,7 +10,7 @@ import {
   insertUserSchema,
   User as SelectUser,
   InsertUser,
-} from "@/schemas/schema";
+} from "@shared/schemas";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getClientIp } from "@/utils/getIpAddress";

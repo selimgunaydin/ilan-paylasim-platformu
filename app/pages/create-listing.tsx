@@ -25,7 +25,7 @@ import {
   FormMessage,
 } from "@app/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@app/components/ui/radio-group";
-import type { Category } from "@/schemas/schema";
+import type { Category } from "@shared/schemas";
 import { queryClient } from "@/lib/queryClient";
 import { useRouter } from "next/navigation";
 
