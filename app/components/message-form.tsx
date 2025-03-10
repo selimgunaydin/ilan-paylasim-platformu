@@ -220,22 +220,26 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess }: M
 
     setIsSending(true);
     try {
-      // Dosyaları yüklemek için bir API endpoint'i kullanabiliriz
       let uploadedFileUrls: string[] = [];
+      
+      // Önce dosyaları yükle
       if (selectedFiles.length > 0) {
         const formData = new FormData();
+        formData.append('conversationId', conversationId.toString());
         selectedFiles.forEach((file) => formData.append('files', file));
-        const uploadResponse = await fetch('/api/upload', {
+
+        
+        const uploadResponse = await fetch('/api/messages/upload', {
           method: 'POST',
           body: formData,
         });
-        if (!uploadResponse.ok) throw new Error('Dosya yükleme başarısız');
-        uploadedFileUrls = await uploadResponse.json(); // Varsayım: API dosya URL'lerini döner
-      }
-
-      // Socket bağlantısını kontrol et
-      if (!socket.connected) {
-        throw new Error('Socket bağlantısı kopuk!');
+        
+        if (!uploadResponse.ok) {
+          throw new Error('Dosya yükleme başarısız');
+        }
+        
+        const uploadResult = await uploadResponse.json();
+        uploadedFileUrls = uploadResult.fileUrls || [];
       }
 
       // Socket.IO ile mesajı gönder

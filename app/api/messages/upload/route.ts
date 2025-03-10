@@ -48,6 +48,7 @@ const ALLOWED_FILE_TYPES = [
   'application/x-rar-compressed',
   // Medya
   'audio/mpeg',
+  'audio/webm',
   'audio/wav',
   'audio/ogg',
   'audio/mp4',

@@ -48,38 +48,219 @@ const getFileType = (fileName: string): 'image' | 'video' | 'audio' | 'other' =>
   return 'other';
 };
 
-const ImageViewer = ({ src, onClose }: { src: string; onClose: () => void }) => (
-  <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center" onClick={onClose}>
-    <Button variant="ghost" size="sm" className="absolute top-4 right-4 text-white hover:bg-white/20" onClick={onClose}>
-      <X className="h-6 w-6" />
-    </Button>
-    <img src={src} alt="Full size" className="max-h-[90vh] max-w-[90vw] object-contain" onClick={(e) => e.stopPropagation()} />
-  </div>
-);
+// Enhanced Media Preview Components
+const MediaPreview = ({ fileUrl, fileName, type }: FilePreviewProps & { type: 'image' | 'video' | 'audio' }) => {
+  const [isFullScreen, setIsFullScreen] = React.useState(false);
+  const mediaRef = React.useRef<HTMLVideoElement | HTMLAudioElement>(null);
 
-const MediaPlayer = ({ src, type, fileName }: { src: string; type: 'video' | 'audio'; fileName: string }) => {
-  const videoRef = React.useRef<HTMLVideoElement>(null);
   const toggleFullScreen = () => {
-    if (!videoRef.current) return;
-    document.fullscreenElement ? document.exitFullscreen() : videoRef.current.requestFullscreen();
+    if (!mediaRef.current) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+      setIsFullScreen(false);
+    } else {
+      mediaRef.current.requestFullscreen();
+      setIsFullScreen(true);
+    }
   };
 
-  if (type === 'video') {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleFullScreen();
+    }
+  };
+
+  if (type === 'image') {
     return (
-      <div className="relative group">
-        <video ref={videoRef} src={src} className="max-w-full rounded-lg" controls controlsList="nodownload" preload="metadata" />
-        <Button
-          variant="ghost"
-          size="sm"
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 text-white hover:bg-black/70"
-          onClick={toggleFullScreen}
-        >
-          <Maximize2 className="h-4 w-4" />
-        </Button>
+      <div className="relative group" role="region" aria-label={`Image preview: ${fileName}`}>
+        <img
+          src={fileUrl}
+          alt={fileName}
+          className="max-h-48 w-full object-contain rounded-lg cursor-pointer transition-opacity hover:opacity-90"
+          onClick={() => setIsFullScreen(true)}
+          loading="lazy"
+        />
+        {isFullScreen && (
+          <FullScreenPreview
+            fileUrl={fileUrl}
+            fileName={fileName}
+            onClose={() => setIsFullScreen(false)}
+          />
+        )}
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setIsFullScreen(true)}
+            onKeyDown={handleKeyDown}
+            aria-label="View image in full screen"
+          >
+            <Maximize2 className="h-4 w-4 mr-1" />
+            Görüntüle
+          </Button>
+        </div>
       </div>
     );
   }
-  return <audio src={src} className="w-full" controls controlsList="nodownload" preload="metadata" />;
+
+  return (
+    <div className="relative group" role="region" aria-label={`${type === 'video' ? 'Video' : 'Audio'} preview: ${fileName}`}>
+      {type === 'video' ? (
+        <video
+          ref={mediaRef}
+          src={fileUrl}
+          className="max-w-full rounded-lg"
+          controls
+          controlsList="nodownload"
+          preload="metadata"
+          aria-label={`Video: ${fileName}`}
+        />
+      ) : (
+        <audio
+          ref={mediaRef}
+          src={fileUrl}
+          className="w-full"
+          controls
+          controlsList="nodownload"
+          preload="metadata"
+          aria-label={`Audio: ${fileName}`}
+        />
+      )}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 text-white hover:bg-black/70"
+        onClick={toggleFullScreen}
+        onKeyDown={handleKeyDown}
+        aria-label="Toggle full screen"
+      >
+        <Maximize2 className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+};
+
+const FullScreenPreview = ({ fileUrl, fileName, onClose }: FilePreviewProps) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') onClose?.();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center"
+      onClick={onClose}
+      role="dialog"
+      aria-label={`Full screen preview: ${fileName}`}
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+    >
+      <Button
+        variant="ghost"
+        size="sm"
+        className="absolute top-4 right-4 text-white hover:bg-white/20"
+        onClick={onClose}
+        aria-label="Close full screen preview"
+      >
+        <X className="h-6 w-6" />
+      </Button>
+      <img
+        src={fileUrl}
+        alt={fileName}
+        className="max-h-[90vh] max-w-[90vw] object-contain"
+        onClick={(e) => e.stopPropagation()}
+        loading="lazy"
+      />
+    </div>
+  );
+};
+
+const FileAttachment = ({ fileUrl, fileName }: FilePreviewProps) => {
+  const fileType = getFileType(fileName);
+
+  return (
+    <div className="p-3 flex items-center gap-2 rounded-md border bg-background/80 hover:bg-background transition-colors">
+      {getFileIcon(fileType)}
+      <a
+        href={fileUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm text-primary hover:underline flex-1 truncate"
+        aria-label={`Download ${fileName}`}
+      >
+        {fileName}
+      </a>
+      <Button
+        variant="ghost"
+        size="sm"
+        asChild
+        aria-label={`Download ${fileName}`}
+      >
+        <a href={fileUrl} download={fileName}>
+          <Download className="h-4 w-4" />
+        </a>
+      </Button>
+    </div>
+  );
+};
+
+// Refactored MessageContent Component
+const MessageContent = ({ message, isOwnMessage }: { message: Message; isOwnMessage: boolean }) => {
+  const renderContentWithLinks = () => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = message.content.split(urlRegex);
+    const urls = message.content.match(urlRegex) || [];
+
+    return parts.map((part, index) => {
+      if (!part) return null;
+      const url = urls[index - 1];
+      if (url) {
+        return (
+          <a
+            key={`url-${index}`}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`underline ${isOwnMessage ? 'text-blue-200' : 'text-blue-500'}`}
+          >
+            {url}
+          </a>
+        );
+      }
+      return <span key={`text-${index}`}>{part}</span>;
+    });
+  };
+
+  return (
+    <div className="break-words">
+      <div className="whitespace-pre-wrap">{renderContentWithLinks()}</div>
+      {message.files && message.files.length > 0 && (
+        <div className="mt-2 space-y-2">
+          {message.files.map((file, index) => {
+            const fileName = file.split('/').pop() || 'dosya';
+            const fileType = getFileType(fileName);
+
+            return (
+              <div key={index} className="rounded-md overflow-hidden">
+                {fileType === 'image' || fileType === 'video' || fileType === 'audio' ? (
+                  <MediaPreview
+                    fileUrl={file}
+                    fileName={fileName}
+                    type={fileType}
+                  />
+                ) : (
+                  <FileAttachment
+                    fileUrl={file}
+                    fileName={fileName}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 };
 
 // Tip Tanımları
@@ -113,79 +294,6 @@ type UserWithToken = {
   [key: string]: any;
 };
 
-// Mesaj İçeriği Bileşeni
-const MessageContent = ({ message, isOwnMessage }: { message: Message; isOwnMessage: boolean }) => {
-  const renderMessageContent = () => {
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = message.content.split(urlRegex);
-    const urls = message.content.match(urlRegex) || [];
-    const result = [];
-    for (let i = 0; i < parts.length; i++) {
-      if (parts[i]) result.push(<span key={`text-${i}`}>{parts[i]}</span>);
-      if (urls[i - 1]) {
-        result.push(
-          <a
-            key={`url-${i-1}`}
-            href={urls[i - 1]}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`underline ${isOwnMessage ? 'text-blue-200' : 'text-blue-500'}`}
-          >
-            {urls[i - 1]}
-          </a>
-        );
-      }
-    }
-    return result;
-  };
-
-  return (
-    <div className="break-words">
-      <div className="whitespace-pre-wrap">{renderMessageContent()}</div>
-      {message.files && message.files.length > 0 && (
-        <div className="mt-2 space-y-2">
-          {message.files.map((file, index) => {
-            const fileType = getFileType(file);
-            const fileName = file.split('/').pop() || 'dosya';
-            return (
-              <div key={index} className="rounded-md overflow-hidden border bg-background/80">
-                {fileType === 'image' ? (
-                  <div className="relative group">
-                    <img
-                      src={file}
-                      alt={fileName}
-                      className="max-h-48 object-contain cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => window.open(file, '_blank')}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="secondary" size="sm" onClick={() => window.open(file, '_blank')}>
-                        <Maximize2 className="h-4 w-4 mr-1" /> Görüntüle
-                      </Button>
-                    </div>
-                  </div>
-                ) : fileType === 'video' || fileType === 'audio' ? (
-                  <MediaPlayer src={file} type={fileType} fileName={fileName} />
-                ) : (
-                  <div className="p-3 flex items-center gap-2">
-                    {getFileIcon(fileName)}
-                    <a href={file} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex-1 truncate">
-                      {fileName}
-                    </a>
-                    <Button variant="ghost" size="sm" asChild>
-                      <a href={file} download={fileName}>
-                        <Download className="h-4 w-4" />
-                      </a>
-                    </Button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
 
 export default function ConversationDetail() {
   const { id } = useParams<{ id: string }>();
