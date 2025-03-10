@@ -49,7 +49,7 @@ const getFileType = (fileName: string): 'image' | 'video' | 'audio' | 'other' =>
 };
 
 // Enhanced Media Preview Components
-const MediaPreview = ({ fileUrl, fileName, type }: FilePreviewProps & { type: 'image' | 'video' | 'audio' }) => {
+const MediaPreview = ({ fileUrl, fileName, type }: any & { type: 'image' | 'video' | 'audio' }) => {
   const [isFullScreen, setIsFullScreen] = React.useState(false);
   const mediaRef = React.useRef<HTMLVideoElement | HTMLAudioElement>(null);
 
@@ -141,7 +141,7 @@ const MediaPreview = ({ fileUrl, fileName, type }: FilePreviewProps & { type: 'i
   );
 };
 
-const FullScreenPreview = ({ fileUrl, fileName, onClose }: FilePreviewProps) => {
+const FullScreenPreview = ({ fileUrl, fileName, onClose }: any) => {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') onClose?.();
   };
@@ -175,7 +175,7 @@ const FullScreenPreview = ({ fileUrl, fileName, onClose }: FilePreviewProps) => 
   );
 };
 
-const FileAttachment = ({ fileUrl, fileName }: FilePreviewProps) => {
+const FileAttachment = ({ fileUrl, fileName }: any) => {
   const fileType = getFileType(fileName);
 
   return (
@@ -281,17 +281,6 @@ type Conversation = {
   listingId: number;
   createdAt: string;
   isRead: boolean;
-};
-
-type UserWithToken = {
-  id: number;
-  username: string;
-  email: string;
-  token?: string;
-  profileImage?: string;
-  gender?: string;
-  avatar?: string;
-  [key: string]: any;
 };
 
 
