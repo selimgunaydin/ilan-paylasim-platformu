@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@app/components/ui/select";
 import type { Row } from "@tanstack/react-table";
+import Link from "next/link";
 
 interface Listing {
   id: number;
@@ -160,12 +161,12 @@ export default function ActiveListings() {
       header: "Başlık",
       accessorKey: "title",
       cell: ({ row }: { row: Row<Listing> }) => (
-        <div
-          onClick={() => router.push(`/yonetim/ilan/${row.original.id}`)}
+        <Link
+          href={`/yonetim/ilan/${row.original.id}`}
           className="cursor-pointer text-left hover:text-blue-600 hover:underline"
         >
           {row.original.title}
-        </div>
+        </Link>
       )
     },
     {

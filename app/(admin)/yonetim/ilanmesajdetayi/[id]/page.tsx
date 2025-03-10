@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@app/components/ui/avatar";
 import { getProfileImageUrl } from "@/lib/avatar";
+import Link from "next/link";
 
 // Dosya tipine göre ikon döndüren yardımcı fonksiyon
 const getFileIcon = (fileName: string) => {
@@ -101,14 +102,13 @@ export default function AdminConversationDetail() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-4 flex items-center justify-between">
-        <Button
-          variant="ghost"
-          onClick={() => router.push("/yonetim/tummesajlar")}
-          className="flex items-center gap-2"
+        <Link
+          href="/yonetim/tummesajlar"
+          className="flex items-center gap-2 text-blue-500 hover:text-blue-700"
         >
           <ArrowLeft className="h-4 w-4" />
           Geri Dön
-        </Button>
+        </Link>
       </div>
 
       <div className="space-y-4">

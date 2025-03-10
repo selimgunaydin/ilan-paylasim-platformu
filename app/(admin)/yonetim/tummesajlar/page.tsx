@@ -22,6 +22,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@app/components/ui/pagination";
+import Link from "next/link";
 
 // Tip tanımlaması - schema.ts'deki yapıyla uyumlu
 interface ConversationWithDetails {
@@ -105,14 +106,13 @@ export default function AllMessages() {
                   {new Date(conversation.createdAt).toLocaleString("tr-TR")}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => router.push(`/yonetim/ilanmesajdetayi/${conversation.id}`)}
+                  <Link
+                    href={`/yonetim/ilanmesajdetayi/${conversation.id}`}
+                    className="text-blue-500 hover:text-blue-700"
                   >
                     <MessageSquare className="h-4 w-4 mr-2" />
                     Detayları Göster
-                  </Button>
+                  </Link>
                 </TableCell>
               </TableRow>
             ))}

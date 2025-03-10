@@ -15,6 +15,7 @@ import {
   Archive,
 } from "lucide-react";
 import { FileGroup } from "@/types";
+import Link from "next/link";
 
 const getFileIcon = (fileName: string) => {
   const extension = fileName.split(".").pop()?.toLowerCase();
@@ -84,14 +85,13 @@ export default function ConversationFiles() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
-        <Button
-          variant="ghost"
-          onClick={() => router.push(`/mesajlar/${id}`)}
-          className="flex items-center gap-2"
+        <Link
+          href={`/mesajlar/${id}`}
+          className="flex items-center gap-2 text-blue-500 hover:text-blue-700"
         >
           <ArrowLeft className="h-4 w-4" />
           Sohbete Dön
-        </Button>
+        </Link>
       </div>
 
       <Card>

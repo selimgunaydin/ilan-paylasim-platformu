@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { Card, CardContent } from "@app/components/ui/card";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function ListingDetailAdmin() {
   const { id } = useParams<{ id: string }>();
@@ -107,9 +108,9 @@ export default function ListingDetailAdmin() {
     <div className="container mx-auto px-4 py-8 mt-24">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">İlan İnceleme</h1>
-        <Button variant="outline" onClick={() => router.push('/yonetim/onaybekleyenilanlar')}>
+        <Link href="/yonetim/onaybekleyenilanlar" className="text-blue-500 hover:text-blue-700">
           Listeye Dön
-        </Button>
+        </Link>
       </div>
 
       <Card>

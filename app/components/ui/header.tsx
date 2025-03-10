@@ -22,11 +22,6 @@ export function Header() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const navigateTo = (path: string) => {
-    router.push(path);
-    setIsMobileMenuOpen(false);
-  };
-
   // Kullanıcı menüsü seçenekleri - hem mobil hem masaüstü görünümde kullanılacak
   const userMenuItems = [
     { label: "İlanlarım", icon: ListPlus, path: "/ilanlarim" },
@@ -88,20 +83,20 @@ export function Header() {
                       <NavigationMenuContent>
                         <div className="w-[220px] p-2">
                           {userMenuItems.map((item) => (
-                            <div
+                            <Link
                               key={item.path}
-                              onClick={() => navigateTo(item.path)}
+                              href={item.path}
                               className="flex items-center gap-2 p-2 hover:bg-blue-50 rounded-md cursor-pointer"
                             >
                               <item.icon className="h-5 w-5 text-blue-600" />
                               <span>{item.label}</span>
-                            </div>
+                            </Link>
                           ))}
                           <div className="border-t my-2"></div>
                           <div
                             onClick={() => {
                               signOut({ redirect: false });
-                              navigateTo("/");
+                              router.push("/");
                             }}
                             className="flex items-center gap-2 p-2 hover:bg-red-50 text-red-600 rounded-md cursor-pointer"
                           >
@@ -114,24 +109,24 @@ export function Header() {
                   </NavigationMenuList>
                 </NavigationMenu>
 
-                <div onClick={() => navigateTo("/ilan-ekle")}>
+                <Link href="/ilan-ekle">
                   <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transition-all">
                     Ücretsiz İlan Ver
                   </Button>
-                </div>
+                </Link>
               </>
             ) : (
               <>
-                <div onClick={() => navigateTo("/auth")}>
+                <Link href="/auth">
                   <Button variant="outline" className={`border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors`}>
                     Giriş / Üyelik
                   </Button>
-                </div>
-                <div onClick={() => navigateTo("/ilan-ekle")}>
+                </Link>
+                <Link href="/ilan-ekle">
                   <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transition-all">
                     Ücretsiz İlan Ver
                   </Button>
-                </div>
+                </Link>
               </>
             )}
           </nav>
@@ -155,27 +150,27 @@ export function Header() {
                   <>
                     {/* Kullanıcı menüsü - Mobil */}
                     {userMenuItems.map((item) => (
-                      <div
+                      <Link
                         key={item.path}
-                        onClick={() => navigateTo(item.path)}
+                        href={item.path}
                         className="flex items-center gap-2 p-2 hover:bg-blue-50 rounded-md"
                       >
                         <item.icon className="h-5 w-5 text-blue-600" />
                         <span>{item.label}</span>
-                      </div>
+                      </Link>
                     ))}
 
-                    <div onClick={() => navigateTo("/ilan-ekle")}>
+                    <Link href="/ilan-ekle">
                       <Button className="w-full justify-center bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white">
                         Ücretsiz İlan Ver
                       </Button>
-                    </div>
+                    </Link>
                     <Button
                       variant="outline"
                       className="w-full justify-center border-red-500 text-red-500 hover:bg-red-50"
                       onClick={() => {
                         signOut({ redirect: false });
-                        navigateTo("/");
+                        router.push("/");
                       }}
                     >
                       Çıkış Yap
@@ -183,16 +178,16 @@ export function Header() {
                   </>
                 ) : (
                   <>
-                    <div onClick={() => navigateTo("/auth")}>
+                    <Link href="/auth">
                       <Button variant="outline" className="w-full justify-center border-blue-600 text-blue-600 hover:bg-blue-50">
                         Giriş / Üyelik
                       </Button>
-                    </div>
-                    <div onClick={() => navigateTo("/ilan-ekle")}>
+                    </Link>
+                    <Link href="/ilan-ekle">
                       <Button className="w-full justify-center bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white">
                         Ücretsiz İlan Ver
                       </Button>
-                    </div>
+                    </Link>
                   </>
                 )}
               </nav>

@@ -11,6 +11,7 @@ import { DataTable } from "@app/components/ui/data-table";
 import { FaCheck, FaTrash, FaFlag } from 'react-icons/fa';
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function PendingListings() {
   const { toast } = useToast();
@@ -126,12 +127,12 @@ const columns = [
     header: "Başlık",
     accessorKey: "title",
     cell: ({ row }: { row: any }) => (
-      <div
-        onClick={() => router.push(`/yonetim/ilan/${row.original.id}`)}
+      <Link
+        href={`/yonetim/ilan/${row.original.id}`}
         className="cursor-pointer text-left hover:text-blue-600 hover:underline"
       >
         {row.getValue("title")}
-      </div>
+      </Link>
     )
   },
   {
