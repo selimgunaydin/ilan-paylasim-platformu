@@ -322,10 +322,17 @@ export default function ConversationDetail() {
     });
 
     socketInstance.on('newMessage', (message: Message) => {
-      setLocalMessages((prev) => [...prev, message].sort((a, b) => 
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      ));
-      console.log(message);
+      console.log('Yeni mesaj alındı:', message);
+      setLocalMessages((prev) => {
+        // Mesaj zaten varsa ekleme
+        if (prev.some(m => m.id === message.id)) {
+          return prev;
+        }
+        // Yeni mesajı ekle ve tarihe göre sırala
+        return [...prev, message].sort((a, b) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+      });
       scrollToBottomIfNeeded();
     });
 
@@ -577,7 +584,19 @@ export default function ConversationDetail() {
   conversationId={parseInt(id)}
   receiverId={conversation.senderId === user?.id ? conversation.receiverId : conversation.senderId}
   onSuccess={(content, files) => {
-    // Mesaj gönderildiğinde scroll ve state güncellemesi
+    // Yeni mesajı localMessages'a ekle
+    const newMessage = {
+      id: Date.now(), // Geçici ID
+      senderId: user?.id,
+      receiverId: conversation.senderId === user?.id ? conversation.receiverId : conversation.senderId,
+      content,
+      files: files || [],
+      createdAt: new Date().toISOString(),
+      isRead: false,
+    };
+    setLocalMessages(prev => [...prev, newMessage].sort((a, b) => 
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    ));
     scrollToBottom();
   }}
 />

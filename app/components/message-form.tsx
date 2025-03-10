@@ -209,6 +209,15 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess }: M
 
     if (!message.trim() && selectedFiles.length === 0) return;
 
+    if (!socket) {
+      toast({
+        title: 'Bağlantı Hatası',
+        description: 'Mesaj gönderilemiyor. Lütfen sayfayı yenileyin.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSending(true);
     try {
       // Dosyaları yüklemek için bir API endpoint'i kullanabiliriz
@@ -224,6 +233,11 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess }: M
         uploadedFileUrls = await uploadResponse.json(); // Varsayım: API dosya URL'lerini döner
       }
 
+      // Socket bağlantısını kontrol et
+      if (!socket.connected) {
+        throw new Error('Socket bağlantısı kopuk!');
+      }
+
       // Socket.IO ile mesajı gönder
       socket.emit('sendMessage', {
         conversationId,
@@ -232,8 +246,11 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess }: M
         receiverId,
       });
 
+      // Mesaj gönderildikten sonra state'i temizle
       setMessage('');
       setSelectedFiles([]);
+      
+      // Başarı callback'ini çağır
       onSuccess(message.trim(), uploadedFileUrls);
     } catch (error) {
       console.error('Mesaj gönderme hatası:', error);

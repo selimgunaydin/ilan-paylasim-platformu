@@ -89,7 +89,7 @@ io.on('connection', (socket: SocketWithAuth) => {
         .values({
           conversationId: parseInt(conversationId),
           senderId: parseInt(socket.userId),
-          receiverId: data.receiverId, // Alıcı ID'sini istemciden alacağız
+          receiverId: data.receiverId,
           content,
           files,
           createdAt: new Date(),
@@ -97,8 +97,27 @@ io.on('connection', (socket: SocketWithAuth) => {
         })
         .returning();
 
-      // Mesajı ilgili konuşmadaki tüm istemcilere gönder
-      io.to(conversationId).emit('newMessage', newMessage);
+      console.log('Yeni mesaj kaydedildi:', newMessage);
+
+      // Mesajı hem gönderen hem de alıcıya ilet
+      io.to(conversationId).emit('newMessage', {
+        ...newMessage,
+        sender: {
+          id: parseInt(socket.userId),
+        }
+      });
+
+      // Alıcıya özel bildirim gönder
+      const receiverSocket = Array.from(io.sockets.sockets.values()).find(
+        (s: any) => s.userId === data.receiverId.toString()
+      );
+      
+      if (receiverSocket) {
+        receiverSocket.emit('messageNotification', {
+          conversationId,
+          message: newMessage
+        });
+      }
     } catch (error) {
       console.error('Mesaj gönderme hatası:', error);
       socket.emit('error', 'Mesaj gönderilemedi');
