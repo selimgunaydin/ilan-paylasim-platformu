@@ -214,6 +214,12 @@ export default function ConversationDetail() {
       socket.emit('markAsRead', id);
     });
 
+    localMessages.forEach((message) => {
+      if (message.receiverId === user?.id && !message.isRead) {
+        socket.emit('markAsRead', id);
+      }
+    });
+
     socket.on('messageRead', ({ conversationId }) => {
       if (conversationId === id) {
         setLocalMessages((prev) => prev.map((msg) => ({ ...msg, isRead: true })));
@@ -225,7 +231,7 @@ export default function ConversationDetail() {
       socket.off('messageRead');
       socket.emit('leaveConversation', id);
     };
-  }, [socket, id]);
+  }, [socket, id, localMessages]);
 
   // İlk Mesajları Yükleme
   const { data: initialMessages = [] } = useQuery<Message[]>({
