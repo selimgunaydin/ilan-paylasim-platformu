@@ -18,7 +18,6 @@ import {
 } from '@app/components/ui/dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@app/components/ui/avatar';
 import { getProfileImageUrl } from '@/lib/avatar';
-import { useAutoScroll } from '@/hooks/use-auto-scroll';
 import {
   ArrowLeft,
   ChevronDown,
@@ -284,11 +283,7 @@ export default function ConversationDetail() {
   const searchParams = new URLSearchParams(window.location.search);
   const referrerTab = searchParams.get('tab') || 'received';
   const endRef = React.useRef<HTMLDivElement>(null);
-  const { scrollToBottom } = useAutoScroll(endRef);
   const messagesContainerRef = React.useRef<HTMLDivElement>(null);
-
-  const [scrollPosition, setScrollPosition] = React.useState(0);
-  const [isScrolledToBottom, setIsScrolledToBottom] = React.useState(true);
   const [localMessages, setLocalMessages] = React.useState<Message[]>([]);
   const [socket, setSocket] = React.useState<Socket | null>(null);
 
@@ -321,19 +316,18 @@ export default function ConversationDetail() {
       socketInstance.emit('joinConversation', id);
     });
 
-    socketInstance.on('newMessage', (message: Message) => {
+    socketInstance.on('messageNotification', (message: any) => {
       console.log('Yeni mesaj alındı:', message);
       setLocalMessages((prev) => {
         // Mesaj zaten varsa ekleme
-        if (prev.some(m => m.id === message.id)) {
+        if (prev.some(m => m.id === message.message.id)) {
           return prev;
         }
         // Yeni mesajı ekle ve tarihe göre sırala
-        return [...prev, message].sort((a, b) => 
+        return [...prev, message.message].sort((a, b) => 
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         );
       });
-      scrollToBottomIfNeeded();
     });
 
     socketInstance.on('messageRead', ({ conversationId }) => {
@@ -423,27 +417,6 @@ export default function ConversationDetail() {
     },
     enabled: Boolean(conversation),
   });
-
-  // Scroll kontrolü
-  const scrollToBottomIfNeeded = React.useCallback(() => {
-    if (isScrolledToBottom) {
-      setTimeout(() => scrollToBottom(), 50);
-    }
-  }, [isScrolledToBottom, scrollToBottom]);
-
-  React.useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      setScrollPosition(scrollTop);
-      setIsScrolledToBottom(scrollHeight - scrollTop - clientHeight < 20);
-    };
-
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
 
   // Mesaj gönderme
   const handleSendMessage = (content: string, files?: string[]) => {
@@ -567,18 +540,8 @@ export default function ConversationDetail() {
             <div ref={endRef} />
           </div>
 
-          <div className="fixed bottom-[52px] md:bottom-0 left-0 right-0 bg-background p-2 md:p-4 border-t md:relative md:bottom-auto md:left-auto md:right-auto md:bg-transparent md:border-0 w-full max-w-full overflow-hidden z-10 shadow-md md:shadow-none">
+          <div className="fixed bottom-[52px] left-0 right-0 bg-background p-2 md:p-4 border-t md:relative md:bottom-auto md:left-auto md:right-auto md:bg-transparent md:border-0 w-full max-w-full overflow-hidden z-10 shadow-md md:shadow-none">
             <div className="max-w-screen-lg mx-auto">
-              {!isScrolledToBottom && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="absolute bottom-[80px] right-4 rounded-full p-2 shadow-md bg-background z-20"
-                  onClick={scrollToBottom}
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              )}
 <MessageForm
   socket={socket}
   conversationId={parseInt(id)}
@@ -597,7 +560,6 @@ export default function ConversationDetail() {
     setLocalMessages(prev => [...prev, newMessage].sort((a, b) => 
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     ));
-    scrollToBottom();
   }}
 />
             </div>

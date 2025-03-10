@@ -28,7 +28,6 @@ import {
   Check, // Okundu bildirimi için eklendi
 } from "lucide-react";
 import { Textarea } from "@app/components/ui/textarea";
-import { useAutoScroll } from "@/hooks/use-auto-scroll";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from "@app/components/ui/dialog";
 
 const getFileIcon = (fileName: string) => {
@@ -116,7 +115,6 @@ export default function ChatDetail() {
   const [uploading, setUploading] = React.useState(false);
   const firstRender = React.useRef(true);
   const endRef = React.useRef<HTMLDivElement>(null);
-  const { scrollToBottom } = useAutoScroll(endRef);
 
   const { data: conversation } = useQuery<Conversation>({
     queryKey: ["/api/conversations", id],
@@ -274,14 +272,7 @@ export default function ChatDetail() {
   const handleDeleteMessage = (messageId: number) => {
     deleteMessageMutation.mutate(messageId);
   };
-
-  // Mesajlar yüklendiğinde otomatik scroll
-  React.useEffect(() => {
-    if (messages.length > 0) {
-      scrollToBottom();
-    }
-  }, [messages, scrollToBottom]);
-
+  
   // Düzenli mesaj kontrolü
   React.useEffect(() => {
     const messageCheckInterval = setInterval(() => {
