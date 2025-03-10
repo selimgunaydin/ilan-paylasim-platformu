@@ -220,6 +220,8 @@ export default function ConversationDetail() {
         if (prev.some((m) => m.id === message.message.id)) return prev;
         return [...prev, message.message].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       });
+
+      socketInstance.emit('markAsRead', id);
     });
 
     socketInstance.on('messageRead', ({ conversationId }) => {
@@ -297,17 +299,6 @@ export default function ConversationDetail() {
     },
     enabled: Boolean(conversation),
   });
-
-  // Mesaj Gönderme
-  const handleSendMessage = (content: string, files?: string[]) => {
-    if (!socket || !conversation || !user) return;
-    socket.emit('sendMessage', {
-      conversationId: id,
-      content,
-      files,
-      receiverId: conversation.senderId === user.id ? conversation.receiverId : conversation.senderId,
-    });
-  };
 
   // Mesaj Silme
   const handleDeleteMessage = async (messageId: number) => {
