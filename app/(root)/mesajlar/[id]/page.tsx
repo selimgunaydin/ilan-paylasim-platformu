@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
+import { useSocket } from '@/providers/socket-provider';
 import { Button } from '@app/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { MessageForm } from '@app/components/message-form';
@@ -27,7 +28,6 @@ import {
   Archive,
   X,
 } from 'lucide-react';
-import { Socket, io } from 'socket.io-client';
 
 // Yardımcı Bileşenler
 const getFileIcon = (fileName: string) => {
@@ -190,6 +190,7 @@ const MessageContent = ({ message, isOwnMessage }: { message: Message; isOwnMess
 export default function ConversationDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { socket } = useSocket();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -197,46 +198,34 @@ export default function ConversationDetail() {
   const referrerTab = searchParams.get('tab') || 'received';
   const endRef = React.useRef<HTMLDivElement>(null);
   const [localMessages, setLocalMessages] = React.useState<Message[]>([]);
-  const [socket, setSocket] = React.useState<Socket | null>(null);
 
-  // Socket.IO Bağlantısı
+  // Socket.IO Event Listeners
   React.useEffect(() => {
-    if (!user) return;
-    const userWithToken = user as UserWithToken;
-    const token = userWithToken.token;
-    if (!token) {
-      toast({ title: 'Bağlantı Hatası', description: 'Kimlik doğrulama bilgisi eksik.', variant: 'destructive' });
-      return;
-    }
+    if (!socket || !id) return;
 
-    const socketInstance = io('http://localhost:3001', { transports: ['websocket'], auth: { token } });
-    socketInstance.on('connect', () => {
-      socketInstance.emit('authenticate', token);
-      socketInstance.emit('joinConversation', id);
-    });
+    socket.emit('joinConversation', id);
 
-    socketInstance.on('messageNotification', (message: any) => {
+    socket.on('messageNotification', (message: any) => {
       setLocalMessages((prev) => {
         if (prev.some((m) => m.id === message.message.id)) return prev;
         return [...prev, message.message].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       });
 
-      socketInstance.emit('markAsRead', id);
+      socket.emit('markAsRead', id);
     });
 
-    socketInstance.on('messageRead', ({ conversationId }) => {
+    socket.on('messageRead', ({ conversationId }) => {
       if (conversationId === id) {
         setLocalMessages((prev) => prev.map((msg) => ({ ...msg, isRead: true })));
       }
     });
 
-    socketInstance.on('connect_error', (err) => {
-      console.error('Bağlantı hatası:', err.message);
-    });
-
-    setSocket(socketInstance);
-    return () => socketInstance.disconnect();
-  }, [id, user, toast]);
+    return () => {
+      socket.off('messageNotification');
+      socket.off('messageRead');
+      socket.emit('leaveConversation', id);
+    };
+  }, [socket, id]);
 
   // İlk Mesajları Yükleme
   const { data: initialMessages = [] } = useQuery<Message[]>({

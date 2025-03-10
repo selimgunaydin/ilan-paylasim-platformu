@@ -3,7 +3,7 @@ import { db } from "@shared/db";
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
-import { messages } from '../../../../shared@shared/schemas';
+import { messages } from '../../../../shared/schemas';
 import { getToken } from "next-auth/jwt";
 
 interface JwtPayload {
