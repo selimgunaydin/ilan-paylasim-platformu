@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
 import { useSocket } from '@/providers/socket-provider';
 import { Button } from '@app/components/ui/button';
@@ -27,7 +27,10 @@ import {
   Video,
   Archive,
   X,
+  ArrowDown,
+  Loader2,
 } from 'lucide-react';
+import { useCallback, useEffect, useRef } from 'react';
 
 // Yardımcı Bileşenler
 const getFileIcon = (fileName: string) => {
@@ -49,94 +52,42 @@ const getFileType = (fileName: string): 'image' | 'video' | 'audio' | 'other' =>
 };
 
 // Enhanced Media Preview Components
-const MediaPreview = ({ fileUrl, fileName, type }: any & { type: 'image' | 'video' | 'audio' }) => {
+const MediaPreview = ({ fileUrl, fileName, type }: { fileUrl: string; fileName: string; type: 'image' | 'video' | 'audio' }) => {
   const [isFullScreen, setIsFullScreen] = React.useState(false);
-  const mediaRef = React.useRef<HTMLVideoElement | HTMLAudioElement>(null);
-
-  const toggleFullScreen = () => {
-    if (!mediaRef.current) return;
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-      setIsFullScreen(false);
-    } else {
-      mediaRef.current.requestFullscreen();
-      setIsFullScreen(true);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      toggleFullScreen();
-    }
-  };
-
-  if (type === 'image') {
-    return (
-      <div className="relative group" role="region" aria-label={`Image preview: ${fileName}`}>
-        <img
-          src={fileUrl}
-          alt={fileName}
-          className="max-h-48 w-full object-contain rounded-lg cursor-pointer transition-opacity hover:opacity-90"
-          onClick={() => setIsFullScreen(true)}
-          loading="lazy"
-        />
-        {isFullScreen && (
-          <FullScreenPreview
-            fileUrl={fileUrl}
-            fileName={fileName}
-            onClose={() => setIsFullScreen(false)}
-          />
-        )}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setIsFullScreen(true)}
-            onKeyDown={handleKeyDown}
-            aria-label="View image in full screen"
-          >
-            <Maximize2 className="h-4 w-4 mr-1" />
-            Görüntüle
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="relative group" role="region" aria-label={`${type === 'video' ? 'Video' : 'Audio'} preview: ${fileName}`}>
-      {type === 'video' ? (
+    <div className="relative rounded-lg overflow-hidden">
+      {type === 'image' ? (
+        <>
+          <img
+            src={fileUrl}
+            alt={fileName}
+            className="w-full h-40 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+            onClick={() => setIsFullScreen(true)}
+          />
+          {isFullScreen && (
+            <FullScreenPreview
+              fileUrl={fileUrl}
+              fileName={fileName}
+              onClose={() => setIsFullScreen(false)}
+            />
+          )}
+        </>
+      ) : type === 'video' ? (
         <video
-          ref={mediaRef}
           src={fileUrl}
-          className="max-w-full rounded-lg"
+          className="w-full h-40 object-cover"
           controls
           controlsList="nodownload"
-          preload="metadata"
-          aria-label={`Video: ${fileName}`}
         />
       ) : (
         <audio
-          ref={mediaRef}
           src={fileUrl}
           className="w-full"
           controls
           controlsList="nodownload"
-          preload="metadata"
-          aria-label={`Audio: ${fileName}`}
         />
       )}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 text-white hover:bg-black/70"
-        onClick={toggleFullScreen}
-        onKeyDown={handleKeyDown}
-        aria-label="Toggle full screen"
-      >
-        <Maximize2 className="h-4 w-4" />
-      </Button>
     </div>
   );
 };
@@ -175,32 +126,17 @@ const FullScreenPreview = ({ fileUrl, fileName, onClose }: any) => {
   );
 };
 
-const FileAttachment = ({ fileUrl, fileName }: any) => {
-  const fileType = getFileType(fileName);
-
+const FileAttachment = ({ fileUrl, fileName }: { fileUrl: string; fileName: string }) => {
   return (
-    <div className="p-3 flex items-center gap-2 rounded-md border bg-background/80 hover:bg-background transition-colors">
-      {getFileIcon(fileType)}
-      <a
-        href={fileUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-sm text-primary hover:underline flex-1 truncate"
-        aria-label={`Download ${fileName}`}
-      >
-        {fileName}
-      </a>
-      <Button
-        variant="ghost"
-        size="sm"
-        asChild
-        aria-label={`Download ${fileName}`}
-      >
-        <a href={fileUrl} download={fileName}>
-          <Download className="h-4 w-4" />
-        </a>
-      </Button>
-    </div>
+    <a
+      href={fileUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-2 p-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+    >
+      {getFileIcon(fileName)}
+      <span className="text-sm text-blue-500 truncate">{fileName}</span>
+    </a>
   );
 };
 
@@ -221,7 +157,7 @@ const MessageContent = ({ message, isOwnMessage }: { message: Message; isOwnMess
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className={`underline ${isOwnMessage ? 'text-blue-200' : 'text-blue-500'}`}
+            className="text-blue-500 hover:underline"
           >
             {url}
           </a>
@@ -232,17 +168,27 @@ const MessageContent = ({ message, isOwnMessage }: { message: Message; isOwnMess
   };
 
   return (
-    <div className="break-words">
-      <div className="whitespace-pre-wrap">{renderContentWithLinks()}</div>
+    <div className="space-y-2">
+      {message.content && (
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">
+          {renderContentWithLinks()}
+        </p>
+      )}
       {message.files && message.files.length > 0 && (
-        <div className="mt-2 space-y-2">
+        <div className="grid grid-cols-2 gap-2">
           {message.files.map((file, index) => {
-            const fileName = file.split('/').pop() || 'dosya';
+            const fileName = file.split('/').pop() || 'file';
             const fileType = getFileType(fileName);
 
             return (
-              <div key={index} className="rounded-md overflow-hidden">
-                {fileType === 'image' || fileType === 'video' || fileType === 'audio' ? (
+              <div key={index} className="w-full">
+                {fileType === 'image' ? (
+                  <MediaPreview
+                    fileUrl={file}
+                    fileName={fileName}
+                    type={fileType}
+                  />
+                ) : fileType === 'video' || fileType === 'audio' ? (
                   <MediaPreview
                     fileUrl={file}
                     fileName={fileName}
@@ -289,15 +235,120 @@ export default function ConversationDetail() {
   const { user } = useAuth();
   const { socket } = useSocket();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const router = useRouter();
-  const searchParams = new URLSearchParams(window.location.search);
-  const referrerTab = searchParams.get('tab') || 'received';
-  const endRef = React.useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [localMessages, setLocalMessages] = React.useState<Message[]>([]);
+  const [isAtBottom, setIsAtBottom] = React.useState(true);
+  const prevScrollHeightRef = useRef<number>(0);
+  const isInitialMount = useRef(true);
+  const headerRef = useRef<HTMLDivElement>(null);
+  // Infinite Query for Messages with Pagination
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['/api/conversations', id, 'messages'],
+    queryFn: async ({ pageParam = 0 }) => {
+      const response = await fetch(`/api/conversations/${id}/messages?page=${pageParam}&limit=20`);
+      if (!response.ok) throw new Error('Failed to fetch messages');
+      const result = await response.json();
+      return {
+        messages: result.messages,
+        nextPage: result.hasMore ? pageParam + 1 : undefined,
+        listingId: result.listingId,
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    enabled: Boolean(user) && Boolean(id),
+    initialPageParam: 0,
+  });
+  const { data: otherUser } = useQuery({
+    queryKey: ['/api/users', data?.pages[0]?.messages[0]?.senderId === user?.id ? data?.pages[0]?.messages[0]?.receiverId : data?.pages[0]?.messages[0]?.senderId],
+    queryFn: async () => {
+      if (!data?.pages[0]?.messages[0]) return null;
+      const otherId = data?.pages[0]?.messages[0]?.senderId === user?.id ? data?.pages[0]?.messages[0]?.receiverId : data?.pages[0]?.messages[0]?.senderId;
+      const response = await fetch(`/api/conversations/${id}/user/${otherId}`);
+      if (!response.ok) throw new Error('Failed to fetch user');
+      return response.json();
+    },
+    enabled: Boolean(data?.pages[0]?.messages[0]),
+  });
 
-  // Socket.IO Event Listeners
-  React.useEffect(() => {
+  const { data: listing } = useQuery<Listing>({
+    queryKey: ['/api/listings', data?.pages[0]?.listingId],
+    queryFn: async () => {
+      if (!data?.pages[0]?.listingId) return null;
+      const response = await fetch(`/api/listings/${data?.pages[0]?.listingId}`);
+      if (!response.ok) throw new Error('Failed to fetch listing');
+      return response.json();
+    },
+    enabled: Boolean(data?.pages[0]?.listingId),
+  });
+
+  // Flatten messages from pages
+  const allMessages = React.useMemo(() => {
+    const messages = data?.pages.flatMap(page => page.messages) || [];
+    return [...messages, ...localMessages].sort((a, b) => 
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+  }, [data, localMessages]);
+
+  useEffect(() => {
+    document.querySelector('footer')?.classList.add('hidden');
+
+    return () => {
+      document.querySelector('footer')?.classList.remove('hidden');
+    };
+  }, []);
+
+  // Scroll to Bottom Function
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    const tryScroll = (attempts = 3) => {
+      if (!messagesEndRef.current) return;
+
+      messagesEndRef.current.scrollIntoView({ behavior });
+      
+      // Verify scroll position and retry if needed
+      setTimeout(() => {
+        if (!scrollContainerRef.current) return;
+        const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+        if (scrollHeight - scrollTop - clientHeight > 100 && attempts > 0) {
+          tryScroll(attempts - 1);
+        }
+      }, 100);
+    };
+    tryScroll();
+  }, []);
+
+  // Check if scrolled to bottom
+  const handleScroll = useCallback(
+    debounce(() => {
+      if (!scrollContainerRef.current) return;
+      
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+      const bottomThreshold = 100;
+      const isBottom = scrollHeight - scrollTop - clientHeight < bottomThreshold;
+      setIsAtBottom(isBottom);
+
+      // Load more messages when near top
+      if (scrollTop < 50 && hasNextPage && !isFetchingNextPage) {
+        prevScrollHeightRef.current = scrollHeight;
+        fetchNextPage();
+      }
+    }, 100),
+    [hasNextPage, isFetchingNextPage, fetchNextPage]
+  );
+
+  // Initial Scroll and Socket Setup
+  useEffect(() => {
+    if (isInitialMount.current && allMessages.length > 0) {
+      scrollToBottom('auto');
+      isInitialMount.current = false;
+    }
+    
     if (!socket || !id) return;
 
     socket.emit('joinConversation', id);
@@ -305,13 +356,18 @@ export default function ConversationDetail() {
     socket.on('messageNotification', (message: any) => {
       setLocalMessages((prev) => {
         if (prev.some((m) => m.id === message.message.id)) return prev;
-        return [...prev, message.message].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        const newMessages = [...prev, message.message].sort((a, b) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        if (isAtBottom) {
+          setTimeout(() => scrollToBottom('smooth'), 100);
+        }
+        return newMessages;
       });
-
       socket.emit('markAsRead', id);
     });
 
-    localMessages.forEach((message) => {
+    allMessages.forEach((message) => {
       if (message.receiverId === user?.id && !message.isRead) {
         socket.emit('markAsRead', id);
       }
@@ -328,71 +384,50 @@ export default function ConversationDetail() {
       socket.off('messageRead');
       socket.emit('leaveConversation', id);
     };
-  }, [socket, id, localMessages]);
+  }, [socket, id, isAtBottom, scrollToBottom, allMessages, user]);
 
-  // İlk Mesajları Yükleme
-  const { data: initialMessages = [] } = useQuery<Message[]>({
-    queryKey: ['/api/conversations', id, 'messages'],
-    queryFn: async () => {
-      const response = await fetch(`/api/conversations/${id}/messages`);
-      if (!response.ok) throw new Error('Failed to fetch messages');
-      const data = await response.json();
-      if (data.some((msg: Message) => msg.receiverId === user?.id && !msg.isRead)) {
-        socket?.emit('markAsRead', id);
+  // Scroll to bottom when sending new message
+  const handleMessageSuccess = useCallback((content: string, files?: string[]) => {
+    const newMessage = {
+      id: Date.now(),
+      senderId: user!.id,
+      receiverId: data?.pages[0]?.messages[0]?.senderId === user!.id 
+        ? data?.pages[0]?.messages[0]?.receiverId 
+        : data?.pages[0]?.messages[0]?.senderId,
+      content,
+      files: files || [],
+      createdAt: new Date().toISOString(),
+      isRead: false,
+    };
+    
+    setLocalMessages((prev) => {
+      const newMessages = [...prev, newMessage].sort((a, b) => 
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+      if (isAtBottom) {
+        setTimeout(() => scrollToBottom('smooth'), 100);
       }
-      return data;
-    },
-    enabled: Boolean(user) && Boolean(id),
-  });
+      return newMessages;
+    });
+  }, [user, data, scrollToBottom, isAtBottom]);
 
-  React.useEffect(() => {
-    if (initialMessages && initialMessages.length > 0) {
-      setLocalMessages(initialMessages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
+  useEffect(() => {
+    if (isFetchingNextPage || !scrollContainerRef.current) return;
+    
+    const currentScrollHeight = scrollContainerRef.current.scrollHeight;
+    if (prevScrollHeightRef.current && prevScrollHeightRef.current < currentScrollHeight) {
+      const heightDiff = currentScrollHeight - prevScrollHeightRef.current;
+      scrollContainerRef.current.scrollTop += heightDiff;
     }
-  }, [initialMessages]);
+  }, [isFetchingNextPage, allMessages]);
 
-  // Konuşma Detayları
-  const { data: conversation } = useQuery<Conversation>({
-    queryKey: ['/api/conversations', id],
-    queryFn: async () => {
-      const response = await fetch(`/api/conversations/${id}`);
-      if (!response.ok) {
-        router.push('/dashboard');
-        toast({ title: 'Yetkisiz Erişim', description: 'Bu konuşmaya erişim yetkiniz yok.', variant: 'destructive' });
-        throw new Error('Unauthorized');
-      }
-      return response.json();
-    },
-    retry: false,
-    enabled: Boolean(user),
-  });
-
-  // İlan Detayları
-  const { data: listing } = useQuery<Listing>({
-    queryKey: ['/api/listings', conversation?.listingId],
-    queryFn: async () => {
-      if (!conversation?.listingId) return null;
-      const response = await fetch(`/api/listings/${conversation.listingId}`);
-      if (!response.ok) throw new Error('Failed to fetch listing');
-      return response.json();
-    },
-    enabled: Boolean(conversation?.listingId),
-  });
-
-  // Karşı Tarafın Bilgileri
-  const { data: otherUser } = useQuery({
-    queryKey: ['/api/users', conversation?.senderId === user?.id ? conversation?.receiverId : conversation?.senderId],
-    queryFn: async () => {
-      if (!conversation) return null;
-      const otherId = conversation.senderId === user?.id ? conversation.receiverId : conversation.senderId;
-      const response = await fetch(`/api/conversations/${id}/user/${otherId}`);
-      if (!response.ok) throw new Error('Failed to fetch user');
-      return response.json();
-    },
-    enabled: Boolean(conversation),
-  });
-
-  // Mesaj Silme
+  function debounce(func: (...args: any[]) => void, wait: number) {
+    let timeout: NodeJS.Timeout;
+    return (...args: any[]) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), wait);
+    };
+  }
   const handleDeleteMessage = async (messageId: number) => {
     try {
       const response = await fetch(`/api/messages/${messageId}`, { method: 'DELETE' });
@@ -403,121 +438,129 @@ export default function ConversationDetail() {
     }
   };
 
-  if (!user || !conversation) return null;
-
+  if (!user || !data) return null;
+  console.log(listing)
   return (
-    <div className="flex flex-col bg-gray-100 relative">
-      {/* Sabit Üst Başlık (WhatsApp Tarzı) */}
-      <div className="absolute top-0 left-0 right-0 bg-gray-700 text-white p-3 flex items-center justify-between shadow-md z-10">
+    <div className="flex flex-col h-[calc(100vh-100px)] bg-white">
+      <div ref={headerRef} className="sticky top-0 z-10 bg-white border-b px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => router.back()}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
           <Avatar className="h-10 w-10">
-            <AvatarImage
+          <AvatarImage
               src={getProfileImageUrl(otherUser?.profileImage, otherUser?.gender || 'unspecified', otherUser?.avatar)}
               alt="Profil"
             />
-            <AvatarFallback>{otherUser?.username?.charAt(0).toUpperCase()}</AvatarFallback>
+            <AvatarFallback>{otherUser?.username?.charAt(0)}</AvatarFallback>
           </Avatar>
           <div>
-            <h2 className="font-semibold">{otherUser?.username || 'Kullanıcı'}</h2>
+            <p className="font-medium">{otherUser?.username}</p>
             {listing && (
-              <p className="text-xs opacity-75">
-                İlan:{' '}
-                <a href={`/ilan/${listing.title.toLowerCase().replace(/\s+/g, '-')}-${listing.id}`} className="underline">
-                  {listing.title}
-                </a>
-              </p>
+              <a
+                href={`/ilan/${listing.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-500 hover:underline flex items-center gap-1"
+              >
+                <ExternalLink className="h-4 w-4" />
+                {listing?.title}
+              </a>
             )}
           </div>
         </div>
-        {listing && (
-          <a
-            href={`/ilan/${listing.title.toLowerCase().replace(/\s+/g, '-')}-${listing.id}`}
-            className="text-white hover:underline flex items-center gap-1"
-          >
-            <ExternalLink className="h-4 w-4" />
-          </a>
-        )}
       </div>
 
-      {/* Mesaj Alanı (Kaydırılabilir) */}
-      <div
-        className="flex-1 overflow-y-auto pt-20 pb-20 bg-repeat"
+      {/* Messages with Custom Scroll */}
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+        onScroll={handleScroll}
       >
-        <div className="px-4 py-2 space-y-2">
-          {localMessages.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center p-6 bg-white rounded-lg shadow-md">
-                <MessageSquare className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                <p className="text-gray-500">Henüz mesaj yok. Konuşmayı başlatmak için bir mesaj gönderin.</p>
-              </div>
+        {isFetchingNextPage && (
+          <div className="flex justify-center py-2">
+            <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+          </div>
+        )}
+        
+        {allMessages.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="text-center space-y-2">
+              <MessageSquare className="h-8 w-8 mx-auto opacity-50" />
+              <p className="text-sm">Start the conversation</p>
             </div>
-          ) : (
-            localMessages.map((message) => (
+          </div>
+        ) : (
+          allMessages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.senderId === user.id ? 'justify-end' : 'justify-start'} group`}
+            >
               <div
-                key={message.id}
-                className={`flex ${message.senderId === user.id ? 'justify-end' : 'justify-start'}`}
+                className={`max-w-[70%] rounded-2xl p-3 transition-all relative ${
+                  message.senderId === user.id
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-900'
+                }`}
               >
-                <div
-                  className={`max-w-[70%] p-3 rounded-lg shadow-md relative ${
-                    message.senderId === user.id
-                      ? 'bg-gray-200 text-black rounded-br-none'
-                      : 'bg-white text-black rounded-bl-none'
-                  }`}
-                >
-                  <MessageContent message={message} isOwnMessage={message.senderId === user.id} />
-                  <div className="text-xs text-gray-500 mt-1 flex items-center justify-end gap-1">
-                    {new Date(message.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-                    {message.senderId === user.id && (
-                      <span>
-                        {message.isRead ? (
-                          <CheckCheck className="h-3 w-3 text-blue-500" />
-                        ) : (
-                          <Check className="h-3 w-3 text-gray-500" />
-                        )}
-                      </span>
-                    )}
-                  </div>
+                <MessageContent 
+                  message={message} 
+                  isOwnMessage={message.senderId === user.id} 
+                />
+                <div className="flex items-center justify-end gap-2 mt-1">
+                  <span className="text-xs opacity-75">
+                    {new Date(message.createdAt).toLocaleTimeString('tr-TR', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
                   {message.senderId === user.id && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="absolute top-1 right-1 opacity-0 hover:opacity-100 transition-opacity text-red-500"
-                      onClick={() => handleDeleteMessage(message.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <span className="flex items-center">
+                      {message.isRead ? (
+                        <CheckCheck className="h-3 w-3" />
+                      ) : (
+                        <Check className="h-3 w-3 opacity-50" />
+                      )}
+                    </span>
                   )}
                 </div>
+                {message.senderId === user.id && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 bg-red-500 text-white h-6 w-6 p-0 rounded-full"
+                    onClick={() => handleDeleteMessage(message.id)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                )}
               </div>
-            ))
-          )}
-          <div ref={endRef} />
-        </div>
+            </div>
+          ))
+        )}
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Sabit Mesaj Giriş Alanı */}
-      <div className="absolute bottom-0 left-0 right-0 bg-white p-2 shadow-md z-10">
-        <div className="max-w-screen-lg mx-auto">
-          <MessageForm
-            socket={socket}
-            conversationId={parseInt(id)}
-            receiverId={conversation.senderId === user.id ? conversation.receiverId : conversation.senderId}
-            onSuccess={(content, files) => {
-              const newMessage = {
-                id: Date.now(),
-                senderId: user.id,
-                receiverId: conversation.senderId === user.id ? conversation.receiverId : conversation.senderId,
-                content,
-                files: files || [],
-                createdAt: new Date().toISOString(),
-                isRead: false,
-              };
-              setLocalMessages((prev) =>
-                [...prev, newMessage].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-              );
-            }}
-          />
-        </div>
+      {/* Scroll to Bottom Button */}
+      {!isAtBottom && allMessages.length > 0 && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="absolute bottom-20 right-4 rounded-full h-10 w-10 p-0 shadow-md"
+          onClick={() => scrollToBottom('smooth')}
+        >
+          <ArrowDown className="h-5 w-5" />
+        </Button>
+      )}
+
+      {/* Message Input */}
+      <div className="sticky bottom-0 z-10 bg-white border-t p-4">
+        <MessageForm
+          socket={socket}
+          conversationId={parseInt(id)}
+          receiverId={data?.pages[0]?.messages[0]?.senderId === user.id ? data?.pages[0]?.messages[0]?.receiverId : data?.pages[0]?.messages[0]?.senderId}
+          onSuccess={handleMessageSuccess}
+        />
       </div>
     </div>
   );

@@ -19,7 +19,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         <SidebarProvider>
             <Header />
             <div className="pt-16 pb-16 md:pb-0">
-              <div className="mx-auto min-h-screen">
+              <div className="mx-auto">
                 {children}
               </div>
             </div>
