@@ -439,7 +439,7 @@ export default function ConversationDetail() {
   };
 
   if (!user || !data) return null;
-  console.log(listing)
+
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] bg-white">
       <div ref={headerRef} className="sticky top-0 z-10 bg-white border-b px-4 py-3 flex items-center justify-between">

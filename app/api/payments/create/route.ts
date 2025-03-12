@@ -10,8 +10,8 @@ import { getToken } from 'next-auth/jwt';
 const MERCHANT_ID = process.env.PAYTR_MERCHANT_ID || '123456'
 const MERCHANT_KEY = process.env.PAYTR_MERCHANT_KEY || 'merchant_key'
 const MERCHANT_SALT = process.env.PAYTR_MERCHANT_SALT || 'merchant_salt'
-const SUCCESS_URL = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/payment/success`
-const FAIL_URL = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/payment/fail`
+const SUCCESS_URL = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/payment/success`
+const FAIL_URL = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/payment/fail`
 
 export async function POST(request: NextRequest) {
   try {
