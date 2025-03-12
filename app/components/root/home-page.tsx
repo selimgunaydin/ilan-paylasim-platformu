@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Category } from "@shared/schemas";
 import IlanSearch from "@app/components/ilan-search";
-import { Footer } from "@app/components/ui/footer";
+import { Footer } from "@/components/root/footer";
 
 // Category tipini genişleterek listingCount özelliğini ekleyelim
 interface CategoryWithCount extends Category {

@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { Facebook, Instagram, Twitter, Mail, Phone, MapPin, ArrowRight } from "lucide-react";
-import { Button } from "./button";
-import { Input } from "./input";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 import { useState } from "react";
 
 export function Footer() {
