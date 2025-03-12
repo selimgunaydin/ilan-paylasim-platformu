@@ -558,6 +558,7 @@ export default function ConversationDetail() {
         <MessageForm
           socket={socket}
           conversationId={parseInt(id)}
+          listingId={data?.pages[0]?.listingId}
           receiverId={data?.pages[0]?.messages[0]?.senderId === user.id ? data?.pages[0]?.messages[0]?.receiverId : data?.pages[0]?.messages[0]?.senderId}
           onSuccess={handleMessageSuccess}
         />

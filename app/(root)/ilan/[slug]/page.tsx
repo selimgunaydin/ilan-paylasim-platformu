@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { MessageForm } from "@app/components/message-form";
@@ -16,13 +16,15 @@ import { AspectRatio } from "@app/components/ui/aspect-ratio";
 import { ImageGallery } from "@app/components/image-gallery";
 import { Star, StarOff } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Modal } from "@app/components/ui/modal";
+import { useSocket } from "@/providers/socket-provider";
 
 export default function ListingDetail() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { slug } = useParams<{ slug: string }>();
+  const { socket } = useSocket();
   const id = slug?.split("-").pop();
   const [isModalOpen, setIsModalOpen] = useState(false);
   if (!id || isNaN(Number(id))) {
@@ -46,7 +48,7 @@ export default function ListingDetail() {
     queryKey: ["listings", "similar", listing?.categoryId],
     queryFn: () =>
       fetch(`/api/listings?categoryId=${listing?.categoryId}&limit=5`).then(
-        (res) => res.json(),
+        (res) => res.json()
       ),
     enabled: !!listing?.categoryId,
     staleTime: 300000,
@@ -143,6 +145,20 @@ export default function ListingDetail() {
 
   const similarListings = similarListingsResponse?.listings || [];
 
+  const handleMessageSuccess = useCallback(
+    (content: string, files?: string[]) => {
+      const newMessage = {
+        id: Date.now(),
+        senderId: user!.id,
+        receiverId: listing?.userId,
+        files: files || [],
+        createdAt: new Date().toISOString(),
+        isRead: false,
+      };
+    },
+    [user]
+  );
+
   if (isLoading) return <div>Yükleniyor...</div>;
   if (!listing) return <div>İlan bulunamadı</div>;
 
@@ -231,8 +247,10 @@ export default function ListingDetail() {
                 ) : listing.userId && user.id !== listing.userId ? (
                   <>
                     <MessageForm
-                      listingId={Number(id)}
-                      receiverId={listing.userId}
+                      socket={socket}
+                      receiverId={listing?.userId}
+                      onSuccess={handleMessageSuccess}
+                      listingId={listing.id}
                     />
                     <div className="mt-4 flex justify-end">
                       <Button
@@ -317,13 +335,15 @@ export default function ListingDetail() {
               <div className="space-y-4">
                 {similarListings
                   ?.filter(
-                    (l) => l.id !== listing.id && l.listingType === "premium",
+                    (l) => l.id !== listing.id && l.listingType === "premium"
                   )
                   .slice(0, 5)
                   .map((similarListing) => (
                     <Link
                       key={similarListing.id}
-                      href={`/ilan/${createSeoUrl(similarListing.title)}-${similarListing.id}`}
+                      href={`/ilan/${createSeoUrl(similarListing.title)}-${
+                        similarListing.id
+                      }`}
                       className="block p-4 border rounded-lg hover:border-blue-500 transition-colors"
                     >
                       <h3 className="font-semibold mb-2">

@@ -92,12 +92,13 @@ const FilePreview: React.FC<{ file: File; onRemove: () => void }> = ({ file, onR
 
 type MessageFormProps = {
   socket: Socket | null; // socket null olabilir
-  conversationId: number;
+  conversationId?: number;
   receiverId: number;
   onSuccess: (content: string, files?: string[]) => void;
+  listingId?: number;
 };
 
-export function MessageForm({ socket, conversationId, receiverId, onSuccess }: MessageFormProps) {
+export function MessageForm({ socket, conversationId, receiverId, onSuccess, listingId }: MessageFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [message, setMessage] = useState('');
@@ -225,10 +226,9 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess }: M
       // Önce dosyaları yükle
       if (selectedFiles.length > 0) {
         const formData = new FormData();
-        formData.append('conversationId', conversationId.toString());
         selectedFiles.forEach((file) => formData.append('files', file));
 
-        
+
         const uploadResponse = await fetch('/api/messages/upload', {
           method: 'POST',
           body: formData,
@@ -240,15 +240,20 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess }: M
         
         const uploadResult = await uploadResponse.json();
         uploadedFileUrls = uploadResult.fileUrls || [];
+        if(conversationId){
+          formData.append('conversationId', conversationId.toString());
+        }
+        
       }
 
-      // Socket.IO ile mesajı gönder
-      socket.emit('sendMessage', {
-        conversationId,
-        content: message.trim(),
-        files: uploadedFileUrls,
-        receiverId,
-      });
+        socket.emit('sendMessage', {
+          conversationId,
+          content: message.trim(),
+          files: uploadedFileUrls,
+          receiverId,
+          listingId,
+        });
+
 
       // Mesaj gönderildikten sonra state'i temizle
       setMessage('');
