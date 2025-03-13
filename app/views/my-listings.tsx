@@ -7,8 +7,12 @@ import { Listing } from "@shared/schemas";
 import { Card, CardContent } from "@app/components/ui/card";
 import ListingCard from "@app/components/listing-card";
 
+interface ListingWithCategory extends Listing {
+  categoryName: string;
+}
+
 interface MyListingsProps {
-  initialListings: Listing[];
+  initialListings: ListingWithCategory[];
 }
 
 // İlanlarım sayfası - Dashboard'daki İlanlar tab içeriğinin aynısı
@@ -85,7 +89,7 @@ export default function MyListings({ initialListings }: MyListingsProps) {
       }
     }
   };
-
+  console.log(initialListings)
   const handleDeactivate = async (listingId: number) => {
     if (
       window.confirm(
@@ -109,7 +113,7 @@ export default function MyListings({ initialListings }: MyListingsProps) {
     }
   };
 
-  const { data: listings, refetch } = useQuery<Listing[]>({
+  const { data: listings, refetch } = useQuery<ListingWithCategory[]>({
     queryKey: ["listings", "user"],
     queryFn: () =>
       fetch("/api/listings/user").then((res) => {

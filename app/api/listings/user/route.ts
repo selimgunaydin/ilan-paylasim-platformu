@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { db } from "@shared/db";
-import { listings } from '@shared/schemas';
+import { categories, listings } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import { getToken } from 'next-auth/jwt';
@@ -32,8 +32,15 @@ export async function GET(request: NextRequest) {
       .from(listings)
       .where(eq(listings.userId, userId))
       .orderBy(listings.createdAt);
-
-    return NextResponse.json(userListings);
+      const allCategories = await db.select().from(categories);
+      const listingWithCategory = userListings.map(listing => { 
+        const category = allCategories.find(c => c.id === listing.categoryId);
+        return {
+          ...listing,
+          categoryName: category?.name || null
+        };
+      });
+    return NextResponse.json(listingWithCategory);
   } catch (error) {
     console.error("Error fetching user listings:", error);
     return NextResponse.json(

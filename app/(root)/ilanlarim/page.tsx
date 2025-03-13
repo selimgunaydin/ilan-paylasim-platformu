@@ -1,10 +1,9 @@
 import React from 'react'
 import { redirect } from 'next/navigation'
-import { Listing } from '@shared/schemas'
-import MyListings from '@/views/my-listings'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/api/auth/[...nextauth]/route'
 import { headers } from 'next/headers'
+import MyListings from '@/views/my-listings'
 
 async function getListings() {
   const session = await getServerSession(authOptions)
@@ -32,7 +31,7 @@ async function getListings() {
 
 export default async function DashboardPage() {
   const listings = await getListings()
-
+  
   return (
     <div className="container mx-auto px-4 py-8">
       <MyListings initialListings={listings} />

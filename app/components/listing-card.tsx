@@ -8,13 +8,19 @@ import { useToast } from "@/hooks/use-toast";
 import { Power, PowerOff } from "lucide-react";
 import { FaEdit, FaToggleOff, FaTrash } from "react-icons/fa";
 
+interface ListingWithCategory extends Listing {
+  categoryName: string;
+}
+
 interface ListingCardProps {
-  listing: Listing;
+  listing: ListingWithCategory;
   onEdit?: () => void;
   onDelete?: () => void;
   onDeactivate?: () => void;
   isActive: boolean;
 }
+
+
 
 export default function ListingCard({
   listing,
@@ -125,8 +131,8 @@ export default function ListingCard({
             {listing.listingType === "premium" ? "Öncelikli" : "Standart"}
           </p>
           <p>
-            <span className="font-medium">Kategori ID:</span>{" "}
-            {listing.categoryId || "Belirtilmemiş"}
+            <span className="font-medium">Kategori:</span>{" "}
+            {listing.categoryName || "Belirtilmemiş"}
           </p>
           <p>
             <span className="font-medium">Görülme:</span> {listing.views || 0}

@@ -15,6 +15,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Category } from "@shared/schemas";
 import { getQueryFn } from "@/lib/queryClient";
+import cityList from "../../public/city-list.json";
 
 // Category tipini genişleterek listingCount özelliğini ekleyelim
 interface CategoryWithCount extends Category {
@@ -77,10 +78,11 @@ export default function IlanSearch({ categories }: { categories: CategoryWithCou
             <SelectValue placeholder="Tüm Şehirler" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="istanbul">İstanbul</SelectItem>
-            <SelectItem value="ankara">Ankara</SelectItem>
-            <SelectItem value="izmir">İzmir</SelectItem>
-            {/* other cities removed for brevity */}
+            {cityList.cities.map((city) => (
+              <SelectItem key={city.value} value={city.value}>
+                {city.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

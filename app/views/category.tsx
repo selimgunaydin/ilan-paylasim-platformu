@@ -1,9 +1,6 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 import type { Category, Listing } from "@shared/schemas";
-import { useParams } from "next/navigation";
 import Link from "next/link";
 import { cn, createSeoUrl } from "@/lib/utils";
 import { Badge } from "@app/components/ui/badge";
@@ -22,51 +19,33 @@ import { formatDistanceToNow } from "date-fns";
 import { tr } from "date-fns/locale";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMapMarkerAlt } from "@fortawesome/free-solid-svg-icons";
+import cityList from "../../public/city-list.json";
 
-export default function CategoryDetail({ categories, category }: { categories: Category[], category: Category }) {
-  const { slug } = useParams<{ slug: string; city?: string }>();
-  const pathParts = window.location.pathname.split("/").filter(Boolean);
-  const lastPart = pathParts[pathParts.length - 1];
-  const page = !isNaN(parseInt(lastPart)) ? parseInt(lastPart) : 1;
+export default function CategoryDetail({
+  categories,
+  category,
+  listings,
+  params,
+  searchParams,
+}: {
+  categories: Category[];
+  category: Category;
+  listings: Listing[];
+  params: { slug: string; city: string };
+  searchParams: { page?: string; search?: string };
+}) {
+  const page = !isNaN(parseInt(searchParams.page || "1"))
+    ? parseInt(searchParams.page || "1")
+    : 1;
 
-  // Şehir parse etme mantığını düzeltelim
-  const city = pathParts.length > 2 && isNaN(parseInt(pathParts[2]))
-    ? pathParts[2].charAt(0).toUpperCase() + pathParts[2].slice(1).toLowerCase()
-    : undefined;
-
-  const searchParams = new URLSearchParams(window.location.search);
-  const searchQuery = searchParams.get("search") || "";
-
-  const { data: listingsData } = useQuery<{
-    listings: Listing[];
-    total: number;
-  }>({
-    queryKey: ["/api/listings", { categorySlug: slug, city, page, search: searchQuery }],
-    queryFn: async () => {
-      const cityParam = city ? `&city=${encodeURIComponent(city)}` : "";
-      const searchParam = searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : '';
-      const url = `/api/listings?categorySlug=${slug}${cityParam}${searchParam}&page=${page}`;
-      return fetch(url).then((res) => res.json());
-    },
+  const sortedListings = listings.sort((a, b) => {
+    if (a.listingType === "premium" && b.listingType !== "premium") return -1;
+    if (a.listingType !== "premium" && b.listingType === "premium") return 1;
+    return (
+      new Date(b.createdAt || Date.now()).getTime() -
+      new Date(a.createdAt || Date.now()).getTime()
+    );
   });
-
-  const [sortedListings, setSortedListings] = useState<Listing[]>([]);
-
-  useEffect(() => {
-    if (!listingsData?.listings) return;
-
-    // Premium ilanları önce göster
-    const sortedData = [...listingsData.listings].sort((a, b) => {
-      if (a.listingType === "premium" && b.listingType !== "premium") return -1;
-      if (a.listingType !== "premium" && b.listingType === "premium") return 1;
-      return new Date(b.createdAt || Date.now()).getTime() - new Date(a.createdAt || Date.now()).getTime();
-    });
-
-    setSortedListings(sortedData);
-  }, [listingsData?.listings]);
-
-  // Eski sort logiğini kaldır
-  /*const defaultSort = listingsData?.listings?.sort((a, b) => {*/
 
   if (!category) return <div>Yükleniyor...</div>;
 
@@ -83,7 +62,9 @@ export default function CategoryDetail({ categories, category }: { categories: C
 
             if (!category) return;
 
-            const normalizedCity = city ? `/${decodeURIComponent(city.toLowerCase())}` : "";
+            const normalizedCity = city
+              ? `/${decodeURIComponent(city.toLowerCase())}`
+              : "";
             const url = `/kategori/${category}${normalizedCity}`;
             window.location.href = url;
           }}
@@ -127,87 +108,11 @@ export default function CategoryDetail({ categories, category }: { categories: C
                 <SelectValue placeholder="Tüm Şehirler" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="istanbul">İstanbul</SelectItem>
-                <SelectItem value="adana">Adana</SelectItem>
-                <SelectItem value="adiyaman">Adıyaman</SelectItem>
-                <SelectItem value="afyonkarahisar">Afyonkarahisar</SelectItem>
-                <SelectItem value="agri">Ağrı</SelectItem>
-                <SelectItem value="aksaray">Aksaray</SelectItem>
-                <SelectItem value="amasya">Amasya</SelectItem>
-                <SelectItem value="ankara">Ankara</SelectItem>
-                <SelectItem value="antalya">Antalya</SelectItem>
-                <SelectItem value="ardahan">Ardahan</SelectItem>
-                <SelectItem value="artvin">Artvin</SelectItem>
-                <SelectItem value="aydin">Aydın</SelectItem>
-                <SelectItem value="balikesir">Balıkesir</SelectItem>
-                <SelectItem value="bartin">Bartın</SelectItem>
-                <SelectItem value="batman">Batman</SelectItem>
-                <SelectItem value="bayburt">Bayburt</SelectItem>
-                <SelectItem value="bilecik">Bilecik</SelectItem>
-                <SelectItem value="bingol">Bingöl</SelectItem>
-                <SelectItem value="bitlis">Bitlis</SelectItem>
-                <SelectItem value="bolu">Bolu</SelectItem>
-                <SelectItem value="burdur">Burdur</SelectItem>
-                <SelectItem value="bursa">Bursa</SelectItem>
-                <SelectItem value="canakkale">Çanakkale</SelectItem>
-                <SelectItem value="cankiri">Çankırı</SelectItem>
-                <SelectItem value="corum">Çorum</SelectItem>
-                <SelectItem value="denizli">Denizli</SelectItem>
-                <SelectItem value="diyarbakir">Diyarbakır</SelectItem>
-                <SelectItem value="duzce">Düzce</SelectItem>
-                <SelectItem value="edirne">Edirne</SelectItem>
-                <SelectItem value="elazig">Elazığ</SelectItem>
-                <SelectItem value="erzincan">Erzincan</SelectItem>
-                <SelectItem value="erzurum">Erzurum</SelectItem>
-                <SelectItem value="eskisehir">Eskişehir</SelectItem>
-                <SelectItem value="gaziantep">Gaziantep</SelectItem>
-                <SelectItem value="giresun">Giresun</SelectItem>
-                <SelectItem value="gumushane">Gümüşhane</SelectItem>
-                <SelectItem value="hakkari">Hakkari</SelectItem>
-                <SelectItem value="hatay">Hatay</SelectItem>
-                <SelectItem value="igdir">Iğdır</SelectItem>
-                <SelectItem value="isparta">Isparta</SelectItem>
-                <SelectItem value="izmir">İzmir</SelectItem>
-                <SelectItem value="kahramanmaras">Kahramanmaraş</SelectItem>
-                <SelectItem value="karabuk">Karabük</SelectItem>
-                <SelectItem value="karaman">Karaman</SelectItem>
-                <SelectItem value="kars">Kars</SelectItem>
-                <SelectItem value="kastamonu">Kastamonu</SelectItem>
-                <SelectItem value="kayseri">Kayseri</SelectItem>
-                <SelectItem value="kilis">Kilis</SelectItem>
-                <SelectItem value="kirikkale">Kırıkkale</SelectItem>
-                <SelectItem value="kirklareli">Kırklareli</SelectItem>
-                <SelectItem value="kirsehir">Kırşehir</SelectItem>
-                <SelectItem value="kocaeli">Kocaeli</SelectItem>
-                <SelectItem value="konya">Konya</SelectItem>
-                <SelectItem value="kutahya">Kütahya</SelectItem>
-                <SelectItem value="malatya">Malatya</SelectItem>
-                <SelectItem value="manisa">Manisa</SelectItem>
-                <SelectItem value="mardin">Mardin</SelectItem>
-                <SelectItem value="mersin">Mersin</SelectItem>
-                <SelectItem value="mugla">Muğla</SelectItem>
-                <SelectItem value="mus">Muş</SelectItem>
-                <SelectItem value="nevsehir">Nevşehir</SelectItem>
-                <SelectItem value="nigde">Niğde</SelectItem>
-                <SelectItem value="ordu">Ordu</SelectItem>
-                <SelectItem value="osmaniye">Osmaniye</SelectItem>
-                <SelectItem value="rize">Rize</SelectItem>
-                <SelectItem value="sakarya">Sakarya</SelectItem>
-                <SelectItem value="samsun">Samsun</SelectItem>
-                <SelectItem value="siirt">Siirt</SelectItem>
-                <SelectItem value="sinop">Sinop</SelectItem>
-                <SelectItem value="sivas">Sivas</SelectItem>
-                <SelectItem value="sanliurfa">Şanlıurfa</SelectItem>
-                <SelectItem value="sirnak">Şırnak</SelectItem>
-                <SelectItem value="tekirdag">Tekirdağ</SelectItem>
-                <SelectItem value="tokat">Tokat</SelectItem>
-                <SelectItem value="trabzon">Trabzon</SelectItem>
-                <SelectItem value="tunceli">Tunceli</SelectItem>
-                <SelectItem value="usak">Uşak</SelectItem>
-                <SelectItem value="van">Van</SelectItem>
-                <SelectItem value="yalova">Yalova</SelectItem>
-                <SelectItem value="yozgat">Yozgat</SelectItem>
-                <SelectItem value="zonguldak">Zonguldak</SelectItem>
+                {cityList.cities.map((city) => (
+                  <SelectItem key={city.value} value={city.value}>
+                    {city.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -223,8 +128,10 @@ export default function CategoryDetail({ categories, category }: { categories: C
       {/* Alt taraftaki başlık ve arama alanı bölümü */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <h1 className="text-3xl font-bold">
-          {city
-            ? `${city.charAt(0).toUpperCase() + city.slice(1)} ${category.name} İlanları`
+          {params.city
+            ? `${params.city.charAt(0).toUpperCase() + params.city.slice(1)} ${
+                category.name
+              } İlanları`
             : `${category.name} İlanları`}
         </h1>
         {/* Arama kutusu - mobilde tam genişlik */}
@@ -233,13 +140,15 @@ export default function CategoryDetail({ categories, category }: { categories: C
             type="search"
             placeholder="İlanlarda ara..."
             className="w-full md:w-[300px] px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            defaultValue={searchQuery}
+            defaultValue={searchParams.search || ""}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 const searchQuery = e.currentTarget.value;
-                const cityParam = city ? `/${city}` : "";
-                const baseUrl = `/kategori/${slug}${cityParam}`;
-                const searchParam = searchQuery.trim() ? `?search=${encodeURIComponent(searchQuery.trim())}` : '';
+                const cityParam = params.city ? `/${params.city}` : "";
+                const baseUrl = `/kategori/${params.slug}${cityParam}`;
+                const searchParam = searchQuery.trim()
+                  ? `?search=${encodeURIComponent(searchQuery.trim())}`
+                  : "";
                 window.location.href = baseUrl + searchParam;
               }
             }}
@@ -247,10 +156,12 @@ export default function CategoryDetail({ categories, category }: { categories: C
         </div>
       </div>
       <div className="space-y-4">
-        {!sortedListings?.length && listingsData?.listings?.length === 0 ? (
+        {!sortedListings?.length && listings?.length === 0 ? (
           <div className="bg-white rounded-lg p-8 text-center">
             <p className="text-gray-500 text-lg">
-              {searchQuery ? "Bu kelimeyi içeren ilan bulunamadı.." : "Henüz bu kategoride ilan eklenmemiş..."}
+              {searchParams.search
+                ? "Bu kelimeyi içeren ilan bulunamadı.."
+                : "Henüz bu kategoride ilan eklenmemiş..."}
             </p>
           </div>
         ) : (
@@ -261,7 +172,7 @@ export default function CategoryDetail({ categories, category }: { categories: C
                 "border rounded-lg p-4 relative",
                 listing.listingType === "premium"
                   ? "border-2 border-yellow-400 bg-yellow-50"
-                  : "bg-white",
+                  : "bg-white"
               )}
             >
               {listing.listingType === "premium" && (
@@ -281,41 +192,61 @@ export default function CategoryDetail({ categories, category }: { categories: C
               <div className="flex justify-between items-center text-sm text-gray-500">
                 <div className="flex items-center gap-1">
                   <Link
-                    href={`/kategori/${category.parentId === null ? category.slug : slug}/${listing.city.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '')}`}
+                    href={`/kategori/${
+                      category.parentId === null ? category.slug : params.slug
+                    }/${listing.city
+                      .toLowerCase()
+                      .normalize("NFD")
+                      .replace(/[\u0300-\u036f]/g, "")
+                      .replace(/[^a-z0-9]/g, "")}`}
                     className="hover:text-blue-500 font-bold flex items-center gap-1"
                   >
-                    <FontAwesomeIcon icon={faMapMarkerAlt} className="text-gray-500" />
+                    <FontAwesomeIcon
+                      icon={faMapMarkerAlt}
+                      className="text-gray-500"
+                    />
                     {listing.city}
                   </Link>
                   {category.parentId === null && (
                     <>
                       <span className="text-gray-400"> - </span>
                       <Link
-                        href={`/kategori/${categories?.find(c => c.id === listing.categoryId)?.slug || ''}`}
+                        href={`/kategori/${
+                          categories?.find((c) => c.id === listing.categoryId)
+                            ?.slug || ""
+                        }`}
                         className="hover:text-blue-500"
                       >
-                        {categories?.find(c => c.id === listing.categoryId)?.name}
+                        {
+                          categories?.find((c) => c.id === listing.categoryId)
+                            ?.name
+                        }
                       </Link>
                     </>
                   )}
                 </div>
                 <span>
-                  {formatDistanceToNow(new Date(listing.createdAt || Date.now()), {
-                    addSuffix: true,
-                    locale: tr,
-                  })}
+                  {formatDistanceToNow(
+                    new Date(listing.createdAt || Date.now()),
+                    {
+                      addSuffix: true,
+                      locale: tr,
+                    }
+                  )}
                 </span>
               </div>
             </div>
           ))
         )}
       </div>
-      {listingsData && listingsData.total > 0 && (
+      {listings && listings.length > 0 && (
         <div className="mt-8">
           <div className="flex items-center justify-center gap-2">
             {page > 1 && (
               <Link
-                href={`/kategori/${slug}${page === 2 ? '' : `/${page - 1}`}`}
+                href={`/kategori/${params.slug}${
+                  page === 2 ? "" : `/${page - 1}`
+                }`}
                 className="px-4 py-2 rounded-md bg-white hover:bg-gray-100"
               >
                 ←
@@ -323,19 +254,21 @@ export default function CategoryDetail({ categories, category }: { categories: C
             )}
 
             {Array.from(
-              { length: Math.min(5, Math.ceil(listingsData.total / 10)) },
+              { length: Math.min(5, Math.ceil(listings.length / 10)) },
               (_, i) => {
                 const pageNum = page > 3 ? page - 3 + i : i + 1;
-                if (pageNum > Math.ceil(listingsData.total / 10)) return null;
+                if (pageNum > Math.ceil(listings.length / 10)) return null;
 
-                const cityPath = city ? `/${city}` : '';
-                const pagePath = pageNum === 1 ? '' : `/${pageNum}`;
-                const searchPath = searchQuery ? `?search=${searchQuery}` : '';
+                const cityPath = params.city ? `/${params.city}` : "";
+                const pagePath = pageNum === 1 ? "" : `/${pageNum}`;
+                const searchPath = searchParams.search
+                  ? `?search=${searchParams.search}`
+                  : "";
 
                 return (
                   <Link
                     key={pageNum}
-                    href={`/kategori/${slug}${cityPath}${pagePath}${searchPath}`}
+                    href={`/kategori/${params.slug}${cityPath}${pagePath}${searchPath}`}
                     className={cn(
                       "px-4 py-2 rounded-md",
                       page === pageNum
@@ -349,9 +282,9 @@ export default function CategoryDetail({ categories, category }: { categories: C
               }
             )}
 
-            {page < Math.ceil(listingsData.total / 10) && (
+            {page < Math.ceil(listings.length / 10) && (
               <Link
-                href={`/kategori/${slug}/${page + 1}`}
+                href={`/kategori/${params.slug}/${page + 1}`}
                 className="px-4 py-2 rounded-md bg-white hover:bg-gray-100"
               >
                 →
