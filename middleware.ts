@@ -56,6 +56,8 @@ export async function middleware(request: NextRequest) {
       '/api/register',
       '/api/verify-email',
       '/api/reset-password',
+      '/api/forgot-password',
+      '/api/reset-password-verify',
     ]
     
     // Tam eşleşme veya alt yollar için kontrol
@@ -83,35 +85,24 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Korumalı bir yol mu kontrol et
-  const isProtectedRoute = protectedRoutes.some(route => 
-    pathname.startsWith(route)
-  )
-  
-  // Admin rotası mı kontrol et
-  const isAdminRoute = adminRoutes.some(route => 
-    pathname.startsWith(route)
-  )
+  // Admin sayfaları kontrolü
+  if (pathname.startsWith('/yonetim')) {
+    // Public admin rotalarını kontrol et
+    if (publicAdminRoutes.includes(pathname)) {
+      return NextResponse.next()
+    }
 
-  // Public admin rotası mı kontrol et
-  const isPublicAdminRoute = publicAdminRoutes.some(route =>
-    pathname === route // Tam eşleşme kontrolü
-  )
-
-  // Admin rotası ve admin token yoksa, admin login sayfasına yönlendir
-  if (isAdminRoute && (!token || token.type !== 'admin')) {
-    return NextResponse.redirect(new URL('/yonetim', request.url))
+    // Admin yetkisi kontrolü
+    if (!token || token.type !== 'admin') {
+      return NextResponse.redirect(new URL('/yonetim', request.url))
+    }
   }
 
-  // Admin token varsa ve public admin rotasındaysa (örn: /yonetim), 
-  // admin anasayfasına yönlendir
-  if (isPublicAdminRoute && token && token.type === 'admin') {
-    return NextResponse.redirect(new URL('/yonetim/anasayfa', request.url))
-  }
-
-  // Korumalı rota ve auth token yoksa, login sayfasına yönlendir
-  if (isProtectedRoute && !token) {
-    return NextResponse.redirect(new URL('/auth', request.url))
+  // Korumalı rotalar için oturum kontrolü
+  if (protectedRoutes.some(route => pathname.startsWith(route))) {
+    if (!token) {
+      return NextResponse.redirect(new URL('/auth', request.url))
+    }
   }
 
   return NextResponse.next()

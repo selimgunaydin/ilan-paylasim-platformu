@@ -3,48 +3,45 @@ import type { NextRequest } from 'next/server'
 import { db } from '@shared/db';
 import { users } from '@shared/schemas'
 import { eq } from 'drizzle-orm'
-import bcrypt from 'bcryptjs'
+import { hashPassword } from '@/api/auth/[...nextauth]/route'
 
 export async function POST(request: NextRequest) {
   try {
-    // Request body'den token ve yeni şifreyi al
-    const { token, password } = await request.json()
+    const { token, newPassword } = await request.json()
 
-    // Token veya şifre yoksa hata döndür
-    if (!token || !password) {
+    if (!token || !newPassword) {
       return NextResponse.json(
-        { error: 'Token ve yeni şifre gereklidir' }, 
+        { success: false, message: 'Token ve yeni şifre gereklidir' },
         { status: 400 }
       )
     }
 
-    // Verilen token ile kullanıcıyı bul
+    // Token ile kullanıcıyı bul
     const [user] = await db
       .select()
       .from(users)
       .where(eq(users.resetPasswordToken, token))
 
-    // Kullanıcı bulunamazsa hata döndür
+    // Kullanıcı bulunamadıysa veya token geçersizse
     if (!user) {
       return NextResponse.json(
-        { error: 'Geçersiz veya süresi dolmuş token' }, 
+        { success: false, message: 'Geçersiz veya süresi dolmuş token' },
         { status: 400 }
       )
     }
 
     // Token süresini kontrol et
-    if (user.resetPasswordExpires && new Date(user.resetPasswordExpires) < new Date()) {
+    if (user.resetPasswordExpires && new Date() > new Date(user.resetPasswordExpires)) {
       return NextResponse.json(
-        { error: 'Şifre sıfırlama linkinin süresi dolmuş' }, 
+        { success: false, message: 'Şifre sıfırlama bağlantısının süresi dolmuş' },
         { status: 400 }
       )
     }
 
-    // Yeni şifreyi hash'le
-    const salt = await bcrypt.genSalt(10)
-    const hashedPassword = await bcrypt.hash(password, salt)
+    // Yeni şifreyi hashle
+    const hashedPassword = await hashPassword(newPassword)
 
-    // Kullanıcı şifresini güncelle ve sıfırlama token'ını temizle
+    // Şifreyi güncelle ve token'ları temizle
     await db
       .update(users)
       .set({
@@ -55,13 +52,13 @@ export async function POST(request: NextRequest) {
       .where(eq(users.id, user.id))
 
     return NextResponse.json(
-      { message: 'Şifreniz başarıyla güncellendi' }, 
+      { success: true, message: 'Şifreniz başarıyla güncellendi' },
       { status: 200 }
     )
   } catch (error) {
-    console.error('Şifre sıfırlama hatası:', error)
+    console.error('Şifre güncelleme hatası:', error)
     return NextResponse.json(
-      { error: 'Şifre sıfırlama işlemi sırasında bir hata oluştu' }, 
+      { success: false, message: 'Şifre güncellenirken bir hata oluştu' },
       { status: 500 }
     )
   }

@@ -30,7 +30,7 @@ export default function HomePage({ categories }: { categories: CategoryWithCount
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Hero Section - Modern Gradient Background */}
       <div className="relative bg-gradient-to-r from-blue-700 to-indigo-800 py-24">
-        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-5"></div>
+        <div className="absolute inset-0 opacity-5"></div>
         <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white/10 to-transparent"></div>
         
         <div className="relative w-full max-w-[1800px] mx-auto px-4">

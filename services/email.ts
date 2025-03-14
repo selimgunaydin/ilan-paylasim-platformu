@@ -61,4 +61,30 @@ export function generateVerificationEmail(username: string, verificationToken: s
     subject,
     text,
   };
+}
+
+// Şifre sıfırlama e-postası içeriği oluşturma
+export function generatePasswordResetEmail(email: string, resetToken: string): EmailOptions {
+  const resetLink = `${config.appUrl}/auth/reset-password?token=${resetToken}`;
+  
+  const subject = 'Şifre Sıfırlama Talebi';
+  const text = `
+    Sayın Kullanıcımız,
+
+    Hesabınız için şifre sıfırlama talebinde bulundunuz. Şifrenizi sıfırlamak için aşağıdaki bağlantıya tıklayın:
+    ${resetLink}
+
+    Bu bağlantı güvenliğiniz için 1 saat süreyle geçerlidir.
+
+    Eğer bu işlemi siz yapmadıysanız, lütfen bu e-postayı görmezden gelin ve hesabınızın güvenliği için şifrenizi değiştirin.
+
+    Saygılarımızla,
+    İlan Yönetim Sistemi
+  `;
+
+  return {
+    to: email,
+    subject,
+    text,
+  };
 } 
