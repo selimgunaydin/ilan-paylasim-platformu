@@ -19,11 +19,11 @@ import { AvatarSelectorModal } from "@app/components/ui/avatar-selector-modal";
 
 const uploadImage = async (file: File) => {
   const formData = new FormData();
-  formData.append('image', file);
-  const res = await fetch('/api/user/profile-image', { method: 'POST', body: formData });
+  formData.append('profileImage', file);
+  const res = await fetch('/api/user/upload-profile-image', { method: 'POST', body: formData });
   if (!res.ok) throw new Error('Profil resmi yüklenemedi');
-  const { imageUrl } = await res.json();
-  return imageUrl;
+  const data = await res.json();
+  return data.user.profileImage;
 };
 
 export default function Profile({ initialData }: any) {
