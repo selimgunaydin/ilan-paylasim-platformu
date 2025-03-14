@@ -226,6 +226,9 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
       // Önce dosyaları yükle
       if (selectedFiles.length > 0) {
         const formData = new FormData();
+        if(conversationId){
+          formData.append('conversationId', conversationId.toString());
+        }
         selectedFiles.forEach((file) => formData.append('files', file));
 
 
@@ -240,9 +243,7 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
         
         const uploadResult = await uploadResponse.json();
         uploadedFileUrls = uploadResult.fileUrls || [];
-        if(conversationId){
-          formData.append('conversationId', conversationId.toString());
-        }
+
         
       }
 
