@@ -3,7 +3,6 @@ import {
   DeleteObjectCommand,
   DeleteObjectsCommand,
 } from "@aws-sdk/client-s3";
-import { r2Client } from "./cloudflare";
 import { randomBytes } from "crypto";
 import {
   isAllowedFileSize,
@@ -12,6 +11,7 @@ import {
 } from "./file-constants";
 import multer from "multer";
 import sharp from 'sharp';
+import { r2Client } from "./r2";
 
 const ALLOWED_MEDIA_TYPES = [
   "audio/mpeg",
