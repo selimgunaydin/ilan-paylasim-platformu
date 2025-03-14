@@ -125,6 +125,10 @@ export const authOptions: NextAuthOptions = {
             throw new Error('Hesabınız devre dışı bırakılmıştır. Lütfen yönetici ile iletişime geçin.');
           }
 
+          if(user.emailVerified === false) {
+            throw new Error('Email adresinizi doğrulamadınız. Lütfen email adresinizi doğrulayın.');
+          }
+
           // Son giriş bilgilerini güncelle
           await db
             .update(users)
