@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import { storage } from "./app/lib/storage";
+import { containsBadWords } from './shared/utils';
 // .env dosyasını yükle
 dotenv.config();
 
@@ -89,7 +90,7 @@ io.on("connection", (socket: SocketWithAuth) => {
       receiverId: number;
       listingId: number;
       senderId: number;
-    }) => {
+    }, callback: (response: { success: boolean; error?: string }) => void) => {
       const {
         conversationId,
         content,
@@ -98,8 +99,16 @@ io.on("connection", (socket: SocketWithAuth) => {
         receiverId,
         senderId,
       } = data;
+      
       if (!socket.userId) {
-        socket.emit("error", "Kimlik doğrulama gerekli");
+        callback({ success: false, error: "Kimlik doğrulama gerekli" });
+        return;
+      }
+
+      // Kötü sözcük kontrolü
+      const badWordsCheck = containsBadWords(content);
+      if (badWordsCheck.hasBadWord) {
+        callback({ success: false, error: "Mesajınız uygunsuz içerik içerdiği için gönderilemedi." });
         return;
       }
 
@@ -143,9 +152,11 @@ io.on("connection", (socket: SocketWithAuth) => {
               message: newMessage,
             });
           }
+
+          callback({ success: true });
         } catch (error) {
           console.error("Mesaj gönderme hatası:", error);
-          socket.emit("error", "Mesaj gönderilemedi");
+          callback({ success: false, error: "Mesaj gönderilemedi" });
         }
       } else {
         try {
@@ -175,8 +186,10 @@ io.on("connection", (socket: SocketWithAuth) => {
             })
             .returning();
           console.log("Yeni mesaj kaydedildi:", newMessage);
+          callback({ success: true });
         } catch (error) {
           console.error("newConversation hatası:", error);
+          callback({ success: false, error: "Yeni konuşma oluşturulamadı" });
         }
       }
     }

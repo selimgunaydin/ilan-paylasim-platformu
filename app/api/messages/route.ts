@@ -8,6 +8,7 @@ import { storage } from '@/lib/storage';
 import { sanitizeInput } from '@/lib/sanitize';
 import { getToken } from "next-auth/jwt";
 import { uploadMessageFile } from "@/lib/r2";
+import { containsBadWords } from '../../../shared/utils';
 
 interface UploadedFile extends File {
   fieldname: string;
@@ -147,6 +148,16 @@ export async function POST(request: NextRequest) {
 
     // Mesajı oluştur
     const sanitizedMessage = sanitizeInput(message?.trim() || '');
+
+    // Kötü sözcük kontrolü
+    const badWordsCheck = containsBadWords(sanitizedMessage);
+    if (badWordsCheck.hasBadWord) {
+      return NextResponse.json(
+        { error: "Mesajınız uygunsuz içerik içerdiği için gönderilemedi." },
+        { status: 400 }
+      );
+    }
+
     const receiverId = conversation.senderId === userId 
       ? conversation.receiverId 
       : conversation.senderId;

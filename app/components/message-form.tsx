@@ -231,7 +231,6 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
         }
         selectedFiles.forEach((file) => formData.append('files', file));
 
-
         const uploadResponse = await fetch('/api/messages/upload', {
           method: 'POST',
           body: formData,
@@ -243,25 +242,30 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
         
         const uploadResult = await uploadResponse.json();
         uploadedFileUrls = uploadResult.fileUrls || [];
-
-        
       }
 
-        socket.emit('sendMessage', {
-          conversationId,
-          content: message.trim(),
-          files: uploadedFileUrls,
-          receiverId,
-          listingId,
-        });
-
-
-      // Mesaj gönderildikten sonra state'i temizle
-      setMessage('');
-      setSelectedFiles([]);
-      
-      // Başarı callback'ini çağır
-      onSuccess(message.trim(), uploadedFileUrls);
+      socket.emit('sendMessage', {
+        conversationId,
+        content: message.trim(),
+        files: uploadedFileUrls,
+        receiverId,
+        listingId,
+      }, (response: { success: boolean; error?: string }) => {
+        if (response.success) {
+          // Mesaj başarıyla gönderildiğinde state'i temizle
+          setMessage('');
+          setSelectedFiles([]);
+          
+          // Başarı callback'ini çağır
+          onSuccess(message.trim(), uploadedFileUrls);
+        } else {
+          toast({
+            title: 'Hata',
+            description: response.error || 'Mesaj gönderilemedi',
+            variant: 'destructive',
+          });
+        }
+      });
     } catch (error) {
       console.error('Mesaj gönderme hatası:', error);
       toast({
@@ -273,6 +277,25 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
       setIsSending(false);
     }
   };
+
+  // Socket error handler'ı ekle
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleError = (error: string) => {
+      toast({
+        title: 'Hata',
+        description: error,
+        variant: 'destructive',
+      });
+    };
+
+    socket.on('error', handleError);
+
+    return () => {
+      socket.off('error', handleError);
+    };
+  }, [socket, toast]);
 
   return (
     <div className="space-y-4">
