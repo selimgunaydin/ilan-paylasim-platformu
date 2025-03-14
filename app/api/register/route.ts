@@ -6,6 +6,8 @@ import { eq } from 'drizzle-orm';
 import { hashPassword } from '@/api/auth/[...nextauth]/route';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
+import { generateVerificationEmail, sendEmail } from '@/lib/email';
+
 
 // Kayıt API'si
 export async function POST(request: NextRequest) {
@@ -68,8 +70,15 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    // Email doğrulama bağlantısı gönderme işlemi burada yapılabilir
-    // ... (email gönderme kodu)
+      const emailParams = generateVerificationEmail(email, verificationToken);
+      console.log("Sending verification email with params:", {
+        to: emailParams.to,
+        subject: emailParams.subject,
+        hasText: !!emailParams.text,
+        hasHtml: !!emailParams.html,
+      });
+
+    await sendEmail(emailParams);
 
     // Kullanıcı bilgilerinden password alanını kaldır
     const { password: _, verificationToken: __, ...userWithoutSensitiveData } = createdUser;
