@@ -14,7 +14,7 @@ interface SocketWithAuth extends Socket {
 }
 
 // NEXTAUTH_SECRET kontrolü
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET;
+const JWT_SECRET = process.env.NEXTAUTH_SECRET
 if (!JWT_SECRET) {
   console.error(
     "HATA: NEXTAUTH_SECRET veya JWT_SECRET tanımlanmamış! Lütfen .env dosyasını kontrol edin."
@@ -24,7 +24,7 @@ if (!JWT_SECRET) {
 
 const io = new Server(3001, {
   cors: {
-    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+    origin: process.env.NEXT_PUBLIC_APP_URL,
   },
 });
 

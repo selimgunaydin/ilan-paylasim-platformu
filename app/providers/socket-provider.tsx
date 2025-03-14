@@ -51,7 +51,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const socketInstance = io('http://localhost:3001', {
+    const socketInstance = io(process.env.NEXT_PUBLIC_BACKEND_URL, {
       transports: ['websocket'],
       auth: { token },
     });

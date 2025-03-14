@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
               username: user.username,
               sub: userId.toString()
             },
-            process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret',
+            process.env.NEXTAUTH_SECRET || 'fallback-secret',
             { expiresIn: '30d' }
           );
           
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
           username: user.username,
           sub: userId.toString()
         },
-        process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'fallback-secret',
+        process.env.NEXTAUTH_SECRET || 'fallback-secret',
         { expiresIn: '30d' }
       );
 
