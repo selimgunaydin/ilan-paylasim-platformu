@@ -99,7 +99,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) {
-          return null;
+          throw new Error("Kullanıcı adı ve şifre gereklidir");
         }
 
         try {
@@ -111,13 +111,13 @@ export const authOptions: NextAuthOptions = {
 
           // Kullanıcı yoksa
           if (!user) {
-            return null;
+            throw new Error("Kullanıcı adı veya şifre hatalı");
           }
 
           // Şifre karşılaştırma
           const passwordMatches = await comparePasswords(String(credentials.password), user.password);
           if (!passwordMatches) {
-            return null;
+            throw new Error("Kullanıcı adı veya şifre hatalı");
           }
 
           // Kullanıcı aktif değilse
@@ -138,19 +138,20 @@ export const authOptions: NextAuthOptions = {
             })
             .where(eq(users.id, user.id));
 
-          // Kullanıcı bilgilerini döndür
           return {
             id: String(user.id),
             email: user.email,
             name: user.username,
             emailVerified: user.emailVerified,
-            isAdmin: user.isAdmin,
+            isAdmin: user.isAdmin || false,
             type: 'user',
             username: user.username
           };
         } catch (error) {
-          console.error("Auth error:", error);
-          return null;
+          if (error instanceof Error) {
+            throw error;
+          }
+          throw new Error("Giriş sırasında bir hata oluştu");
         }
       }
     }),

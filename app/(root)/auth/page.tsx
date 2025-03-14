@@ -205,19 +205,17 @@ function LoginForm({
       });
       
       if (result?.error) {
-        toast({
-          title: "Giriş başarısız",
-          description: result.error,
-          variant: "destructive",
+        form.setError("root", { 
+          type: "manual",
+          message: result.error
         });
       } else if (result?.url) {
         router.push(result.url);
       }
     } catch (error) {
-      toast({
-        title: "Giriş başarısız",
-        description: "Bir hata oluştu",
-        variant: "destructive",
+      form.setError("root", {
+        type: "manual",
+        message: "Giriş sırasında bir hata oluştu"
       });
     } finally {
       setIsLoading(false);
@@ -254,6 +252,12 @@ function LoginForm({
             </FormItem>
           )}
         />
+
+        {form.formState.errors.root && (
+          <div className="text-sm font-medium text-destructive">
+            {form.formState.errors.root.message}
+          </div>
+        )}
 
         <div className="flex flex-col space-y-2">
           <Button type="submit" className="w-full" disabled={isLoading}>
