@@ -73,7 +73,7 @@ export default function CategoryDetail({
         >
           {/* Kategori seçimi - tam genişlik kullanımı */}
           <div className="w-full md:flex-1">
-            <Select name="category" required>
+            <Select defaultValue={params.slug} name="category" required>
               <SelectTrigger>
                 <SelectValue placeholder="Kategori Seç" />
               </SelectTrigger>
@@ -103,7 +103,7 @@ export default function CategoryDetail({
           </div>
           {/* Şehir seçimi - tam genişlik kullanımı */}
           <div className="w-full md:flex-1">
-            <Select name="city">
+            <Select defaultValue={params.city} name="city">
               <SelectTrigger>
                 <SelectValue placeholder="Tüm Şehirler" />
               </SelectTrigger>
