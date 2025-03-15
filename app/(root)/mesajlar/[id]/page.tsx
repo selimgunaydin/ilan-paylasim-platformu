@@ -31,6 +31,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 // Yardımcı Bileşenler
 const getFileIcon = (fileName: string) => {
@@ -566,14 +567,35 @@ export default function ConversationDetail() {
                   )}
                 </div>
                 {message.senderId === user.id && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 bg-red-500 text-white h-6 w-6 p-0 rounded-full"
-                    onClick={() => handleDeleteMessage(message.id)}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 bg-red-500 text-white h-6 w-6 p-0 rounded-full"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Mesajı Sil</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Bu mesajı silmek istediğinizden emin misiniz?
+                          Bu işlem geri alınamaz.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>İptal</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDeleteMessage(message.id)}
+                          className="bg-red-500 hover:bg-red-600"
+                        >
+                          Sil
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 )}
               </div>
             </div>
