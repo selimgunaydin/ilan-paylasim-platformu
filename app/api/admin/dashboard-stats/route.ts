@@ -3,20 +3,10 @@ import type { NextRequest } from 'next/server';
 import { db } from "@shared/db";
 import { listings, users, conversations, messages } from '@shared/schemas';
 import { eq, and, sql, desc } from 'drizzle-orm';
-import { checkAdminAuth } from '@/utils/check-admin';
 
 // Dashboard istatistikleri API'si
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // Admin yetkisi kontrolü
-    const admin = await checkAdminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: "Yetkilendirme gerekli" },
-        { status: 401 }
-      );
-    }
-
     // Toplam kullanıcı sayısı
     const [totalUsers] = await db
       .select({

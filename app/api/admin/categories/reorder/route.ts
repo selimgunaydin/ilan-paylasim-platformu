@@ -3,22 +3,12 @@ import type { NextRequest } from 'next/server';
 import { db } from '@shared/db';
 import { categories } from '@shared/schemas';
 import { eq, asc } from 'drizzle-orm';
-import jwt from 'jsonwebtoken';
-import { checkAdminAuth } from '@/utils/check-admin';
 
+export const dynamic = 'force-dynamic';
 
 // Kategori sıralama API'si
 export async function PATCH(request: NextRequest) {
   try {
-    // Admin yetkisi kontrolü
-    const admin = await checkAdminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: "Yetkilendirme gerekli" },
-        { status: 401 }
-      );
-    }
-
     // Gelen veriyi doğrula
     const updates = await request.json() as {
       id: number;

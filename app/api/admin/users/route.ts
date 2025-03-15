@@ -3,20 +3,12 @@ import type { NextRequest } from 'next/server';
 import { db } from "@shared/db";
 import { users } from '@shared/schemas';
 import { eq, SQL } from 'drizzle-orm';
-import { checkAdminAuth } from '@/utils/check-admin';
+
+export const dynamic = 'force-dynamic';
 
 // Kullanıcı listesi getirme API'si
 export async function GET(request: NextRequest) {
   try {
-    // Admin yetkisi kontrolü
-    const admin = await checkAdminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: "Yetkilendirme gerekli veya admin yetkisi yok" },
-        { status: 401 }
-      );
-    }
-
     // Filtre parametrelerini al
     const { searchParams } = new URL(request.url);
     const gender = searchParams.get('gender');

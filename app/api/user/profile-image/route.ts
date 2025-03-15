@@ -6,6 +6,9 @@ import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import { deleteMessageFile } from '@/lib/r2';
 import { getToken } from 'next-auth/jwt';
+
+export const dynamic = 'force-dynamic';
+
 export async function DELETE(request: NextRequest) {
   try {
     // Auth token'ı al

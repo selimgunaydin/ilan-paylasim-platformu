@@ -8,6 +8,9 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import sharp from 'sharp';
 import { getToken } from 'next-auth/jwt';
+
+export const dynamic = 'force-dynamic';
+
 // Profil resmi yükleme API'si
 export async function POST(request: NextRequest) {
   try {

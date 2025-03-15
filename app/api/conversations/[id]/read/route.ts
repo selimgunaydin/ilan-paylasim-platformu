@@ -5,6 +5,9 @@ import { conversations, messages } from '@shared/schemas'
 import { eq, and } from 'drizzle-orm'
 import jwt from 'jsonwebtoken'
 import { getToken } from 'next-auth/jwt';
+
+export const dynamic = 'force-dynamic';
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }

@@ -5,6 +5,9 @@ import { listings, favorites, categories } from '@shared/schemas';
 import { eq, and } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import { getToken } from 'next-auth/jwt';
+
+export const dynamic = 'force-dynamic';
+
 // Favori ilanları getirme API'si
 export async function GET(request: NextRequest) {
   try {

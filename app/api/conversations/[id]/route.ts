@@ -7,6 +7,8 @@ import jwt from 'jsonwebtoken'
 import { getToken } from 'next-auth/jwt'
 import { db } from '@shared/db'
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }

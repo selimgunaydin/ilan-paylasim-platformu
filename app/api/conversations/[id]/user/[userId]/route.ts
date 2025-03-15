@@ -5,6 +5,9 @@ import { conversations, users } from '@shared/schemas'
 import { eq } from 'drizzle-orm'
 import jwt from 'jsonwebtoken'
 import { getToken } from 'next-auth/jwt';
+
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string; userId: string } }

@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import { generateVerificationEmail, sendEmail } from '@/lib/email';
 
+export const dynamic = 'force-dynamic';
 
 // Kayıt API'si
 export async function POST(request: NextRequest) {

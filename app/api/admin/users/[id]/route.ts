@@ -3,7 +3,6 @@ import type { NextRequest } from 'next/server';
 import { db } from '@shared/db';
 import { users } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
-import { checkAdminAuth } from '@/utils/check-admin';
 
 // Kullanıcı silme API'si
 export async function DELETE(
@@ -11,14 +10,6 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Admin yetkisi kontrolü
-    const admin = await checkAdminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: "Yetkilendirme gerekli" },
-        { status: 401 }
-      );
-    }
 
     const userId = parseInt(params.id);
     if (isNaN(userId)) {

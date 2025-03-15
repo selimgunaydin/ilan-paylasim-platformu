@@ -5,6 +5,9 @@ import { favorites } from '@shared/schemas';
 import { eq, and } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import { getToken } from 'next-auth/jwt';
+
+export const dynamic = 'force-dynamic';
+
 // Favori ilanı silme API'si
 export async function DELETE(
   request: NextRequest,

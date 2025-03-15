@@ -3,7 +3,6 @@ import type { NextRequest } from 'next/server';
 import { db } from '@shared/db';
 import { listings } from '@shared/schemas';
 import { eq, sql } from 'drizzle-orm';
-import { checkAdminAuth } from '@/utils/check-admin';
 
 // Kategori başına ilan sayısını getirme API'si
 export async function GET(
@@ -11,15 +10,6 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Admin yetkisi kontrolü
-    const admin = await checkAdminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: "Yetkilendirme gerekli" },
-        { status: 401 }
-      );
-    }
-
     const categoryId = parseInt(params.id);
     if (isNaN(categoryId)) {
       return NextResponse.json(

@@ -3,11 +3,10 @@ import type { NextRequest } from 'next/server';
 
 import { categories } from '@shared/schemas';
 import { eq, and, sql } from 'drizzle-orm';
-import jwt from 'jsonwebtoken';
-
-import { checkAdminAuth } from '@/utils/check-admin';
 import { db } from '@shared/db';
 import { storage } from '@/lib/storage';
+
+export const dynamic = 'force-dynamic';
 
 // Kategori güncelleme API'si
 export async function PATCH(
@@ -15,14 +14,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Admin yetkisi kontrolü
-    const admin = await checkAdminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: "Yetkilendirme gerekli" },
-        { status: 401 }
-      );
-    }
+
 
     const categoryId = parseInt(params.id);
     if (isNaN(categoryId)) {
@@ -123,15 +115,6 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Admin yetkisi kontrolü
-    const admin = await checkAdminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: "Yetkilendirme gerekli" },
-        { status: 401 }
-      );
-    }
-
     const categoryId = parseInt(params.id);
     if (isNaN(categoryId)) {
       return NextResponse.json(

@@ -6,7 +6,7 @@ import { insertPaymentSettingsSchema } from '@shared/schemas';
 import jwt from 'jsonwebtoken';
 import { checkAdminAuth } from '@/utils/check-admin';
 
-
+export const dynamic = 'force-dynamic';
 
 // Ödeme ayarlarını getirme API'si
 export async function GET(request: NextRequest) {

@@ -3,23 +3,14 @@ import type { NextRequest } from 'next/server';
 import { db } from '@shared/db';
 import { users } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
-import { checkAdminAuth } from '@/utils/check-admin';
 
+export const dynamic = 'force-dynamic';
 // Konuşma kullanıcı bilgilerini getirme API'si
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // Admin yetkisi kontrolü
-    const admin = await checkAdminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: "Yetkilendirme gerekli" },
-        { status: 401 }
-      );
-    }
-
     const { searchParams } = new URL(request.url);
     const userId = parseInt(searchParams.get('userId') || '0');
 

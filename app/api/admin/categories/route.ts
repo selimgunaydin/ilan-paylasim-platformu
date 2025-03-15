@@ -3,22 +3,12 @@ import type { NextRequest } from 'next/server';
 import { db } from "@shared/db";
 import { categories } from '@shared/schemas';
 import { eq, and, asc, sql } from 'drizzle-orm';
-import jwt from 'jsonwebtoken';
-import { checkAdminAuth } from '@/utils/check-admin';
 
+export const dynamic = 'force-dynamic';
 
 // Tüm kategorileri getirme API'si
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // Admin yetkisi kontrolü
-    const admin = await checkAdminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: "Yetkilendirme gerekli" },
-        { status: 401 }
-      );
-    }
-
     // Tüm kategorileri getir
     const allCategories = await db
       .select()
@@ -67,15 +57,6 @@ export async function GET(request: NextRequest) {
 // Yeni kategori oluşturma API'si
 export async function POST(request: NextRequest) {
   try {
-    // Admin yetkisi kontrolü
-    const admin = await checkAdminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: "Yetkilendirme gerekli" },
-        { status: 401 }
-      );
-    }
-
     // Request body'den kategori bilgilerini al
     const body = await request.json();
     const { name, parentId, slug, order } = body;

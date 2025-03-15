@@ -7,6 +7,9 @@ import jwt from 'jsonwebtoken'
 import { v4 as uuidv4 } from 'uuid'
 import { storage } from '@/lib/storage';
 import { getToken } from 'next-auth/jwt';
+
+export const dynamic = 'force-dynamic';
+
 // Türkiye'deki tüm şehirlerin listesi
 const turkishCities = [
   "Adana", "Adıyaman", "Afyonkarahisar", "Ağrı", "Amasya", "Ankara", "Antalya", "Artvin", "Aydın", "Balıkesir",

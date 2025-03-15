@@ -6,6 +6,9 @@ import { eq } from 'drizzle-orm'
 import jwt from 'jsonwebtoken'
 import { storage } from '@/lib/storage';
 import { getToken } from 'next-auth/jwt';
+
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }

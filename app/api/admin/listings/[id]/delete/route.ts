@@ -5,24 +5,12 @@ import { listings, conversations, messages } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import { imageService } from '@/lib/image-service';
-
-// Admin yetkilendirme kontrolü fonksiyonu
-import { checkAdminAuth } from '@/utils/check-admin';
-
 // İlan silme API'si
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // Admin yetkisi kontrolü
-    const admin = await checkAdminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: "Yetkilendirme gerekli" },
-        { status: 401 }
-      );
-    }
 
     const listingId = parseInt(params.id);
     if (isNaN(listingId)) {

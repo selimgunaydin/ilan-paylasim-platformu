@@ -5,6 +5,9 @@ import { categories, listings } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import { getToken } from 'next-auth/jwt';
+
+export const dynamic = 'force-dynamic';
+
 // Kullanıcının kendi ilanlarını getiren API
 export async function GET(request: NextRequest) {
   try {

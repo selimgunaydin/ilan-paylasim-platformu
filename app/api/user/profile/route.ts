@@ -5,6 +5,8 @@ import { users } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
 import { getToken } from 'next-auth/jwt';
 
+export const dynamic = 'force-dynamic';
+
 export async function PUT(request: NextRequest) {
   try {
     // Auth token'ı al

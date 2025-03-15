@@ -4,9 +4,8 @@ import { eq, and } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { conversations } from '@shared/schemas';
 import { getToken } from 'next-auth/jwt';
-interface JwtPayload {
-  userId: number;
-}
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {

@@ -7,6 +7,9 @@ import { getToken } from 'next-auth/jwt';
 import { imageService } from '@/lib/image-service';
 import { v4 as uuidv4 } from 'uuid';
 import { storage } from '@/lib/storage';
+
+export const dynamic = 'force-dynamic';
+
 // Tekil ilan detayı API'si
 export async function GET(
   request: NextRequest,

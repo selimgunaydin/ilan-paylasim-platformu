@@ -5,6 +5,8 @@ import { users } from '@shared/schemas'
 import { eq } from 'drizzle-orm'
 import { hashPassword } from '@/api/auth/[...nextauth]/route'
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const { token, newPassword } = await request.json()

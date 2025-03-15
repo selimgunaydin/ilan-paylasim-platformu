@@ -5,6 +5,9 @@ import { favorites } from '@shared/schemas';
 import { eq, and } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import { getToken } from 'next-auth/jwt';
+
+export const dynamic = 'force-dynamic';
+
 // Belirli bir ilanın favori olup olmadığını kontrol eden API
 export async function GET(
   request: NextRequest,

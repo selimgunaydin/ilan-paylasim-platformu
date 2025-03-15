@@ -10,17 +10,8 @@ import { getToken } from "next-auth/jwt";
 import { uploadMessageFile } from "@/lib/r2";
 import { containsBadWords } from '../../../shared/utils';
 
-interface UploadedFile extends File {
-  fieldname: string;
-  originalname: string;
-  encoding: string;
-  mimetype: string;
-  buffer: Buffer;
-  size: number;
-  destination: string;
-  filename: string;
-  path: string;
-}
+export const dynamic = 'force-dynamic';
+
 
 // Dosya türü belirleme fonksiyonu
 function getFileType(fileName: string): string {
@@ -37,19 +28,7 @@ function getFileType(fileName: string): string {
   }
 }
 
-// File handling constants
-const ALLOWED_IMAGE_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-  'image/heic'
-];
 
-const FILE_SIZE_LIMITS = {
-  IMAGE: 2 * 1024 * 1024, // 2MB 
-  OTHER: 20 * 1024 * 1024, // 20MB
-};
 
 // Bu endpoint NextJS App Router ile doğrudan dosya yükleme işlemi yapamaz
 // Kullanıcılar dosya yüklemek için Express tarafındaki '/api/messages' endpointini kullanmalıdır

@@ -4,6 +4,7 @@ import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { getToken } from 'next-auth/jwt';
 
+export const dynamic = 'force-dynamic';
 
 // Dosya türünü belirleme fonksiyonu
 function getFileType(fileName: string): string {

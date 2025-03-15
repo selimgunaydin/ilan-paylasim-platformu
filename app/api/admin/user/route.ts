@@ -5,6 +5,8 @@ import { eq, sql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { checkAdminAuth } from "@/utils/check-admin";
 
+export const dynamic = 'force-dynamic';
+
 // Admin kullanıcı bilgilerini getirme API'si
 export async function GET(request: NextRequest) {
   try {

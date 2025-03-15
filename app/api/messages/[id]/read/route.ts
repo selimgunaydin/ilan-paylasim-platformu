@@ -6,9 +6,7 @@ import jwt from "jsonwebtoken";
 import { messages } from '../../../../../shared/schemas';
 import { getToken } from "next-auth/jwt";
 
-interface JwtPayload {
-  userId: number;
-}
+export const dynamic = 'force-dynamic';
 
 export async function PATCH(
   request: NextRequest,

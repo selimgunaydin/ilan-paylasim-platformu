@@ -4,7 +4,7 @@ import { categories } from '@shared/schemas';
 import { db } from '@shared/db';
 
 // Kategorileri getirme API'si
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Veritabanından tüm kategorileri al
     const allCategories = await db.select().from(categories);

@@ -4,8 +4,12 @@ import { db } from "@shared/db";
 import { users } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
-import { hashPassword, comparePasswords } from '@/api/auth/[...nextauth]/route';
+import { hashPassword } from '@/api/auth/[...nextauth]/route';
+import { comparePasswords } from '@/utils/compare-passwords';
 import { getToken } from 'next-auth/jwt';
+
+export const dynamic = 'force-dynamic';
+
 // Kullanıcı şifre değiştirme API'si
 export async function PUT(request: NextRequest) {
   try {

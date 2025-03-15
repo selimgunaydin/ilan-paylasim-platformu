@@ -4,7 +4,6 @@ import { db } from '@shared/db';
 import { conversations, messages, users } from '@shared/schemas';
 import { eq, asc } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
-import { checkAdminAuth } from '@/utils/check-admin';
 
 // Admin konuşma mesajları getirme API'si
 export async function GET(
@@ -12,15 +11,6 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Admin yetkisi kontrolü
-    const admin = await checkAdminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: "Yetkilendirme gerekli" },
-        { status: 401 }
-      );
-    }
-
     const conversationId = parseInt(params.id);
     if (isNaN(conversationId)) {
       return NextResponse.json(

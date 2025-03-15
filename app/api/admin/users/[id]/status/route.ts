@@ -3,7 +3,8 @@ import type { NextRequest } from 'next/server';
 import { db } from '@shared/db';
 import { users } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
-import { checkAdminAuth } from '@/utils/check-admin';
+
+export const dynamic = 'force-dynamic';
 
 // Kullanıcı durumunu güncelleme API'si (ban/unban)
 export async function PATCH(
@@ -11,15 +12,6 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Admin yetkisi kontrolü
-    const admin = await checkAdminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: "Yetkilendirme gerekli" },
-        { status: 401 }
-      );
-    }
-
     const userId = parseInt(params.id);
     if (isNaN(userId)) {
       return NextResponse.json(

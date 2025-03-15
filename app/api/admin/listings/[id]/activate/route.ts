@@ -3,10 +3,6 @@ import type { NextRequest } from 'next/server';
 import { db } from '@shared/db';
 import { listings } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
-import jwt from 'jsonwebtoken';
-
-// Admin yetkilendirme kontrolü fonksiyonu
-import { checkAdminAuth } from '@/utils/check-admin';
 
 // İlan aktifleştirme API'si
 export async function PUT(
@@ -14,15 +10,6 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Admin yetkisi kontrolü
-    const admin = await checkAdminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: "Yetkilendirme gerekli" },
-        { status: 401 }
-      );
-    }
-
     const listingId = parseInt(params.id);
     if (isNaN(listingId)) {
       return NextResponse.json(

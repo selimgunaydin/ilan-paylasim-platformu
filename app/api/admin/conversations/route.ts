@@ -3,20 +3,11 @@ import type { NextRequest } from 'next/server';
 import { db } from "@shared/db";
 import { conversations, users, listings, messages } from '@shared/schemas';
 import { eq, sql, desc, inArray } from 'drizzle-orm';
-import { checkAdminAuth } from '@/utils/check-admin';
 
-// Admin konuşma listesi getirme API'si
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
-    // Admin yetkisi kontrolü
-    const admin = await checkAdminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: "Yetkilendirme gerekli" },
-        { status: 401 }
-      );
-    }
-
     // Sayfalama parametrelerini al
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');

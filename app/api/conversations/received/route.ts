@@ -5,6 +5,8 @@ import { conversations, listings, messages, users } from '@shared/schemas'
 import { eq, desc, sql } from 'drizzle-orm'
 import { getToken } from 'next-auth/jwt';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Auth token'ı al

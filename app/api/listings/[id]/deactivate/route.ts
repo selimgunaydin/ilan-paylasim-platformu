@@ -5,6 +5,8 @@ import { listings } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
 import { getToken } from 'next-auth/jwt';
 
+export const dynamic = 'force-dynamic';
+
 // İlan deaktive etme API'si
 export async function PUT(
   request: NextRequest,

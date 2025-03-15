@@ -5,23 +5,13 @@ import { listings } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 
-// Admin yetkilendirme kontrolü fonksiyonu
-import { checkAdminAuth } from '@/utils/check-admin';
-
 // İlan reddetme API'si
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // Admin yetkisi kontrolü
-    const admin = await checkAdminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: "Yetkilendirme gerekli" },
-        { status: 401 }
-      );
-    }
+
 
     const listingId = parseInt(params.id);
     if (isNaN(listingId)) {

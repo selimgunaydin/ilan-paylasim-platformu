@@ -6,6 +6,9 @@ import { eq } from 'drizzle-orm'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import { getToken } from 'next-auth/jwt';
+
+export const dynamic = 'force-dynamic';
+
 // PayTR için gerekli bilgiler
 const MERCHANT_ID = process.env.PAYTR_MERCHANT_ID || '123456'
 const MERCHANT_KEY = process.env.PAYTR_MERCHANT_KEY || 'merchant_key'

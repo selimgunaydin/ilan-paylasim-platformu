@@ -8,6 +8,8 @@ import { getToken } from 'next-auth/jwt';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]/route';
 
+export const dynamic = 'force-dynamic';
+
 // Oturum açmış kullanıcının bilgilerini getirme API'si
 export async function GET(request: NextRequest) {
   try {
