@@ -1,12 +1,33 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@app/components/ui/card";
 import { Conversation } from "@/types";
 import { MessageSquare } from "lucide-react";
 import ConversationCard from "@app/components/root/conversation-card";
+
+// Skeleton Loader Component
+function SkeletonWrapper() {
+  return (
+    <div className="space-y-4">
+      {[1, 2, 3].map((item) => (
+        <Card key={item}>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-4">
+              <div className="h-12 w-12 rounded-full bg-gray-200 animate-pulse" />
+              <div className="space-y-2 flex-1">
+                <div className="h-4 w-1/3 bg-gray-200 animate-pulse rounded" />
+                <div className="h-4 w-2/3 bg-gray-200 animate-pulse rounded" />
+                <div className="h-4 w-1/2 bg-gray-200 animate-pulse rounded" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 // Gelen mesajlar sayfası
 export default function ReceivedMessages() {
@@ -63,12 +84,15 @@ export default function ReceivedMessages() {
 
       <div className="space-y-4">
         {isLoadingReceivedConversations ? (
-          <div className="text-center p-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          </div>
+          <SkeletonWrapper />
         ) : receivedConversations && receivedConversations.length > 0 ? (
           receivedConversations.map((conversation) => (
-            <ConversationCard key={conversation.id} conversation={conversation} deleteMutation={deleteMutation} type="received" />
+            <ConversationCard 
+              key={conversation.id} 
+              conversation={conversation} 
+              deleteMutation={deleteMutation} 
+              type="received" 
+            />
           ))
         ) : (
           <Card>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@app/components/ui/button';
 import { Textarea } from '@app/components/ui/textarea';
 import { useAuth } from '@/hooks/use-auth';
@@ -8,21 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Paperclip, X, Image as ImageIcon, FileText, Music, Video, Archive, File as FileIcon, Send, Mic } from 'lucide-react';
 import { Socket } from 'socket.io-client';
 
-// Check if audio format is supported
-const getSupportedAudioFormat = () => {
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-  if (isMobile && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-    if (MediaRecorder.isTypeSupported('audio/aac')) return 'audio/aac';
-    if (MediaRecorder.isTypeSupported('audio/mpeg')) return 'audio/mpeg';
-    return 'audio/mp4';
-  }
-
-  const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/mpeg'];
-  return types.find((type) => MediaRecorder.isTypeSupported(type)) || null;
-};
-
-// Merkezi dosya limit tanımları
+// Sabitler ve yardımcı fonksiyonlar
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic'];
@@ -52,7 +38,19 @@ const ALLOWED_FILE_TYPES = [
   'application/x-rar-compressed',
 ];
 
-// Dosya türüne göre ikon belirleme
+const getSupportedAudioFormat = () => {
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  if (isMobile && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    if (MediaRecorder.isTypeSupported('audio/aac')) return 'audio/aac';
+    if (MediaRecorder.isTypeSupported('audio/mpeg')) return 'audio/mpeg';
+    return 'audio/mp4';
+  }
+
+  const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/mpeg'];
+  return types.find((type) => MediaRecorder.isTypeSupported(type)) || null;
+};
+
 const getFileIcon = (file: File) => {
   if (ALLOWED_IMAGE_TYPES.includes(file.type)) return <ImageIcon className="h-4 w-4" />;
   if (file.type.startsWith('video/')) return <Video className="h-4 w-4" />;
@@ -62,10 +60,9 @@ const getFileIcon = (file: File) => {
   return <FileIcon className="h-4 w-4" />;
 };
 
-// Dosya önizleme bileşeni
-const FilePreview: React.FC<{ file: File; onRemove: () => void }> = ({ file, onRemove }) => {
+// FilePreview bileşeni
+const FilePreview = React.memo<{ file: File; onRemove: () => void }>(({ file, onRemove }) => {
   const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
-
   return (
     <div className="flex items-center justify-between bg-muted p-2 rounded-md">
       <div className="flex items-center gap-2">
@@ -88,10 +85,11 @@ const FilePreview: React.FC<{ file: File; onRemove: () => void }> = ({ file, onR
       </Button>
     </div>
   );
-};
+});
+FilePreview.displayName = 'FilePreview';
 
 type MessageFormProps = {
-  socket: Socket | null; // socket null olabilir
+  socket: Socket | null;
   conversationId?: number;
   receiverId: number;
   onSuccess: (content: string, files?: string[]) => void;
@@ -104,19 +102,18 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Ses kaydı için state ve ref'ler
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<BlobPart[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout>();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   if (!user) return null;
 
-  // Ses kaydı başlatma/durdurma
-  const toggleRecording = async () => {
+  const toggleRecording = useCallback(async () => {
     if (isRecording) {
       if (!mediaRecorderRef.current) return;
       mediaRecorderRef.current.stop();
@@ -164,10 +161,9 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
         });
       }
     }
-  };
+  }, [toast]);
 
-  // Dosya seçme
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     const validFiles = files.filter((file) => {
       const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
@@ -192,16 +188,14 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
       return true;
     });
     setSelectedFiles((prev) => [...prev, ...validFiles]);
-  };
+  }, [toast]);
 
-  // Dosya kaldırma
-  const handleRemoveFile = (index: number) => {
+  const handleRemoveFile = useCallback((index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
-  };
+  }, []);
 
-  // Mesaj gönderme
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = useCallback(async (e?: React.FormEvent) => {
+    e?.preventDefault();
 
     if (isRecording) {
       await toggleRecording();
@@ -211,24 +205,16 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
     if (!message.trim() && selectedFiles.length === 0) return;
 
     if (!socket) {
-      toast({
-        title: 'Bağlantı Hatası',
-        description: 'Mesaj gönderilemiyor. Lütfen sayfayı yenileyin.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Bağlantı Hatası', description: 'Mesaj gönderilemiyor.', variant: 'destructive' });
       return;
     }
 
     setIsSending(true);
     try {
       let uploadedFileUrls: string[] = [];
-      
-      // Önce dosyaları yükle
       if (selectedFiles.length > 0) {
         const formData = new FormData();
-        if(conversationId){
-          formData.append('conversationId', conversationId.toString());
-        }
+        if (conversationId) formData.append('conversationId', conversationId.toString());
         selectedFiles.forEach((file) => formData.append('files', file));
 
         const uploadResponse = await fetch('/api/messages/upload', {
@@ -236,10 +222,7 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
           body: formData,
         });
         
-        if (!uploadResponse.ok) {
-          throw new Error('Dosya yükleme başarısız');
-        }
-        
+        if (!uploadResponse.ok) throw new Error('Dosya yükleme başarısız');
         const uploadResult = await uploadResponse.json();
         uploadedFileUrls = uploadResult.fileUrls || [];
       }
@@ -252,33 +235,27 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
         listingId,
       }, (response: { success: boolean; error?: string }) => {
         if (response.success) {
-          // Mesaj başarıyla gönderildiğinde state'i temizle
           setMessage('');
           setSelectedFiles([]);
-          
-          // Başarı callback'ini çağır
           onSuccess(message.trim(), uploadedFileUrls);
+          setIsSending(false);
         } else {
-          toast({
-            title: 'Hata',
-            description: response.error || 'Mesaj gönderilemedi',
-            variant: 'destructive',
-          });
+          toast({ title: 'Hata', description: response.error || 'Mesaj gönderilemedi', variant: 'destructive' });
+          setIsSending(false);
         }
       });
     } catch (error) {
       console.error('Mesaj gönderme hatası:', error);
+      setIsSending(false);
       toast({
         title: 'Hata',
         description: error instanceof Error ? error.message : 'Mesaj gönderilemedi',
         variant: 'destructive',
       });
-    } finally {
-      setIsSending(false);
     }
-  };
-
-  // Socket error handler'ı ekle
+  }, [socket, conversationId, message, selectedFiles, receiverId, listingId, onSuccess, toast, isRecording, toggleRecording]);
+  console.log(isSending);
+  
   useEffect(() => {
     if (!socket) return;
 
@@ -296,16 +273,15 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
       socket.off('error', handleError);
     };
   }, [socket, toast]);
+  const filePreviews = useMemo(() => (
+    selectedFiles.map((file, index) => (
+      <FilePreview key={index} file={file} onRemove={() => handleRemoveFile(index)} />
+    ))
+  ), [selectedFiles, handleRemoveFile]);
 
   return (
     <div className="space-y-4">
-      {selectedFiles.length > 0 && (
-        <div className="space-y-2">
-          {selectedFiles.map((file, index) => (
-            <FilePreview key={index} file={file} onRemove={() => handleRemoveFile(index)} />
-          ))}
-        </div>
-      )}
+      {selectedFiles.length > 0 && <div className="space-y-2">{filePreviews}</div>}
 
       <form onSubmit={handleSubmit} className="flex items-center gap-2">
         <Button
@@ -323,9 +299,7 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
           type="button"
           variant="ghost"
           size="sm"
-          className={`shrink-0 transition-colors duration-200 relative ${
-            isRecording ? 'text-red-600 dark:text-red-500 bg-red-50 dark:bg-red-900/20' : ''
-          }`}
+          className={`shrink-0 transition-colors duration-200 relative ${isRecording ? 'text-red-600 dark:text-red-500 bg-red-50 dark:bg-red-900/20' : ''}`}
           onClick={toggleRecording}
         >
           <Mic className={`h-5 w-5 ${isRecording ? 'animate-[pulse_1s_ease-in-out_infinite]' : ''}`} />
@@ -336,6 +310,7 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
 
         <div className="flex-1 relative">
           <Textarea
+            ref={textareaRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder={isRecording ? 'Ses kaydediliyor...' : 'Mesajınız...'}

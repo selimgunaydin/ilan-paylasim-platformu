@@ -209,6 +209,43 @@ const MessageContent = ({ message, isOwnMessage }: { message: Message; isOwnMess
   );
 };
 
+// Skeleton Loader Component
+const SkeletonWrapper = () => {
+  return (
+    <div className="space-y-4 p-4">
+      {[1, 2, 3, 4].map((item) => (
+        <div key={item} className="flex items-start gap-3 justify-start">
+          <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse" />
+          <div className="max-w-[70%] rounded-2xl p-3 bg-gray-100">
+            <div className="space-y-2">
+              <div className="h-4 w-32 bg-gray-200 animate-pulse rounded" />
+              <div className="h-4 w-48 bg-gray-200 animate-pulse rounded" />
+              <div className="flex items-center justify-end gap-2">
+                <div className="h-3 w-12 bg-gray-200 animate-pulse rounded" />
+                <div className="h-3 w-3 bg-gray-200 animate-pulse rounded-full" />
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+      {[1, 2].map((item) => (
+        <div key={`own-${item}`} className="flex items-start gap-3 justify-end">
+          <div className="max-w-[70%] rounded-2xl p-3 bg-blue-100">
+            <div className="space-y-2">
+              <div className="h-4 w-32 bg-blue-200 animate-pulse rounded" />
+              <div className="h-4 w-48 bg-blue-200 animate-pulse rounded" />
+              <div className="flex items-center justify-end gap-2">
+                <div className="h-3 w-12 bg-blue-200 animate-pulse rounded" />
+                <div className="h-3 w-3 bg-blue-200 animate-pulse rounded-full" />
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // Tip Tanımları
 type Message = {
   id: number;
@@ -229,7 +266,6 @@ type Conversation = {
   isRead: boolean;
 };
 
-
 export default function ConversationDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -243,12 +279,14 @@ export default function ConversationDetail() {
   const prevScrollHeightRef = useRef<number>(0);
   const isInitialMount = useRef(true);
   const headerRef = useRef<HTMLDivElement>(null);
+
   // Infinite Query for Messages with Pagination
   const {
     data,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isLoading,
   } = useInfiniteQuery({
     queryKey: ['/api/conversations', id, 'messages'],
     queryFn: async ({ pageParam = 0 }) => {
@@ -265,6 +303,7 @@ export default function ConversationDetail() {
     enabled: Boolean(user) && Boolean(id),
     initialPageParam: 0,
   });
+
   const { data: otherUser } = useQuery({
     queryKey: ['/api/users', data?.pages[0]?.messages[0]?.senderId === user?.id ? data?.pages[0]?.messages[0]?.receiverId : data?.pages[0]?.messages[0]?.senderId],
     queryFn: async () => {
@@ -298,7 +337,6 @@ export default function ConversationDetail() {
 
   useEffect(() => {
     document.querySelector('footer')?.classList.add('hidden');
-
     return () => {
       document.querySelector('footer')?.classList.remove('hidden');
     };
@@ -428,6 +466,7 @@ export default function ConversationDetail() {
       timeout = setTimeout(() => func(...args), wait);
     };
   }
+  
   const handleDeleteMessage = async (messageId: number) => {
     try {
       const response = await fetch(`/api/messages/${messageId}`, { method: 'DELETE' });
@@ -438,7 +477,7 @@ export default function ConversationDetail() {
     }
   };
 
-  if (!user || !data) return null;
+  if (!user) return null;
 
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] bg-white">
@@ -448,14 +487,14 @@ export default function ConversationDetail() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <Avatar className="h-10 w-10">
-          <AvatarImage
+            <AvatarImage
               src={getProfileImageUrl(otherUser?.profileImage, otherUser?.gender || 'unspecified', otherUser?.avatar)}
               alt="Profil"
             />
             <AvatarFallback>{otherUser?.username?.charAt(0)}</AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-medium">{otherUser?.username}</p>
+            <p className="font-medium">{otherUser?.username || 'Yükleniyor...'}</p>
             {listing && (
               <a
                 href={`/ilan/${listing.id}`}
@@ -483,7 +522,9 @@ export default function ConversationDetail() {
           </div>
         )}
         
-        {allMessages.length === 0 ? (
+        {isLoading ? (
+          <SkeletonWrapper />
+        ) : allMessages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             <div className="text-center space-y-2">
               <MessageSquare className="h-8 w-8 mx-auto opacity-50" />
