@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
-// Korumalı rotaları içeren bir dizi
+// Korumalı rotalar
 const protectedRoutes = [
   '/dashboard',
   '/ilan-ekle',
@@ -20,10 +20,9 @@ const adminRoutes = [
   '/yonetim/ilanlar',
   '/yonetim/kullanicilar',
   '/yonetim/ayarlar',
-  '/yonetim/*'
 ]
 
-// Public admin rotaları (giriş sayfası gibi)
+// Public admin rotaları
 const publicAdminRoutes = [
   '/yonetim'
 ]
@@ -42,14 +41,12 @@ export async function middleware(request: NextRequest) {
     secret: process.env.NEXTAUTH_SECRET 
   })
 
-  // API istekleri için özel kontrol
+  // API istekleri için kontrol
   if (pathname.startsWith('/api/')) {
-    // Auth API isteklerini atla
     if (pathname.startsWith('/api/auth')) {
       return NextResponse.next()
     }
     
-    // Public API rotaları (token gerektirmeyen)
     const publicApiRoutes = [
       '/api/listings',
       '/api/categories',
@@ -60,7 +57,6 @@ export async function middleware(request: NextRequest) {
       '/api/reset-password-verify',
     ]
     
-    // Tam eşleşme veya alt yollar için kontrol
     const isPublicApi = publicApiRoutes.some(route => 
       pathname === route || pathname.startsWith(`${route}/`)
     )
@@ -69,7 +65,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next()
     }
     
-    // Admin API rotaları
     if (pathname.startsWith('/api/admin/')) {
       if (!token || token.type !== 'admin') {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -77,7 +72,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next()
     }
     
-    // Diğer API rotaları için token kontrolü
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -92,10 +86,13 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next()
     }
 
-    // Admin yetkisi kontrolü
+    // Admin yetkisi kontrolü (tüm /yonetim alt rotaları için)
     if (!token || token.type !== 'admin') {
       return NextResponse.redirect(new URL('/yonetim', request.url))
     }
+
+    // Admin rotasına erişim varsa devam et
+    return NextResponse.next()
   }
 
   // Korumalı rotalar için oturum kontrolü
@@ -108,7 +105,6 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next()
 }
 
-// Middleware'in hangi yollarda çalışacağını belirt
 export const config = {
   matcher: [
     '/dashboard/:path*',
@@ -123,4 +119,4 @@ export const config = {
     '/yonetim/:path*',
     '/api/:path*'
   ]
-} 
+}

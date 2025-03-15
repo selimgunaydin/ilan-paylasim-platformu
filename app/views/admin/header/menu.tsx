@@ -12,6 +12,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useRouter, usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { LogOut, Menu, Settings } from "lucide-react";
 
@@ -33,11 +34,16 @@ export function AdminHeaderClient({
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const session = useSession();
 
   const handleLogout = async () => {
     await signOut({ redirect: false });
     router.push("/yonetim");
   };
+
+  if (session.status === "unauthenticated" || session.status === "loading") {
+    return null;
+  }
 
   const MenuContent = () => (
     <div className="flex items-center gap-2">
