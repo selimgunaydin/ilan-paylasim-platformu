@@ -1,4 +1,4 @@
-import AuthView from '@/views/auth'
+import AuthView from '@/views/root/auth'
 
 export default function AuthPage() {
   return (

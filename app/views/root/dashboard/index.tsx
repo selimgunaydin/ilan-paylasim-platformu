@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import MyListings from '@/views/my-listings'
+import MyListings from '@/views/root/my-listings'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/api/auth/[...nextauth]/route'
 import { headers } from 'next/headers'

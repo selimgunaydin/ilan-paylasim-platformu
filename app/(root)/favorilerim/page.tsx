@@ -1,4 +1,4 @@
-import FavoritesView from '@/views/favorilerim'
+import FavoritesView from '@/views/root/favorilerim'
 
 export default function FavoritesPage() {
   return (

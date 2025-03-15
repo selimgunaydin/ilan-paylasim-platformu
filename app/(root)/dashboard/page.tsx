@@ -1,4 +1,4 @@
-import DashboardView from '@/views/dashboard'
+import DashboardView from '@/views/root/dashboard'
 
 export default function DashboardPage() {
   return (

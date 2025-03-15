@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth/next"
 import { db } from "@shared/db"
 import { users } from "@shared/schemas"
 import { eq } from "drizzle-orm"
-import Profile from '@app/views/profile'
+import Profile from '@/views/root/profile'
 import { redirect } from "next/navigation"
 import { authOptions } from "@/api/auth/[...nextauth]/route"
 

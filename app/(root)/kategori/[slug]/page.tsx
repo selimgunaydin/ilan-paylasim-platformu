@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { Category, Listing } from "@shared/schemas";
-import CategoryDetailClient from "@/views/category";
+import CategoryDetailClient from "@/views/root/category";
 import { cn } from "@/lib/utils";
 import cityList from "../../../../public/city-list.json";
 

@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/api/auth/[...nextauth]/route'
 import { headers } from 'next/headers'
-import MyListings from '@/views/my-listings'
+import MyListings from '@/views/root/my-listings'
 
 async function getListings() {
   const session = await getServerSession(authOptions)

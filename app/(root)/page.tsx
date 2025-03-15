@@ -1,5 +1,5 @@
 import React from 'react'
-import HomePage from '@/views/home'
+import HomePage from '@/views/root/home'
 import { Category } from '@shared/schemas';
 
 export default async function Home() {

@@ -1,4 +1,4 @@
-import SentMessagesView from '@/views/gonderilen-mesajlar'
+import SentMessagesView from '@/views/root/gonderilen-mesajlar'
 
 export default function SentMessagesPage() {
   return (

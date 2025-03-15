@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import { AdminAuthProvider } from "@/hooks/use-admin-auth";
 import { Toaster } from "@app/components/ui/toaster";
@@ -14,13 +14,13 @@ export default function AdminLayout({
 }) {
   return (
     <SessionProvider>
-    <QueryClientProvider client={queryClient}>
-    <AdminAuthProvider>
-      <AdminHeader />
-      {children}
-      <Toaster />
-    </AdminAuthProvider>
-    </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <AdminAuthProvider>
+          <AdminHeader />
+          {children}
+          <Toaster />
+        </AdminAuthProvider>
+      </QueryClientProvider>
     </SessionProvider>
   );
-} 
+}

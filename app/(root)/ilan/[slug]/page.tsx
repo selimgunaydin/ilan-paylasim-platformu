@@ -4,7 +4,7 @@ import { authOptions } from "@/api/auth/[...nextauth]/route"; // Adjust path as 
 import { headers } from "next/headers";
 import Link from "next/link";
 import type { Category } from "@shared/schemas";
-import ListingDetailClient from "@/views/ilan-detay";
+import ListingDetailClient from "@/views/root/ilan-detay";
 
 async function fetchListing(id: string, cookies: string) {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/listings/${id}`, {
