@@ -4,7 +4,7 @@ import Link from "next/link"; // Next.js kullanıyorsanız
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-100">
+    <div className="min-h-screen w-full flex items-center justify-center">
       <Card className="w-full max-w-lg mx-4 shadow-lg">
         <CardContent className="pt-8 pb-6">
           <div className="flex items-center mb-6 gap-3">

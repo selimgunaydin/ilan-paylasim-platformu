@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import type { Category } from "@shared/schemas";
 import ListingDetailClient from "@/views/root/ilan-detay";
+import NotFound from "@/not-found";
 
 async function fetchListing(id: string, cookies: string) {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/listings/${id}`, {
@@ -76,6 +77,13 @@ export default async function ListingDetailPage({
       fetchSimilarListings(listing.categoryId, cookies),
       fetchFavoriteStatus(id, session?.user?.id, cookies),
     ]);
+
+    if(listing.active === false || listing.approved === false){
+      return <div className="p-8 text-center">
+        <NotFound />
+      </div>;
+    }
+
 
     const category = categories.find((c) => c.id === listing.categoryId);
     const parentCategory = category?.parentId

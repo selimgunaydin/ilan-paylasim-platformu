@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
-import { AdminHeader } from "@app/components/ui/admin-header";
+import { AdminHeader } from "@/views/admin/header/admin-header";
 
 export default function ManagementHome({ children }: { children?: React.ReactNode }) {
   const { admin } = useAdminAuth();
