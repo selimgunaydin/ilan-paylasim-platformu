@@ -260,7 +260,7 @@ export default function ManagementHome({ children }: { children?: React.ReactNod
                   </CardContent>
                 </Card>
                 
-                <Card className="col-span-2">
+                <Card className="lg:col-span-2">
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
                     <CardTitle className="text-sm font-medium">Toplam Mesaj</CardTitle>
                     <MessageSquare className="h-4 w-4 text-blue-500" />

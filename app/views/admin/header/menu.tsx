@@ -95,13 +95,13 @@ export function AdminHeaderClient({
                 <Link key={item.path} href={item.path}>
                   <Button
                     variant={
-                      window.location.pathname === item.path
+                      pathname === item.path
                         ? "default"
                         : "ghost"
                     }
                     className={cn(
                       "justify-start",
-                      window.location.pathname === item.path
+                      pathname === item.path
                         ? "bg-primary text-white"
                         : ""
                     )}
@@ -116,13 +116,13 @@ export function AdminHeaderClient({
                 <Link key={item.path} href={item.path}>
                   <Button
                     variant={
-                      window.location.pathname === item.path
+                      pathname === item.path
                         ? "default"
                         : "ghost"
                     }
                     className={cn(
                       "justify-start",
-                      window.location.pathname === item.path
+                      pathname === item.path
                         ? "bg-primary text-white"
                         : ""
                     )}
