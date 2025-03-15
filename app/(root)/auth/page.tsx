@@ -33,6 +33,7 @@ import Link from "next/link";
 import { getClientIp } from "@/utils/getIpAddress";
 import { signIn, useSession } from "next-auth/react";
 import { useState } from "react";
+import { TermsModal } from "@/components/TermsModal";
 
 // NextAuth session tipini genişlet
 declare module "next-auth" {
@@ -490,14 +491,12 @@ function RegisterForm({ onSubmit }: { onSubmit: (data: any) => void }) {
               </FormControl>
               <div className="space-y-1 leading-none">
                 <FormLabel>
-                  <Link
-                    href="/kullanim-kosullari"
-                    className="text-primary hover:underline"
-                    target="_blank"
-                  >
-                    Kullanım koşullarını
-                  </Link>{" "}
-                  kabul ediyorum
+                  <TermsModal>
+                    <span className="text-primary hover:underline cursor-pointer">
+                      Kullanım koşullarını
+                    </span>
+                  </TermsModal>
+                  {" "}kabul ediyorum
                 </FormLabel>
                 <FormMessage />
               </div>
