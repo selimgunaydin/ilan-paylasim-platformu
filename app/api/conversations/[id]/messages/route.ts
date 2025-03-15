@@ -105,7 +105,3 @@ export async function GET(
     return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
   }
 }
-
-export const config = {
-  runtime: 'edge',
-};
