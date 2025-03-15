@@ -46,14 +46,13 @@ export default function ConversationCard({ conversation, deleteMutation, type }:
       </div>
     )}
 
-    <Link
-      href={`/mesajlar/${conversation.id}`}
+    <div
       className="cursor-pointer"
     >
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-4">
           {/* Sol taraf - Profil ve kullanıcı bilgileri */}
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+          <Link  href={`/mesajlar/${conversation.id}`} className="flex items-center gap-3 flex-1 min-w-0">
             <Avatar className="h-12 w-12">
               <AvatarImage
                 src={getProfileImageUrl(
@@ -75,7 +74,7 @@ export default function ConversationCard({ conversation, deleteMutation, type }:
                 {conversation.listingTitle}
               </p>
             </div>
-          </div>
+          </Link>
 
           {/* Sağ taraf - Tarih ve silme butonu */}
           <div className="flex flex-col items-end gap-2">
@@ -117,7 +116,7 @@ export default function ConversationCard({ conversation, deleteMutation, type }:
           </div>
         </div>
       </CardContent>
-    </Link>
+    </div>
   </Card>
   )
 }
