@@ -111,8 +111,6 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
   const recordingTimerRef = useRef<NodeJS.Timeout>();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  if (!user) return null;
-
   const toggleRecording = useCallback(async () => {
     if (isRecording) {
       if (!mediaRecorderRef.current) return;

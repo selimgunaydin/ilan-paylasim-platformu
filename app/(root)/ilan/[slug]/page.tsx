@@ -106,7 +106,7 @@ export default async function ListingDetailPage({
           )}
           <span className="text-gray-900">{listing.title}</span>
         </nav>
-
+        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-7xl mx-auto">
           <div className="md:col-span-2">
             {/* Listing Details */}
@@ -129,6 +129,13 @@ export default async function ListingDetailPage({
                 </div>
               </div>
             </div>
+
+            <ListingDetailClient
+          listing={listing}
+          user={session?.user || null}
+          initialFavoriteStatus={favoriteStatus.isFavorite}
+          slug={params.slug}
+        />
 
             {/* Similar Listings */}
             <div className="bg-white rounded-lg shadow mt-6">
@@ -202,14 +209,6 @@ export default async function ListingDetailPage({
             </div>
           </div>
         </div>
-
-        {/* Client Component for Interactive Features */}
-        <ListingDetailClient
-          listing={listing}
-          user={session?.user || null}
-          initialFavoriteStatus={favoriteStatus.isFavorite}
-          slug={params.slug}
-        />
       </div>
     );
   } catch (error) {

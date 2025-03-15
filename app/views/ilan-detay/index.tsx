@@ -101,7 +101,7 @@ export default function ListingDetailClient({
       });
       return;
     }
-    if (listing.userId === Number(user.id)) {
+    if (listing.userId == Number(user.id)) {
       toast({
         title: "Uyarı",
         description: "Kendi ilanınızı favorilere ekleyemezsiniz",
@@ -170,14 +170,16 @@ export default function ListingDetailClient({
               yapmalısınız.
             </p>
           </div>
-        ) : listing.userId && Number(user.id) !== listing.userId ? (
+        ) : listing.userId && Number(user.id) != listing.userId ? (
           <>
+          {listing.userId && Number(user.id) != listing.userId && (
             <MessageForm
               socket={socket}
               receiverId={listing.userId}
               onSuccess={handleMessageSuccess}
               listingId={listing.id}
             />
+            )}
             <div className="mt-4 flex justify-end">
               <Button
                 variant="ghost"
