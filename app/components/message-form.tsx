@@ -254,8 +254,7 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
       });
     }
   }, [socket, conversationId, message, selectedFiles, receiverId, listingId, onSuccess, toast, isRecording, toggleRecording]);
-  console.log(isSending);
-  
+
   useEffect(() => {
     if (!socket) return;
 
