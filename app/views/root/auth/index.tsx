@@ -34,7 +34,7 @@ import { getClientIp } from "@/utils/getIpAddress";
 import { signIn, useSession } from "next-auth/react";
 import { useState } from "react";
 import { TermsModal } from "@/components/TermsModal";
-
+import { Suspense } from "react";
 // NextAuth session tipini genişlet
 declare module "next-auth" {
   interface Session {
@@ -50,7 +50,7 @@ declare module "next-auth" {
   }
 }
 
-export default function AuthView() {
+function AuthContent() {
   const location = useSearchParams();
   const verified = location.get("verified") === "true";
   const [showVerificationMessage, setShowVerificationMessage] =
@@ -156,6 +156,15 @@ export default function AuthView() {
         </Card>
       </div>
     </>
+  );
+}
+
+export default function AuthView() {
+ 
+  return (
+  <Suspense fallback={<div>Loading...</div>}>
+    <AuthContent />
+  </Suspense>
   );
 }
 

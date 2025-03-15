@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
         type: sql<'admin'>`'admin'`
       })
       .from(admin_users)
-      .where(eq(admin_users.id, adminCheck.userId));
+      .where(eq(admin_users.id, Number(adminCheck.userId)));
 
     if (!admin) {
       return NextResponse.json(null, { status: 401 });

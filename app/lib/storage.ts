@@ -706,7 +706,7 @@ export class DatabaseStorage implements IStorage {
       }));
 
       console.log('Dönüştürülmüş mesajlar:', transformedMessages);
-      return transformedMessages;
+      return transformedMessages as any;
     } catch (error) {
       console.error('Mesajları getirme hatası:', error);
       throw error;
@@ -1015,7 +1015,8 @@ export class DatabaseStorage implements IStorage {
 
       return {
         ...admin,
-        type: 'admin' as const
+        type: 'admin' as const,
+        createdAt: admin.createdAt as Date
       };
     } catch (error) {
       console.error('Error fetching admin by username:', error);
@@ -1034,7 +1035,8 @@ export class DatabaseStorage implements IStorage {
 
       return {
         ...admin,
-        type: 'admin' as const
+        type: 'admin' as const,
+        createdAt: admin.createdAt as Date
       };
     } catch (error) {
       console.error('Error fetching admin by id:', error);

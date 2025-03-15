@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
           };
 
           try {
-            const uploadedFile = await uploadMessageFile(multerFile);
+            const uploadedFile = await uploadMessageFile(multerFile as any);
             if (uploadedFile) {
               uploadedFiles.push(uploadedFile);
               fileTypes.push(getFileType(file.name));

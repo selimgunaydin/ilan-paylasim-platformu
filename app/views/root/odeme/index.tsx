@@ -6,8 +6,8 @@ import { Button } from "@app/components/ui/button";
 import { useSearchParams, useRouter } from "next/navigation";
 import { apiRequest } from "@/lib/queryClient";
 import type { PaymentResponse } from "@/types/payment";
-
-export default function PaymentPage() {
+import { Suspense } from "react";
+function PaymentContent() {
   const [paymentToken, setPaymentToken] = useState("");
   const [showPayTR, setShowPayTR] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,4 +112,12 @@ export default function PaymentPage() {
       </Card>
     </div>
   );
+}
+
+export default function PaymentPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <PaymentContent />
+    </Suspense>
+  )
 }

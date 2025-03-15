@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
           stripe_secret_key: "",
           stripe_webhook_secret: "",
           stripe_currency: "try",
-          updated_by: admin.userId,
+          updated_by: Number(admin.userId),
         })
         .returning();
 
@@ -95,7 +95,7 @@ export async function PUT(request: NextRequest) {
           .update(payment_settings)
           .set({
             ...validatedData,
-            updated_by: admin.userId,
+            updated_by: Number(admin.userId),
             updated_at: new Date(),
           })
           .returning();
@@ -105,7 +105,7 @@ export async function PUT(request: NextRequest) {
           .insert(payment_settings)
           .values({
             ...validatedData,
-            updated_by: admin.userId,
+            updated_by: Number(admin.userId),
             updated_at: new Date(),
           })
           .returning();
