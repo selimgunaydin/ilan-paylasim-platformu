@@ -6,7 +6,8 @@ import { eq } from 'drizzle-orm';
 import { hashPassword } from '@/api/auth/[...nextauth]/route';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
-import { generateVerificationEmail, sendEmail } from '@/lib/email';
+import { sendEmail } from '../../../services/email';
+import { generateVerificationEmail } from '../../../services/email-templates';
 
 export const dynamic = 'force-dynamic';
 

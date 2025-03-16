@@ -4,7 +4,8 @@ import { db } from '@shared/db';
 import { users } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
 import crypto from 'crypto';
-import { generatePasswordResetEmail, sendEmail } from '@/lib/email';
+import { sendEmail } from '../../../services/email';
+import { generatePasswordResetEmail } from '../../../services/email-templates'; 
 
 export const dynamic = 'force-dynamic';
 
