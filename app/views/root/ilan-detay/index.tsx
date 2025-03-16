@@ -28,6 +28,7 @@ type Listing = {
   phone?: string;
   views?: number;
   createdAt?: string;
+  categoryName?: string;
 };
 
 type Props = {
@@ -135,7 +136,11 @@ export default function ListingDetailClient({
       {/* Image Gallery */}
       {listing.images && listing.images.length > 0 && (
         <div className="mb-6 md:col-span-2">
-          <ImageGallery images={listing.images} title={listing.title} />
+          <ImageGallery 
+            images={listing.images} 
+            title={listing.title} 
+            categoryName={listing.categoryName} 
+          />
         </div>
       )}
 

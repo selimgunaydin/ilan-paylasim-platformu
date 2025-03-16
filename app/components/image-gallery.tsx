@@ -8,9 +8,10 @@ import { getListingImageUrlClient } from '@/utils/get-message-file-url';
 interface ImageGalleryProps {
   images: string[];
   title: string;
+  categoryName?: string;
 }
 
-export function ImageGallery({ images, title }: ImageGalleryProps) {
+export function ImageGallery({ images, title, categoryName }: ImageGalleryProps) {
   const [emblaRef, emblaApi] = useEmblaCarousel();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
@@ -52,7 +53,8 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
                 <div className={`relative w-full h-full bg-gray-100 ${!loadedImages[image] ? 'animate-pulse' : ''}`}>
                   <img
                     src={getListingImageUrlClient(image)}
-                    alt={`${title} - Resim ${index + 1}`}
+                    alt={title}
+                    title={`${title}${categoryName ? ` - ${categoryName}` : ''}`}
                     className={`object-cover w-full h-full transition-opacity duration-300 ${loadedImages[image] ? 'opacity-100' : 'opacity-0'}`}
                     loading="lazy"
                     onLoad={(e) => {
@@ -78,7 +80,8 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
                     <DialogContent className="max-w-[90vw] max-h-[90vh] p-0">
                       <img
                         src={fullscreenImage || ''}
-                        alt={`${title} - Tam Ekran`}
+                        alt={title}
+                        title={`${title}${categoryName ? ` - ${categoryName}` : ''}`}
                         className="w-full h-full object-contain"
                       />
                     </DialogContent>
@@ -125,8 +128,9 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
             >
               <AspectRatio ratio={4/3}>
                 <img
-                  src={thumb}
-                  alt={`Küçük resim ${index + 1}`}
+                  src={getListingImageUrlClient(thumb)}
+                  alt={`${title} - Önizleme ${index + 1}`}
+                  title={`${title}${categoryName ? ` - ${categoryName}` : ''}`}
                   className="object-cover w-full h-full"
                   loading="lazy"
                 />

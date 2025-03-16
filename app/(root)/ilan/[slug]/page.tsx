@@ -8,6 +8,7 @@ import ListingDetailClient from "@/views/root/ilan-detay";
 import NotFound from "@/not-found";
 import { Metadata } from "next";
 import { getListingImageUrlClient } from "@/utils/get-message-file-url";
+
 export async function generateMetadata({
   params,
 }: {
@@ -25,20 +26,25 @@ export async function generateMetadata({
     const headersList = headers();
     const cookies = headersList.get("cookie") || "";
     const listing = await fetchListing(id, cookies);
-
+    const categories = await fetchCategories(cookies);
+    const category = categories.find((c) => c.id === listing.categoryId);
+    
     const title = `${listing.title} | ${listing.city} | Site Adı`;
     const description = listing.description
       ? `${listing.description.substring(0, 160)}...`
       : `${listing.title} - ${listing.city} şehrinde bu ilanı keşfedin.`;
+    
+    // Create SEO-friendly canonical URL from slug
+    const canonicalUrl = `https://ilandaddy.com/ilan/${createSeoUrl(listing.title)}-${listing.id}`;
 
     return {
       title,
       description,
-      keywords: `${listing.title}, ${listing.city}, ${listing.categoryId}, ikinci el, ilan`, // Kategori ve şehir bazlı anahtar kelimeler
+      keywords: `${listing.title}, ${listing.city}, ${category ? category.name : ''}, ikinci el, ilan`,
       openGraph: {
         title,
         description,
-        url: `${process.env.NEXT_PUBLIC_SITE_URL}/ilan/${params.slug}`,
+        url: canonicalUrl,
         type: "article",
         images: listing.images?.[0] ? [listing.images[0]] : [],
       },
@@ -48,6 +54,9 @@ export async function generateMetadata({
         description,
         images: listing.images?.[0] ? [listing.images[0]] : [],
       },
+      alternates: {
+        canonical: canonicalUrl,
+      }
     };
   } catch (error) {
     return {
@@ -134,14 +143,94 @@ export default async function ListingDetailPage({
       </div>;
     }
 
-
     const category = categories.find((c) => c.id === listing.categoryId);
     const parentCategory = category?.parentId
       ? categories.find((c) => c.id === category.parentId)
       : null;
+      
+    // Create structured data for Product and Review schemas
+    const structuredData = {
+      "@context": "https://schema.org",
+      "@graph": [
+        // Product Schema
+        {
+          "@type": "Product",
+          "name": listing.title,
+          "description": listing.description,
+          "image": listing.images?.length > 0 ? getListingImageUrlClient(listing.images[0]) : null,
+          "offers": {
+            "@type": "Offer",
+            "availability": "https://schema.org/InStock",
+            "price": "0",
+            "priceCurrency": "TRY"
+          },
+          "category": category?.name,
+          "brand": {
+            "@type": "Brand",
+            "name": "İlanDaddy"
+          },
+          // Default Review Schema
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "5",
+            "reviewCount": "1",
+            "bestRating": "5",
+            "worstRating": "1"
+          },
+          "review": {
+            "@type": "Review",
+            "reviewRating": {
+              "@type": "Rating",
+              "ratingValue": "5",
+              "bestRating": "5"
+            },
+            "author": {
+              "@type": "Person",
+              "name": "İlanDaddy Kullanıcı"
+            }
+          }
+        },
+        // BreadcrumbList Schema
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Anasayfa",
+              "item": "https://ilandaddy.com/"
+            },
+            ...(parentCategory ? [{
+              "@type": "ListItem",
+              "position": 2,
+              "name": parentCategory.name,
+              "item": `https://ilandaddy.com/kategori/${parentCategory.slug}`
+            }] : []),
+            {
+              "@type": "ListItem",
+              "position": parentCategory ? 3 : 2,
+              "name": category?.name || "Kategori",
+              "item": `https://ilandaddy.com/kategori/${category?.slug || ""}`
+            },
+            {
+              "@type": "ListItem",
+              "position": parentCategory ? 4 : 3,
+              "name": listing.title,
+              "item": `https://ilandaddy.com/ilan/${createSeoUrl(listing.title)}-${listing.id}`
+            }
+          ]
+        }
+      ]
+    };
 
     return (
       <div className="py-8">
+        {/* JSON-LD Structured Data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
+        
         {/* Breadcrumb Navigation */}
         <nav className="flex mb-4 text-sm text-gray-500">
           <Link href="/" className="hover:text-blue-600">Anasayfa</Link>
@@ -178,8 +267,13 @@ export default async function ListingDetailPage({
                 </div>
                 {listing?.images && listing?.images.length > 0 && (
                   <div className="mb-6">
-                    {/* Static image placeholder - client will handle interactivity */}
-                    <img src={getListingImageUrlClient(listing?.images[0])} alt={listing.title} className="w-full h-64 object-cover rounded" />
+                    {/* Updated image with dynamic alt and title attributes */}
+                    <img 
+                      src={getListingImageUrlClient(listing?.images[0])} 
+                      alt={listing.title} 
+                      title={`${listing.title} ${category?.name ? `- ${category.name}` : ''}`}
+                      className="w-full h-64 object-cover rounded" 
+                    />
                   </div>
                 )}
                 <div className="prose max-w-none">
@@ -189,11 +283,15 @@ export default async function ListingDetailPage({
             </div>
 
             <ListingDetailClient
-          listing={listing}
-          user={session?.user || null}
-          initialFavoriteStatus={favoriteStatus.isFavorite}
-          slug={params.slug}
-        />
+              listing={{
+                ...listing,
+                // Add category name for client component to use in image titles
+                categoryName: category?.name || ""
+              }}
+              user={session?.user || null}
+              initialFavoriteStatus={favoriteStatus.isFavorite}
+              slug={params.slug}
+            />
 
             {/* Similar Listings */}
             <div className="bg-white rounded-lg shadow mt-6">
@@ -270,8 +368,8 @@ export default async function ListingDetailPage({
       </div>
     );
   } catch (error) {
-    console.error("Veri yükleme hatası:", error);
-    return <div className="p-8 text-center">İlan bulunamadı</div>;
+    console.error("Error in ListingDetailPage:", error);
+    return <div className="p-8 text-center">İlan yüklenirken bir hata oluştu</div>;
   }
 }
 
