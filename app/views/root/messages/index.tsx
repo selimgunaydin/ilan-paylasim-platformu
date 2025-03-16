@@ -387,18 +387,30 @@ export default function MessagesView() {
     [hasNextPage, isFetchingNextPage, fetchNextPage]
   );
 
-  // Initial Scroll and Socket Setup
+  // Initial scroll and socket connection setup
   useEffect(() => {
     if (isInitialMount.current && allMessages.length > 0) {
       scrollToBottom('auto');
       isInitialMount.current = false;
     }
-    
+  }, [allMessages.length, scrollToBottom]);
+  
+  // Socket connection setup - only re-run when socket or conversation ID changes
+  useEffect(() => {
     if (!socket || !id) return;
 
     socket.emit('joinConversation', id);
 
-    socket.on('messageNotification', (message: any) => {
+    return () => {
+      socket.emit('leaveConversation', id);
+    };
+  }, [socket, id]);
+
+  // Socket message listeners - stable dependency array
+  useEffect(() => {
+    if (!socket || !id) return;
+
+    const handleMessageNotification = (message: any) => {
       setLocalMessages((prev) => {
         if (prev.some((m) => m.id === message.message.id)) return prev;
         const newMessages = [...prev, message.message].sort((a, b) => 
@@ -410,28 +422,40 @@ export default function MessagesView() {
         return newMessages;
       });
       socket.emit('markAsRead', id);
-    });
+    };
 
-    allMessages.forEach((message) => {
-      if (message.receiverId === user?.id && !message.isRead) {
-        socket.emit('markAsRead', id);
-      }
-    });
-
-    socket.on('messageRead', ({ conversationId }) => {
+    const handleMessageRead = ({ conversationId }: { conversationId: string }) => {
       if (conversationId === id) {
         setLocalMessages((prev) => prev.map((msg) => ({ ...msg, isRead: true })));
       }
-    });
+    };
+
+    socket.on('messageNotification', handleMessageNotification);
+    socket.on('messageRead', handleMessageRead);
 
     return () => {
-      socket.off('messageNotification');
-      socket.off('messageRead');
-      socket.emit('leaveConversation', id);
+      socket.off('messageNotification', handleMessageNotification);
+      socket.off('messageRead', handleMessageRead);
     };
-  }, [socket, id, isAtBottom, scrollToBottom, allMessages, user]);
+  }, [socket, id, isAtBottom, scrollToBottom]);
 
-  console.log(socket)
+  // Mark messages as read - only run when user or messages change
+  useEffect(() => {
+    if (!socket || !id || !user || !allMessages.length) return;
+
+    // Use a Set to track which messages we've marked as read
+    const unreadMessageIds = new Set<number>();
+    
+    allMessages.forEach(message => {
+      if (message.receiverId === user.id && !message.isRead && !unreadMessageIds.has(message.id)) {
+        unreadMessageIds.add(message.id);
+      }
+    });
+    
+    if (unreadMessageIds.size > 0) {
+      socket.emit('markAsRead', id);
+    }
+  }, [socket, id, user?.id, allMessages]);
 
   // Scroll to bottom when sending new message
   const handleMessageSuccess = useCallback((content: string, files?: string[]) => {
