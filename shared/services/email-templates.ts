@@ -1,5 +1,3 @@
-import { config } from "../config";
-
 interface EmailOptions {
   to: string;
   subject: string;

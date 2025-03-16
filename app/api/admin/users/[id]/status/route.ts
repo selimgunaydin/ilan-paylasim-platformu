@@ -3,8 +3,8 @@ import type { NextRequest } from 'next/server';
 import { db } from '@shared/db';
 import { users } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
-import { sendEmail } from '../../../../../../services/email';
-import { generateUserBannedEmail, generateUserReactivatedEmail } from '../../../../../../services/email-templates';
+import { sendEmail } from '@shared/services/email';
+import { generateUserBannedEmail, generateUserReactivatedEmail } from '@shared/services/email-templates';
 
 export const dynamic = 'force-dynamic';
 

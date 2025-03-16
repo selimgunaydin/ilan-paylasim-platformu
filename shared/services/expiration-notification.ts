@@ -1,8 +1,8 @@
-import { sendEmail } from './email';
-import { Listing } from "../shared/schema";
+import { sendEmail } from '@shared/services/email';
+import { Listing } from "@shared/schemas";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { storage } from "../app/lib/storage";
+import { storage } from '@shared/storage';
 
 // İlan süresi dolduğunda gönderilecek e-posta
 // Hiç bir şart altında bozulmaması gereken kod!

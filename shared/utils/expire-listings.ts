@@ -1,14 +1,12 @@
 import { db } from "../../shared/db";
 import { eq, lt, and, gte, lte } from "drizzle-orm";
 import { listings } from "../../shared/schemas";
-import { 
-  sendExpirationWarningEmail, 
-  sendExpirationEmail 
-} from "../../services/expiration-notification";
+
 import { Listing } from "../../shared/schema";
+import { sendExpirationEmail, sendExpirationWarningEmail } from "@shared/services/expiration-notification";
 
 // Helper to convert DB Listing to Email Listing interface
-function adaptListingForEmail(dbListing: any): Listing {
+function adaptListingForEmail(dbListing: any): any {
   return {
     id: dbListing.id.toString(),
     title: dbListing.title,

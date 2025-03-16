@@ -5,8 +5,8 @@ import { listings, conversations, messages, users } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import { imageService } from '@/lib/image-service';
-import { sendEmail } from '../../../../../../services/email';
-import { generateListingDeletedEmail } from '../../../../../../services/email-templates';
+import { sendEmail } from '@shared/services/email';
+import { generateListingDeletedEmail } from '@shared/services/email-templates';
 // İlan silme API'si
 export async function DELETE(
   request: NextRequest,

@@ -3,8 +3,8 @@ import type { NextRequest } from 'next/server';
 import { db } from '@shared/db';
 import { listings, users } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
-import { sendEmail } from '../../../../../../services/email';
-import { generateListingApprovedEmail } from '../../../../../../services/email-templates';
+import { sendEmail } from '@shared/services/email';
+import { generateListingApprovedEmail } from '@shared/services/email-templates';
 
 // İlan aktifleştirme API'si
 export async function PUT(
