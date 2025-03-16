@@ -132,10 +132,10 @@ export default function ListingDetailClient({
   );
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div>
       {/* Image Gallery */}
       {listing.images && listing.images.length > 0 && (
-        <div className="mb-6 md:col-span-2">
+        <div className="mb-4">
           <ImageGallery 
             images={listing.images} 
             title={listing.title} 
@@ -144,10 +144,11 @@ export default function ListingDetailClient({
         </div>
       )}
 
-      {/* Favorite Button */}
-      <div className="mt-4">
+      {/* Listing Actions Section */}
+      <div className="flex flex-wrap justify-between items-center gap-4 border-t border-gray-100 pt-4">
+        {/* Favorite Button */}
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           className="gap-2"
           onClick={toggleFavorite}
@@ -163,8 +164,13 @@ export default function ListingDetailClient({
       </div>
 
       {/* Message Form */}
-      <div className="mt-6 md:col-span-2">
-        <h3 className="text-lg font-semibold mb-4">İlan Sahibine Mesaj Gönder</h3>
+      <div className="mt-6">
+        <h3 className="text-lg font-semibold mb-4 flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+          </svg>
+          İlan Sahibine Mesaj Gönder
+        </h3>
         {!user ? (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-lg">
             <p>
