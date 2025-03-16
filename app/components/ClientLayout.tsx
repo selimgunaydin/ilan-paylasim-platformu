@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { Header } from "@/views/header";
+import { Header } from "@/views/root/header";
 import { MobileNav } from "@/components/ui/mobile-nav";
 import { Footer } from "@/views/footer";
 import { SocketProvider } from "@/providers/socket-provider";

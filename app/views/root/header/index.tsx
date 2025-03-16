@@ -1,14 +1,14 @@
 'use client'
 
-import { Button } from "../components/ui/button";
+import { Button } from "../../../components/ui/button";
 import { Menu, X, ListPlus, Star, Send, MessageCircle, User, Home, Search } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
-import { useAppDispatch, useAppSelector } from "../redux/hooks";
-import { fetchUnreadMessages, selectIncomingUnreadMessages, selectOutgoingUnreadMessages } from "../redux/slices/messageSlice";
-import { Badge } from "../components/ui/badge";
+import { useAppDispatch, useAppSelector } from "../../../redux/hooks";
+import { fetchUnreadMessages, selectIncomingUnreadMessages, selectOutgoingUnreadMessages } from "../../../redux/slices/messageSlice";
+import { Badge } from "../../../components/ui/badge";
 import { useSocket } from "@/providers/socket-provider";
 import { cn } from "@/lib/utils";
 
