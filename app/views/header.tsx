@@ -86,20 +86,6 @@ export function Header() {
     { label: "Profilim", icon: User, path: "/profilim" },
   ];
 
-  // Aktif tab'ı belirle
-  const activeTab = pathname ? userMenuItems.find((item) => pathname === item.path)?.path : "/ilanlarim";
-
-  // Periyodik olarak okunmamış mesaj sayısını güncelle
-  useEffect(() => {
-    if (!user) return;
-    
-    // 30 saniyede bir güncelle
-    const interval = setInterval(() => {
-      dispatch(fetchUnreadMessages());
-    }, 30000);
-    
-    return () => clearInterval(interval);
-  }, [dispatch, user]);
 
   return (
     <header className={`sticky top-0 left-0 right-0 z-30 transition-all duration-300 bg-white shadow-md`}>
