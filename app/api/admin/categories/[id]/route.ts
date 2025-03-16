@@ -25,8 +25,7 @@ export async function PATCH(
     }
 
     // Request body'den güncelleme verilerini al
-    const body = await request.json();
-    const { name, parentId, slug, order } = body;
+    const { name, parentId, slug, order, customTitle, metaDescription, content, faqs } = await request.json();
 
     // Kategori varlık kontrolü
     const existingCategory = await db
@@ -95,6 +94,10 @@ export async function PATCH(
         parentId: parentId === undefined ? existingCategory[0].parentId : parentId,
         slug: slug || existingCategory[0].slug,
         order: order === undefined ? existingCategory[0].order : order,
+        customTitle: customTitle,
+        metaDescription: metaDescription,
+        content: content,
+        faqs: faqs
       })
       .where(eq(categories.id, categoryId))
       .returning();

@@ -39,7 +39,11 @@ export default function KategorilerPage() {
   const [editForm, setEditForm] = useState({ 
     name: "", 
     slug: "", 
-    parentId: null as number | null 
+    parentId: null as number | null,
+    customTitle: "",
+    metaDescription: "",
+    content: "",
+    faqs: ""
   });
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   // Silme onayı için state ekle
@@ -219,23 +223,31 @@ export default function KategorilerPage() {
   });
 
   const handleEdit = (category: Category) => {
+    setEditingCategory(category);
     setEditForm({
       name: category.name,
       slug: category.slug,
-      parentId: category.parentId 
+      parentId: category.parentId,
+      customTitle: category.customTitle || "",
+      metaDescription: category.metaDescription || "",
+      content: category.content || "",
+      faqs: category.faqs || ""
     });
-    setEditingCategory(category);
     setShowEditModal(true);
   };
 
   const handleUpdate = () => {
     if (!editingCategory) return;
-
+    
     updateMutation.mutate({
       ...editingCategory,
       name: editForm.name,
       slug: editForm.slug,
-      parentId: editForm.parentId 
+      parentId: editForm.parentId,
+      customTitle: editForm.customTitle,
+      metaDescription: editForm.metaDescription,
+      content: editForm.content,
+      faqs: editForm.faqs
     });
   };
 
@@ -359,6 +371,56 @@ export default function KategorilerPage() {
                   ))}
                 </SelectContent>
               </Select>
+
+              {/* SEO Fields */}
+              <div className="pt-4 border-t">
+                <h3 className="text-md font-semibold mb-2">SEO Ayarları</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm mb-1">Özel Başlık (Title)</label>
+                    <Input
+                      value={editForm.customTitle}
+                      onChange={(e) => setEditForm({ ...editForm, customTitle: e.target.value })}
+                      placeholder="SEO Başlık (Boş bırakılırsa kategori adı kullanılır)"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm mb-1">Meta Açıklama</label>
+                    <textarea
+                      value={editForm.metaDescription}
+                      onChange={(e) => setEditForm({ ...editForm, metaDescription: e.target.value })}
+                      placeholder="Meta açıklama"
+                      className="w-full px-3 py-2 border rounded-md"
+                      rows={3}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm mb-1">Kategori İçeriği (Makale)</label>
+                    <textarea
+                      value={editForm.content}
+                      onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                      placeholder="Kategori sayfasında gösterilecek içerik"
+                      className="w-full px-3 py-2 border rounded-md"
+                      rows={5}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm mb-1">S.S.S (JSON)</label>
+                    <textarea
+                      value={editForm.faqs}
+                      onChange={(e) => setEditForm({ ...editForm, faqs: e.target.value })}
+                      placeholder='[{"question":"Soru 1?","answer":"Cevap 1"},{"question":"Soru 2?","answer":"Cevap 2"}]'
+                      className="w-full px-3 py-2 border rounded-md font-mono text-sm"
+                      rows={5}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">JSON formatında S.S.S. sorularını girin</p>
+                  </div>
+                </div>
+              </div>
+              
               <Button onClick={handleUpdate}>
                 Güncelle
               </Button>

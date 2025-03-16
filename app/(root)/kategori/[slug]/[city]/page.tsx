@@ -4,19 +4,52 @@ import { Category, Listing } from "@shared/schemas";
 import CategoryDetailClient from "@/views/root/category";
 import { cn } from "@/lib/utils";
 import cityList from "../../../../../public/city-list.json";
+import { Metadata } from "next";
+import { FaqAccordion, type FaqItem } from "@/components/FaqAccordion";
 
+// Helper to parse FAQs from string
+const parseFaqs = (faqsString?: string | null): FaqItem[] => {
+  if (!faqsString) return [];
+  try {
+    return JSON.parse(faqsString);
+  } catch (e) {
+    console.error("Failed to parse FAQs", e);
+    return [];
+  }
+};
+
+// Updated metadata generation
 export async function generateMetadata({
   params,
   searchParams,
 }: {
   params: { slug: string; city?: string };
   searchParams: { page?: string; search?: string };
-}) {
+}): Promise<Metadata> {
   const category = await getCategoryDetail(params.slug);
   const city = params.city || "";
+  const page = searchParams.page || "1";
+  
+  // Use custom title if available, otherwise use default format
+  const title = category.customTitle 
+    ? `${city ? `${city} ` : ""}${category.customTitle} - Sayfa ${page}`
+    : `${city ? `${city} ` : ""}${category.name} İlanları - Sayfa ${page}`;
+  
+  // Use custom meta description if available, otherwise use default
+  const description = category.metaDescription 
+    ? `${category.metaDescription} ${city ? `${city} bölgesinde` : ""}`
+    : `En güncel ${category.name} ilanlarını ${city || "tüm şehirlerde"} keşfedin.`;
+  
+  const canonical = city 
+    ? `https://ilandaddy.com/kategori/${params.slug}/${city}`
+    : `https://ilandaddy.com/kategori/${params.slug}`;
+  
   return {
-    title: `${city ? `${city} ` : ""}${category.name} İlanları - Sayfa ${searchParams.page || 1}`,
-    description: `En güncel ${category.name} ilanlarını ${city || "tüm şehirlerde"} keşfedin.`,
+    title,
+    description,
+    alternates: {
+      canonical: canonical,
+    }
   };
 }
 
@@ -47,7 +80,7 @@ async function getListings(
     { cache: "no-store" }
   );
   if (!res.ok) throw new Error("İlanlar yüklenemedi");
-  return res.json() as Promise<{ listings: Listing[] }>;
+  return res.json() as Promise<{ listings: Listing[]; total: number }>;
 }
 
 export default async function CategoryPage({
@@ -64,7 +97,7 @@ export default async function CategoryPage({
   const search = searchParams.search || "";
   const city = params.city || "";
 
-  const { listings } = await getListings(params.slug, city, page, search);
+  const { listings, total } = await getListings(params.slug, city, page, search);
 
   const sortedListings = listings.sort((a, b) => {
     if (a.listingType === "premium" && b.listingType !== "premium") return -1;
@@ -75,23 +108,137 @@ export default async function CategoryPage({
     );
   });
 
+  // Parse FAQs from JSON string
+  const faqs = parseFaqs(category.faqs);
+
+  // Get parent category for breadcrumbs
+  const parentCategory = category.parentId 
+    ? categories.find(c => c.id === category.parentId) 
+    : null;
+
+  // Create breadcrumbs data
+  const breadcrumbs = [
+    { name: "Ana Sayfa", url: "/" },
+    ...(parentCategory ? [{ name: parentCategory.name, url: `/kategori/${parentCategory.slug}` }] : []),
+    { name: category.name, url: `/kategori/${category.slug}` },
+    ...(city ? [{ name: city.charAt(0).toUpperCase() + city.slice(1), url: `/kategori/${category.slug}/${city}` }] : [])
+  ];
+
+  // Create JSON-LD structured data
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      // BreadcrumbList Schema
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": breadcrumbs.map((item, index) => ({
+          "@type": "ListItem",
+          "position": index + 1,
+          "name": item.name,
+          "item": `https://ilandaddy.com${item.url}`
+        }))
+      },
+      // FAQ Schema (if FAQs exist)
+      ...(faqs.length > 0 ? [{
+        "@type": "FAQPage",
+        "mainEntity": faqs.map((faq: FaqItem) => ({
+          "@type": "Question",
+          "name": faq.question,
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": faq.answer
+          }
+        }))
+      }] : []),
+      // ItemList Schema
+      {
+        "@type": "ItemList",
+        "itemListElement": sortedListings.map((listing, index) => ({
+          "@type": "ListItem",
+          "position": index + 1,
+          "item": {
+            "@type": "Product",
+            "name": listing.title,
+            "description": listing.description,
+            "url": `https://ilandaddy.com/ilan/${createSeoUrl(listing.title)}-${listing.id}`
+          }
+        }))
+      },
+      // WebSite with SearchAction Schema
+      {
+        "@type": "WebSite",
+        "url": "https://ilandaddy.com/",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://ilandaddy.com/kategori/${params.slug}?search={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      },
+      // AggregateRating Schema (default 5)
+      {
+        "@type": "Product",
+        "name": `${category.name} İlanları`,
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "5",
+          "ratingCount": "1",
+          "reviewCount": "1",
+          "bestRating": "5"
+        }
+      }
+    ]
+  };
+
   return (
     <div className="py-8">
-            <CategoryDetailClient
+      {/* JSON-LD Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+
+      <CategoryDetailClient
         categories={categories}
         category={category}
         params={params}
         searchParams={searchParams}
         cityList={cityList.cities}
       />
+
+      {/* Breadcrumbs */}
+      <div className="text-sm text-gray-500 mb-4">
+        {breadcrumbs.map((crumb, i) => (
+          <span key={i}>
+            {i > 0 && " / "}
+            {i === breadcrumbs.length - 1 ? (
+              <span className="font-medium text-gray-700">{crumb.name}</span>
+            ) : (
+              <Link href={crumb.url} className="hover:text-blue-600">
+                {crumb.name}
+              </Link>
+            )}
+          </span>
+        ))}
+      </div>
+
       {/* Title */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <h1 className="text-3xl font-bold">
           {city
-            ? `${city.charAt(0).toUpperCase() + city.slice(1)} ${category.name} İlanları`
-            : `${category.name} İlanları`}
+            ? `${city.charAt(0).toUpperCase() + city.slice(1)} ${category.customTitle || category.name} İlanları`
+            : `${category.customTitle || category.name} İlanları`}
         </h1>
       </div>
+
+      {/* Category Content/Article (if exists) */}
+      {category.content && (
+        <div className="bg-white rounded-lg p-6 mb-6 prose max-w-none">
+          <div dangerouslySetInnerHTML={{ __html: category.content }} />
+        </div>
+      )}
 
       {/* Listings */}
       <div className="space-y-4">
@@ -169,28 +316,28 @@ export default async function CategoryPage({
       </div>
 
       {/* Pagination */}
-      {listings && listings.length > 0 && (
+      {sortedListings.length > 0 && (
         <div className="mt-8">
           <div className="flex items-center justify-center gap-2">
             {page > 1 && (
               <Link
                 href={`/kategori/${params.slug}${city ? `/${city}` : ""}${
-                  page === 2 ? "" : `/${page - 1}`
-                }${search ? `?search=${search}` : ""}`}
+                  page === 2 ? "" : `?page=${page - 1}`
+                }${search ? `&search=${search}` : ""}`}
                 className="px-4 py-2 rounded-md bg-white hover:bg-gray-100"
               >
                 ←
               </Link>
             )}
             {Array.from(
-              { length: Math.min(5, Math.ceil(listings.length / 10)) },
+              { length: Math.min(5, Math.ceil(total / 10)) },
               (_, i) => {
                 const pageNum = page > 3 ? page - 3 + i : i + 1;
-                if (pageNum > Math.ceil(listings.length / 10)) return null;
+                if (pageNum > Math.ceil(total / 10)) return null;
 
                 const cityPath = city ? `/${city}` : "";
-                const pagePath = pageNum === 1 ? "" : `/${pageNum}`;
-                const searchPath = search ? `?search=${encodeURIComponent(search)}` : "";
+                const pagePath = pageNum === 1 ? "" : `?page=${pageNum}`;
+                const searchPath = search ? `&search=${encodeURIComponent(search)}` : "";
 
                 return (
                   <Link
@@ -208,10 +355,10 @@ export default async function CategoryPage({
                 );
               }
             )}
-            {page < Math.ceil(listings.length / 10) && (
+            {page < Math.ceil(total / 10) && (
               <Link
-                href={`/kategori/${params.slug}${city ? `/${city}` : ""}/${page + 1}${
-                  search ? `?search=${search}` : ""
+                href={`/kategori/${params.slug}${city ? `/${city}` : ""}?page=${page + 1}${
+                  search ? `&search=${search}` : ""
                 }`}
                 className="px-4 py-2 rounded-md bg-white hover:bg-gray-100"
               >
@@ -219,6 +366,14 @@ export default async function CategoryPage({
               </Link>
             )}
           </div>
+        </div>
+      )}
+
+      {/* FAQ Section with Accordion */}
+      {faqs.length > 0 && (
+        <div className="mt-8 bg-white rounded-lg p-6">
+          <h2 className="text-2xl font-bold mb-4">Sıkça Sorulan Sorular</h2>
+          <FaqAccordion faqs={faqs} />
         </div>
       )}
     </div>

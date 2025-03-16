@@ -4,6 +4,8 @@ import { db } from "@shared/db";
 import { categories } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // Slug parametresi ile kategori getirme API'si
 export async function GET(
   request: NextRequest,
@@ -25,6 +27,8 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    console.log(category);
     
     // Başarılı yanıt
     return NextResponse.json(category, { status: 200 });

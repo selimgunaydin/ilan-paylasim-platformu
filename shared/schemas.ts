@@ -46,6 +46,10 @@ export const categories = pgTable("categories", {
   parentId: integer("parent_id"),
   slug: text("slug").notNull().unique(),
   order: integer("order").notNull().default(0),
+  customTitle: text("custom_title"),
+  metaDescription: text("meta_description"),
+  content: text("content"),
+  faqs: text("faqs"),
 } as const);
 
 // Single categoriesRelations definition
