@@ -2,14 +2,14 @@ import { sendEmail } from './email';
 import { Listing } from "../shared/schema";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { storage } from "../storage";
+import { storage } from "../app/lib/storage";
 
 // İlan süresi dolduğunda gönderilecek e-posta
 // Hiç bir şart altında bozulmaması gereken kod!
 export async function sendExpirationEmail(listing: Listing) {
   try {
     // İlan sahibinin bilgilerini al
-    const user = await storage.getUser(listing.userId!);
+    const user = await storage.getUser(Number(listing.userId!));
     if (!user || !user.email) {
       console.error(`Kullanıcı veya e-posta bulunamadı. Listing ID: ${listing.id}`);
       return;
@@ -46,7 +46,7 @@ export async function sendExpirationEmail(listing: Listing) {
 export async function sendExpirationWarningEmail(listing: Listing) {
   try {
     // İlan sahibinin bilgilerini al
-    const user = await storage.getUser(listing.userId!);
+    const user = await storage.getUser(Number(listing.userId!));
     if (!user || !user.email) {
       console.error(`Kullanıcı veya e-posta bulunamadı. Listing ID: ${listing.id}`);
       return;

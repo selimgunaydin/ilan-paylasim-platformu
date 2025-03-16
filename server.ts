@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import { storage } from "./app/lib/storage";
 import { containsBadWords } from './shared/utils';
+import { runDailyTasks } from './shared/utils/scheduler';
 // .env dosyasını yükle
 dotenv.config();
 
@@ -28,6 +29,45 @@ const io = new Server(3001, {
     origin: process.env.NEXT_PUBLIC_APP_URL,
   },
 });
+
+// Her gün saat 00:00'da çalışacak zamanlanmış görev
+function scheduleTask() {
+  const now = new Date();
+  const night = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1, // yarın
+    0, // saat 00
+    0, // dakika 00
+    0  // saniye 00
+  );
+  
+  const timeToMidnight = night.getTime() - now.getTime();
+  
+  console.log(`Zamanlanmış görev ${timeToMidnight / 1000 / 60} dakika sonra başlayacak`);
+  
+  // İlk çalışma için zamanlayıcı ayarla
+  setTimeout(async () => {
+    console.log("Zamanlanmış görev çalıştırılıyor...");
+    await runDailyTasks();
+    
+    // Sonraki günler için 24 saatte bir çalışacak şekilde ayarla
+    setInterval(async () => {
+      console.log("Günlük zamanlanmış görev çalıştırılıyor...");
+      await runDailyTasks();
+    }, 24 * 60 * 60 * 1000); // 24 saat
+    
+  }, timeToMidnight);
+}
+
+// Zamanlanmış görevi başlat
+scheduleTask();
+
+// Server başladığında bir kez çalıştır
+(async () => {
+  console.log("Başlangıç kontrol görevi çalıştırılıyor...");
+  await runDailyTasks();
+})();
 
 // Her kullanıcı için oda (conversationId) yönetimi
 io.on("connection", (socket: SocketWithAuth) => {
