@@ -60,7 +60,7 @@ export const getProfileImageUrl = (
     }
     // Eğer R2 profile path'i ise (yeni format)
     else if (profileImage.startsWith("profiles/")) {
-      return `https://images.ilandaddy.com/${profileImage}`;
+      return `${process.env.NEXT_PUBLIC_LISTING_BUCKET_URL}/${profileImage}`;
     }
     // Eğer local path ise (eski format)
     else if (profileImage.startsWith("/uploads/")) {
@@ -68,7 +68,7 @@ export const getProfileImageUrl = (
     }
     // Sadece dosya adı ise (Cloudflare formatı)
     else {
-      return `https://images.ilandaddy.com/${profileImage}`;
+      return `${process.env.NEXT_PUBLIC_LISTING_BUCKET_URL}/${profileImage}`;
     }
   }
 

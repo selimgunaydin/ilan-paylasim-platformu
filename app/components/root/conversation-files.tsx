@@ -125,7 +125,7 @@ export default function ConversationFiles() {
                     <div className="flex items-center gap-2 p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors">
                       {getFileIcon(fileGroup.fileKey)}
                       <a
-                        href={`https://message-images.ilandaddy.com/${fileGroup.fileKey}`}
+                        href={`${process.env.NEXT_PUBLIC_MESSAGE_BUCKET_URL}/${fileGroup.fileKey}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary hover:underline flex-1 break-all"
