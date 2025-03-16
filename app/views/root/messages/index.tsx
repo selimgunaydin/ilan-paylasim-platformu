@@ -32,8 +32,9 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { getMessageFileUrClient } from '@/utils/get-message-file-url';
 
-// Yardımcı Bileşenler
+
 const getFileIcon = (fileName: string) => {
   const extension = fileName.split('.').pop()?.toLowerCase();
   if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'].includes(extension || '')) return <Image className="h-5 w-5" />;
@@ -55,20 +56,23 @@ const getFileType = (fileName: string): 'image' | 'video' | 'audio' | 'other' =>
 // Enhanced Media Preview Components
 const MediaPreview = ({ fileUrl, fileName, type }: { fileUrl: string; fileName: string; type: 'image' | 'video' | 'audio' }) => {
   const [isFullScreen, setIsFullScreen] = React.useState(false);
+  const fullUrl = fileUrl.startsWith('http') ? fileUrl : getMessageFileUrClient(fileUrl);
+
+
 
   return (
     <div className="relative rounded-lg overflow-hidden">
       {type === 'image' ? (
         <>
           <img
-            src={fileUrl}
+            src={fullUrl}
             alt={fileName}
             className="w-full h-40 object-cover cursor-pointer hover:opacity-90 transition-opacity"
             onClick={() => setIsFullScreen(true)}
           />
           {isFullScreen && (
             <FullScreenPreview
-              fileUrl={fileUrl}
+              fileUrl={fullUrl}
               fileName={fileName}
               onClose={() => setIsFullScreen(false)}
             />
@@ -76,14 +80,14 @@ const MediaPreview = ({ fileUrl, fileName, type }: { fileUrl: string; fileName: 
         </>
       ) : type === 'video' ? (
         <video
-          src={fileUrl}
+          src={fullUrl}
           className="w-full h-40 object-cover"
           controls
           controlsList="nodownload"
         />
       ) : (
         <audio
-          src={fileUrl}
+          src={fullUrl}
           className="w-full"
           controls
           controlsList="nodownload"
@@ -128,9 +132,11 @@ const FullScreenPreview = ({ fileUrl, fileName, onClose }: any) => {
 };
 
 const FileAttachment = ({ fileUrl, fileName }: { fileUrl: string; fileName: string }) => {
+  const fullUrl = fileUrl.startsWith('http') ? fileUrl : getMessageFileUrClient(fileUrl);
+  
   return (
     <a
-      href={fileUrl}
+      href={fullUrl}
       target="_blank"
       rel="noopener noreferrer"
       className="flex items-center gap-2 p-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"

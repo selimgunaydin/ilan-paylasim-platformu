@@ -53,8 +53,23 @@ export const getProfileImageUrl = (
   avatar?: string | null
 ): string => {
   // 1. Eğer profil resmi varsa ve Cloudflare'de yüklüyse onu göster
-  if (profileImage && !profileImage.startsWith("/")) {
-    return `https://images.ilandaddy.com/${profileImage}`;
+  if (profileImage) {
+    // Eğer zaten tam URL ise olduğu gibi döndür
+    if (profileImage.startsWith("http")) {
+      return profileImage;
+    }
+    // Eğer R2 profile path'i ise (yeni format)
+    else if (profileImage.startsWith("profiles/")) {
+      return `https://images.ilandaddy.com/${profileImage}`;
+    }
+    // Eğer local path ise (eski format)
+    else if (profileImage.startsWith("/uploads/")) {
+      return profileImage;
+    }
+    // Sadece dosya adı ise (Cloudflare formatı)
+    else {
+      return `https://images.ilandaddy.com/${profileImage}`;
+    }
   }
 
   // 2. Eğer seçilmiş bir avatar varsa onu göster

@@ -219,3 +219,49 @@ export async function deleteMessageFile(key: string): Promise<void> {
     throw new Error(`Dosya silinirken hata oluştu: ${error.message}`);
   }
 }
+
+// Profil resmi yüklemek için fonksiyon
+export async function uploadProfileImage(
+  file: Express.Multer.File, 
+  userId: number
+): Promise<string> {
+  const { allowed, type } = isAllowedFileType(file.originalname);
+  
+  if (!allowed || type !== 'image') {
+    throw new Error("Sadece resim dosyaları yüklenebilir");
+  }
+
+  if (!isAllowedFileSize(file.size, type)) {
+    throw new Error("Dosya boyutu çok büyük. Maksimum boyut: 5MB");
+  }
+
+  // Resmi optimize et
+  let processedBuffer;
+  try {
+    processedBuffer = await sharp(file.buffer)
+      .resize(500, 500, { fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
+  } catch (error) {
+    console.error("Resim optimizasyon hatası:", error);
+    throw new Error("Resim işlenirken bir hata oluştu");
+  }
+
+  // Dosya adını oluştur
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 10);
+  const fileName = `profiles/profile_${userId}_${timestamp}_${random}.webp`;
+
+  // Dosyayı yükle
+  await r2Client.send(
+    new PutObjectCommand({
+      Bucket: LISTING_BUCKET_NAME,
+      Key: fileName,
+      Body: processedBuffer,
+      ContentType: 'image/webp',
+      ACL: "public-read",
+    })
+  );
+
+  return fileName;
+}

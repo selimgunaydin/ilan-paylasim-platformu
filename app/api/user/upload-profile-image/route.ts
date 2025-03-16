@@ -2,12 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@shared/db";
 import { users } from '@shared/schemas';
 import { eq } from "drizzle-orm";
-import jwt from "jsonwebtoken";
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
-import sharp from 'sharp';
 import { getToken } from 'next-auth/jwt';
+import { uploadProfileImage } from '../../../lib/r2';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     // Auth token'ı al
-        const token = await getToken({ 
+    const token = await getToken({ 
       req: request, 
       secret: process.env.NEXTAUTH_SECRET 
     });
@@ -29,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     // userId'yi al
-    const userId = Number(token.sub);;
+    const userId = Number(token.sub);
 
     // FormData'dan dosyayı al
     const formData = await request.formData();
@@ -68,33 +64,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Dosyayı işle
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-    
-    // Resmi optimize et (boyutlarını küçült ve webp formatına dönüştür)
-    const optimizedImage = await sharp(fileBuffer)
-      .resize(500, 500, { fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: 80 })
-      .toBuffer();
+    // Dosyayı buffer'a çevir ve Multer formatına dönüştür
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    // Dosya adını oluştur
-    const fileName = `profile_${userId}_${uuidv4()}.webp`;
+    // Multer benzeri bir file objesi oluştur
+    const multerFile = {
+      buffer,
+      originalname: file.name,
+      mimetype: file.type,
+      size: file.size
+    };
+
+    // R2'ye yükle
+    const fileName = await uploadProfileImage(multerFile as any, userId);
     
-    // Dosya kaydetme dizini oluştur
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'profiles');
-    await mkdir(uploadDir, { recursive: true });
-    
-    // Dosyayı kaydet
-    const filePath = path.join(uploadDir, fileName);
-    await writeFile(filePath, optimizedImage);
-    
-    // Dosya URL'sini oluştur
-    const profileImageUrl = `/uploads/profiles/${fileName}`;
-    
-    // Kullanıcının profil resmini güncelle
+    // Kullanıcının profil resmini veritabanında güncelle
     await db
       .update(users)
-      .set({ profileImage: profileImageUrl })
+      .set({ profileImage: fileName })
       .where(eq(users.id, userId));
     
     // Güncellenmiş kullanıcı bilgilerini getir

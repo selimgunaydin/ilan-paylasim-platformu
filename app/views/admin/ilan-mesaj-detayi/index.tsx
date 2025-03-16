@@ -19,6 +19,7 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@app/components/ui/avatar";
 import { getProfileImageUrl } from "@/lib/avatar";
 import Link from "next/link";
+import { getMessageFileUrClient } from '@/utils/get-message-file-url';
 
 // Dosya tipine göre ikon döndüren yardımcı fonksiyon
 const getFileIcon = (fileName: string) => {
@@ -145,7 +146,7 @@ export default function AdminConversationDetail() {
                       <div className="mt-3 space-y-2 bg-muted p-1 rounded-md">
                         {message.files.map((file, index) => {
                           const fileName = file.split("/").pop() || file;
-                          const fileUrl = `https://message-images.ilandaddy.com/messages/${fileName}`;
+                          const fileUrl = file.startsWith('http') ? file : getMessageFileUrClient(file);
                           return (
                             <div
                               key={index}

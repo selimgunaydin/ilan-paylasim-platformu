@@ -1,86 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@shared/db";
 import { eq } from "drizzle-orm";
-import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { conversations, messages } from '@shared/schemas';
 import { v4 as uuidv4 } from 'uuid';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { sanitizeInput } from '@/lib/sanitize';
 import { getToken } from "next-auth/jwt";
+import sharp from "sharp";
+import { r2Client } from "../../../lib/r2";
+import { isAllowedFileType, isAllowedFileSize } from "../../../lib/file-constants";
+import { getMessageFileUrl } from "../../../lib/r2";
 
-// Dosya türü belirleme fonksiyonu
-function getFileType(fileName: string): string {
-  const extension = fileName.split('.').pop()?.toLowerCase() || '';
-  
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'].includes(extension)) {
-    return 'image';
-  } else if (['mp4', 'webm', 'ogg', 'mov'].includes(extension)) {
-    return 'video';
-  } else if (['mp3', 'wav', 'ogg', 'm4a'].includes(extension)) {
-    return 'audio';
-  } else {
-    return 'document';
+// Bucket tanımlaması
+const MESSAGE_BUCKET = "seriilan-mesaj-dosyalar";
+
+// Resim dosyalarını WebP formatına dönüştürmek için yardımcı fonksiyon
+async function convertToWebP(buffer: Buffer): Promise<Buffer> {
+  try {
+    return await sharp(buffer)
+      .webp({ quality: 80 }) // 80% kalite
+      .toBuffer();
+  } catch (error) {
+    console.error("WebP dönüşüm hatası:", error);
+    return buffer; // Hata durumunda orijinal buffer'ı geri dön
   }
-}
-
-// File handling constants
-const ALLOWED_FILE_TYPES = [
-  // Resimler
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-  'image/heic',
-  // Dokümanlar
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.ms-powerpoint',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'text/plain',
-  'text/csv',
-  // Arşivler
-  'application/zip',
-  'application/x-rar-compressed',
-  // Medya
-  'audio/mpeg',
-  'audio/webm',
-  'audio/wav',
-  'audio/ogg',
-  'audio/mp4',
-  'video/mp4',
-  'video/webm',
-  'video/ogg',
-  'video/quicktime'
-];
-
-const FILE_SIZE_LIMITS = {
-  IMAGE: 5 * 1024 * 1024, // 5MB
-  VIDEO: 50 * 1024 * 1024, // 50MB
-  AUDIO: 10 * 1024 * 1024, // 10MB
-  DOCUMENT: 20 * 1024 * 1024, // 20MB
-  OTHER: 10 * 1024 * 1024, // 10MB
-};
-
-// Dosya büyüklük kontrolü
-function checkFileSize(file: File, fileType: string): boolean {
-  let maxSize = FILE_SIZE_LIMITS.OTHER;
-  
-  if (fileType === 'image') {
-    maxSize = FILE_SIZE_LIMITS.IMAGE;
-  } else if (fileType === 'video') {
-    maxSize = FILE_SIZE_LIMITS.VIDEO;
-  } else if (fileType === 'audio') {
-    maxSize = FILE_SIZE_LIMITS.AUDIO;
-  } else if (fileType === 'document') {
-    maxSize = FILE_SIZE_LIMITS.DOCUMENT;
-  }
-  
-  return file.size <= maxSize;
 }
 
 // Mesaj oluşturma API'si (dosya yükleme ile)
@@ -146,7 +90,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Dosya kontrolü ve kaydetme
+    // Dosya kontrolü ve R2'ye yükleme
     let fileUrls: string[] = [];
     let fileTypes: string[] = [];
     
@@ -160,44 +104,63 @@ export async function POST(request: NextRequest) {
       }
       
       for (const file of files) {
-        // Dosya tipi kontrolü
-        if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+        // Dosya tipi ve boyut kontrolü
+        const mimeType = file.type;
+        
+        if (!isAllowedFileType(mimeType)) {
           return NextResponse.json(
-            { success: false, message: `Desteklenmeyen dosya tipi: ${file.type}` },
+            { success: false, message: `Desteklenmeyen dosya tipi: ${mimeType}` },
             { status: 400 }
           );
         }
         
-        // Dosya boyutu kontrolü
-        const fileType = getFileType(file.name);
-        if (!checkFileSize(file, fileType)) {
-          const maxSize = fileType === 'image' ? '5MB' : 
-                          fileType === 'video' ? '50MB' :
-                          fileType === 'audio' ? '10MB' :
-                          fileType === 'document' ? '20MB' : '10MB';
-          
+        if (!isAllowedFileSize(file.size, mimeType)) {
           return NextResponse.json(
-            { success: false, message: `Dosya boyutu çok büyük. Maksimum boyut: ${maxSize}` },
+            { success: false, message: "Dosya boyutu çok büyük" },
             { status: 400 }
           );
         }
         
-        // Dosyayı kaydet
-        const timestamp = Date.now();
-        const fileExt = file.name.split('.').pop() || 'bin';
-        const fileName = `message_${timestamp}_${uuidv4()}.${fileExt}`;
-        
-        // Dosya kaydetme dizini oluştur
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'messages');
-        await mkdir(uploadDir, { recursive: true });
-        
-        // Dosyayı kaydet
-        const filePath = path.join(uploadDir, fileName);
+        // Dosyayı işle
         const fileBuffer = Buffer.from(await file.arrayBuffer());
-        await writeFile(filePath, fileBuffer);
+        let processedBuffer = fileBuffer;
+        let finalMimeType = mimeType;
+        
+        // Eğer dosya bir resim ise WebP'ye dönüştür
+        if (mimeType.startsWith('image/') && mimeType !== 'image/webp' && mimeType !== 'image/gif') {
+          processedBuffer = await convertToWebP(fileBuffer);
+          finalMimeType = 'image/webp';
+        }
+        
+        // Dosya adını oluştur
+        const timestamp = Date.now();
+        const random = uuidv4().slice(0, 8);
+        const extension = finalMimeType === 'image/webp' ? 'webp' : file.name.split('.').pop();
+        const fileName = `messages/${timestamp}-${random}.${extension}`;
+        
+        // R2'ye yükle
+        await r2Client.send(
+          new PutObjectCommand({
+            Bucket: MESSAGE_BUCKET,
+            Key: fileName,
+            Body: processedBuffer,
+            ContentType: finalMimeType,
+            ACL: "public-read",
+          })
+        );
+        
+        // Dosya türünü belirle (frontend için)
+        let fileType = 'document';
+        if (finalMimeType.startsWith('image/')) {
+          fileType = 'image';
+        } else if (finalMimeType.startsWith('video/')) {
+          fileType = 'video';
+        } else if (finalMimeType.startsWith('audio/')) {
+          fileType = 'audio';
+        }
         
         // Dosya URL'si ve tipini listeye ekle
-        fileUrls.push(`/uploads/messages/${fileName}`);
+        fileUrls.push(fileName);
         fileTypes.push(fileType);
       }
     }
@@ -225,7 +188,6 @@ export async function POST(request: NextRequest) {
       })
       .returning();
   
-    
     return NextResponse.json(
       { 
         success: true, 

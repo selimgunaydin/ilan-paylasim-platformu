@@ -1,33 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { mkdir, writeFile } from 'fs/promises';
-import { join } from 'path';
 import { getToken } from 'next-auth/jwt';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { r2Client } from '../../../lib/r2';
+import { isAllowedFileType, isAllowedFileSize, getMimeType } from '../../../lib/file-constants';
+import sharp from 'sharp';
 
 export const dynamic = 'force-dynamic';
 
-// Dosya türünü belirleme fonksiyonu
-function getFileType(fileName: string): string {
-  const ext = fileName.split('.').pop()?.toLowerCase() || '';
-  const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'];
-  
-  if (imageTypes.includes(ext)) {
-    return `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+// Yeni bucket ismi tanımı
+const MESSAGE_BUCKET = "seriilan-mesaj-dosyalar";
+
+// Resim dosyalarını WebP formatına dönüştürmek için yardımcı fonksiyon
+async function convertToWebP(buffer: Buffer): Promise<Buffer> {
+  try {
+    return await sharp(buffer)
+      .webp({ quality: 80 }) // 80% kalite
+      .toBuffer();
+  } catch (error) {
+    console.error("WebP dönüşüm hatası:", error);
+    return buffer; // Hata durumunda orijinal buffer'ı geri dön
   }
-  
-  // Diğer dosya türleri için
-  const mimeTypes: Record<string, string> = {
-    'pdf': 'application/pdf',
-    'doc': 'application/msword',
-    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'xls': 'application/vnd.ms-excel',
-    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'txt': 'text/plain',
-    'zip': 'application/zip',
-    'rar': 'application/x-rar-compressed'
-  };
-  
-  return mimeTypes[ext] || 'application/octet-stream';
 }
 
 export async function POST(request: NextRequest) {
@@ -58,31 +51,60 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Dosya kaydetme dizinini oluştur (public/uploads/messages)
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'messages');
-    try {
-      await mkdir(uploadDir, { recursive: true });
-    } catch (err) {
-      console.error('Directory creation error:', err);
-    }
-    
-    // Dosyaları kaydet ve URL'leri topla
+    // Dosyaları R2'ye yükle ve URL'leri topla
     const savedFiles: string[] = [];
     const fileTypes: string[] = [];
     
     for (const file of files) {
+      // Dosya türü ve boyut kontrolü
+      const mimeType = file.type || getMimeType(file.name);
+      
+      if (!isAllowedFileType(mimeType)) {
+        return NextResponse.json(
+          { error: "Geçersiz dosya formatı" },
+          { status: 400 }
+        );
+      }
+      
+      if (!isAllowedFileSize(file.size, mimeType)) {
+        return NextResponse.json(
+          { error: "Dosya boyutu çok büyük" },
+          { status: 400 }
+        );
+      }
+      
       // Dosyayı işle
       const fileBuffer = Buffer.from(await file.arrayBuffer());
-      const fileName = `${uuidv4()}-${file.name.replace(/\s/g, '_')}`;
-      const filePath = join(uploadDir, fileName);
+      let processedBuffer = fileBuffer;
+      let finalMimeType = mimeType;
       
-      // Dosyayı kaydet
-      await writeFile(filePath, fileBuffer);
+      // Eğer dosya bir resim ise WebP'ye dönüştür
+      if (mimeType.startsWith('image/') && mimeType !== 'image/webp' && mimeType !== 'image/gif') {
+        processedBuffer = await convertToWebP(fileBuffer);
+        finalMimeType = 'image/webp';
+      }
       
-      // URL ve tip bilgisini kaydet
-      const fileUrl = `/uploads/messages/${fileName}`;
+      // Dosya adını oluştur
+      const timestamp = Date.now();
+      const random = uuidv4().slice(0, 8);
+      const extension = finalMimeType === 'image/webp' ? 'webp' : file.name.split('.').pop();
+      const fileName = `messages/${timestamp}-${random}.${extension}`;
+      
+      // R2'ye yükle
+      await r2Client.send(
+        new PutObjectCommand({
+          Bucket: MESSAGE_BUCKET,
+          Key: fileName,
+          Body: processedBuffer,
+          ContentType: finalMimeType,
+          ACL: "public-read",
+        })
+      );
+      
+      // URL oluştur
+      const fileUrl = fileName; // Sadece key'i döndür, frontend bunu kullanarak tam URL'yi oluşturabilir
       savedFiles.push(fileUrl);
-      fileTypes.push(getFileType(file.name));
+      fileTypes.push(finalMimeType);
     }
     
     return NextResponse.json({
