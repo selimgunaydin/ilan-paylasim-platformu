@@ -6,6 +6,12 @@ import Profile from '@/views/root/profile'
 import { redirect } from "next/navigation"
 import { authOptions } from "@/api/auth/[...nextauth]/route"
 
+export async function generateMetadata() {
+  return {
+    title: "Profilim",
+    description: "Profilim sayfası",
+  };
+}
 
 export default async function ProfilePage() {
   const session = await getServerSession(authOptions)

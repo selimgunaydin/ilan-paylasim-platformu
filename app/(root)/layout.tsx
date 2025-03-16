@@ -4,10 +4,9 @@ import { ClientLayout } from "../components/ClientLayout";
 import "../globals.css";
 
 export const metadata: Metadata = {
-  title: "İlanlar",
-  description: "İlan yönetim sistemi",
-};
-
+  title: 'İlan Daddy',
+  description: 'İlan yönetim sistemi',
+}
 export default function RootLayout({
   children,
 }: {

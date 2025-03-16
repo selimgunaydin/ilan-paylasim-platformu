@@ -5,6 +5,14 @@ import { authOptions } from '@/api/auth/[...nextauth]/route'
 import { headers } from 'next/headers'
 import MyListings from '@/views/root/my-listings'
 
+export async function generateMetadata() {
+  return {
+    title: "İlanlarım",
+    description: "İlanlarım sayfası",
+  };
+}
+
+
 async function getListings() {
   const session = await getServerSession(authOptions)
 
