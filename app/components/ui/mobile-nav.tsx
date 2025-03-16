@@ -19,13 +19,13 @@ export function MobileNav() {
             <span className="text-[10px] truncate mt-0.5">Favorilerim</span>
           </div>
         </Link>
-        <Link href="/gonderilen" className="flex-1 min-w-0">
+        <Link href="/gonderilen-mesajlar" className="flex-1 min-w-0">
           <div className="flex flex-col items-center py-1.5 px-0.5">
             <Send className="h-4 w-4" />
             <span className="text-[10px] truncate mt-0.5">Gönderilen</span>
           </div>
         </Link>
-        <Link href="/gelen" className="flex-1 min-w-0">
+        <Link href="/gelen-mesajlar" className="flex-1 min-w-0">
           <div className="flex flex-col items-center py-1.5 px-0.5">
             <MessageCircle className="h-4 w-4" />
             <span className="text-[10px] truncate mt-0.5">Gelen</span>

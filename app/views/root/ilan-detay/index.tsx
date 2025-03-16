@@ -74,49 +74,6 @@ export default function ListingDetailClient({
     },
   });
 
-  const removeFromFavorites = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/favorites/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Favorilerden çıkarılamadı");
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["favorites", id] });
-      setIsFavorite(false);
-      toast({ title: "Başarılı", description: "İlan favorilerden çıkarıldı" });
-    },
-    onError: () => {
-      toast({
-        title: "Hata",
-        description: "İlan favorilerden çıkarılamadı",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const toggleFavorite = () => {
-    if (!user) {
-      toast({
-        title: "Uyarı",
-        description: "Favorilere eklemek için giriş yapmalısınız",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (listing.userId == Number(user.id)) {
-      toast({
-        title: "Uyarı",
-        description: "Kendi ilanınızı favorilere ekleyemezsiniz",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (isFavorite) {
-      removeFromFavorites.mutate();
-    } else {
-      addToFavorites.mutate();
-    }
-  };
-
   const handleMessageSuccess = useCallback(
     (content: string, files?: string[]) => {
       const newMessage = {
@@ -132,47 +89,39 @@ export default function ListingDetailClient({
   );
 
   return (
-    <div>
+    <div className="p-3 sm:p-4">
       {/* Image Gallery */}
       {listing.images && listing.images.length > 0 && (
         <div className="mb-4">
-          <ImageGallery 
-            images={listing.images} 
-            title={listing.title} 
-            categoryName={listing.categoryName} 
+          <ImageGallery
+            images={listing.images}
+            title={listing.title}
+            categoryName={listing.categoryName}
           />
         </div>
       )}
 
-      {/* Listing Actions Section */}
-      <div className="flex flex-wrap justify-between items-center gap-4 border-t border-gray-100 pt-4">
-        {/* Favorite Button */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          onClick={toggleFavorite}
-          disabled={addToFavorites.isPending || removeFromFavorites.isPending}
-        >
-          {isFavorite ? (
-            <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-          ) : (
-            <StarOff className="h-5 w-5" />
-          )}
-          {isFavorite ? "Favorilerden Çıkar" : "Favorilere Ekle"}
-        </Button>
-      </div>
-
       {/* Message Form */}
-      <div className="mt-6">
-        <h3 className="text-lg font-semibold mb-4 flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+      <div className="mt-4 sm:mt-6">
+        <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2 text-blue-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+            />
           </svg>
           İlan Sahibine Mesaj Gönder
         </h3>
         {!user ? (
-          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-lg">
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 sm:p-4 rounded-lg text-xs sm:text-sm">
             <p>
               Mesaj göndermek için{" "}
               <a href="/auth" className="text-blue-600 hover:underline">
@@ -183,20 +132,20 @@ export default function ListingDetailClient({
           </div>
         ) : listing.userId && Number(user.id) != listing.userId ? (
           <>
-          {listing.userId && Number(user.id) != listing.userId && (
-            <MessageForm
-              socket={socket}
-              receiverId={listing.userId}
-              onSuccess={handleMessageSuccess}
-              listingId={listing.id}
-            />
+            {listing.userId && Number(user.id) != listing.userId && (
+              <MessageForm
+                socket={socket}
+                receiverId={listing.userId}
+                onSuccess={handleMessageSuccess}
+                listingId={listing.id}
+              />
             )}
-            <div className="mt-4 flex justify-end">
+            <div className="mt-3 sm:mt-4 flex justify-end">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsModalOpen(true)}
-                className="text-blue-600 hover:text-blue-800"
+                className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm px-2 sm:px-3 h-8 sm:h-9"
               >
                 Mesaj Güvenliği Hakkında Daha Fazla Bilgi
               </Button>
@@ -205,25 +154,38 @@ export default function ListingDetailClient({
                 onClose={() => setIsModalOpen(false)}
                 onConfirm={() => setIsModalOpen(false)}
               >
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Mesajlaşırken Uyulması Gereken Kurallar</h3>
-                  <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700">
+                <div className="space-y-3 sm:space-y-4 text-xs sm:text-sm">
+                  <h3 className="text-base sm:text-lg font-semibold">
+                    Mesajlaşırken Uyulması Gereken Kurallar
+                  </h3>
+                  <ul className="list-disc pl-4 sm:pl-5 space-y-1.5 sm:space-y-2 text-gray-700">
                     <li>Karşılıklı saygı çerçevesinde iletişim kurun.</li>
-                    <li>Argo, küfür veya hakaret içeren ifadeler kullanmayın.</li>
+                    <li>
+                      Argo, küfür veya hakaret içeren ifadeler kullanmayın.
+                    </li>
                     <li>İlanla ilgili olmayan konulara girmeyin.</li>
                     <li>Yanıltıcı bilgi vermekten kaçının.</li>
                   </ul>
-                  <h3 className="text-lg font-semibold text-red-600">Güvenlik Uyarıları</h3>
-                  <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg">
+                  <h3 className="text-base sm:text-lg font-semibold text-red-600">
+                    Güvenlik Uyarıları
+                  </h3>
+                  <div className="bg-red-50 border border-red-200 text-red-800 p-3 sm:p-4 rounded-lg">
                     <p className="font-medium">Kişisel Bilgi Paylaşımı:</p>
-                    <ul className="list-disc pl-5 space-y-1 text-sm">
-                      <li>Telefon numarası, adres veya kimlik bilgilerinizi paylaşmayın.</li>
-                      <li>Banka hesap bilgilerinizi asla mesaj yoluyla vermeyin.</li>
+                    <ul className="list-disc pl-4 sm:pl-5 space-y-1 text-xs sm:text-sm">
+                      <li>
+                        Telefon numarası, adres veya kimlik bilgilerinizi
+                        paylaşmayın.
+                      </li>
+                      <li>
+                        Banka hesap bilgilerinizi asla mesaj yoluyla vermeyin.
+                      </li>
                     </ul>
                     <p className="font-medium mt-2">Güven İstismarı:</p>
-                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                    <ul className="list-disc pl-4 sm:pl-5 space-y-1 text-xs sm:text-sm">
                       <li>Ön ödeme talep eden kişilere karşı dikkatli olun.</li>
-                      <li>Görüşmeden alışveriş yapmayın; ürünü görüp kontrol edin.</li>
+                      <li>
+                        Görüşmeden alışveriş yapmayın; ürünü görüp kontrol edin.
+                      </li>
                       <li>Şüpheli davranışları platforma bildirin.</li>
                     </ul>
                   </div>
@@ -232,7 +194,7 @@ export default function ListingDetailClient({
             </div>
           </>
         ) : (
-          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-lg">
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 sm:p-4 rounded-lg text-xs sm:text-sm">
             <p>Kendi ilanınıza mesaj gönderemezsiniz.</p>
           </div>
         )}
