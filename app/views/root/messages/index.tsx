@@ -431,6 +431,8 @@ export default function MessagesView() {
     };
   }, [socket, id, isAtBottom, scrollToBottom, allMessages, user]);
 
+  console.log(socket)
+
   // Scroll to bottom when sending new message
   const handleMessageSuccess = useCallback((content: string, files?: string[]) => {
     const newMessage = {
@@ -487,8 +489,8 @@ export default function MessagesView() {
   if (!user) return null;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] bg-white">
-      <div ref={headerRef} className="sticky top-0 z-10 bg-white border-b px-4 py-3 flex items-center justify-between">
+    <div className="flex flex-col h-max bg-white md:container mx-auto">
+      <div ref={headerRef} className="sticky top-[70px] z-10 bg-white border-b px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
@@ -520,7 +522,7 @@ export default function MessagesView() {
       {/* Messages with Custom Scroll */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+        className="flex-1 mb-16 md:mb-0 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
         onScroll={handleScroll}
       >
         {isFetchingNextPage && (
@@ -623,7 +625,7 @@ export default function MessagesView() {
       )}
 
       {/* Message Input */}
-      <div className="sticky bottom-0 z-10 bg-white border-t p-4">
+      <div className="sticky bottom-[70px] md:bottom-0 z-10 bg-white border-t p-4">
         <MessageForm
           socket={socket}
           conversationId={parseInt(id)}

@@ -280,12 +280,12 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
     <div className="space-y-4">
       {selectedFiles.length > 0 && <div className="space-y-2">{filePreviews}</div>}
 
-      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+      <form onSubmit={handleSubmit} className="flex items-center gap-0 md:gap-2">
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="shrink-0"
+          className="shrink-0 px-0"
           onClick={() => fileInputRef.current?.click()}
           disabled={isRecording}
         >
@@ -305,7 +305,7 @@ export function MessageForm({ socket, conversationId, receiverId, onSuccess, lis
           )}
         </Button>
 
-        <div className="flex-1 relative">
+        <div className="flex-1 relative me-2">
           <Textarea
             ref={textareaRef}
             value={message}

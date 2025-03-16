@@ -193,7 +193,7 @@ export default async function CategoryPage({
   };
 
   return (
-    <div className="py-8">
+    <div className="py-8 container mx-auto">
       {/* JSON-LD Structured Data */}
       <script
         type="application/ld+json"

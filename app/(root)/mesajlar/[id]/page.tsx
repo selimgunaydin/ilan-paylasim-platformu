@@ -1,4 +1,4 @@
-import MessagesView from '@/views/root/messages'
+import MessagesView from "@/views/root/messages";
 
 export async function generateMetadata() {
   return {
@@ -8,7 +8,5 @@ export async function generateMetadata() {
 }
 
 export default function MessagesPage() {
-  return (
-    <MessagesView />
-  )
+  return <MessagesView />;
 }

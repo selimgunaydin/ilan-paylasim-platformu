@@ -4,17 +4,13 @@ import { ClientLayout } from "../components/ClientLayout";
 import "../globals.css";
 
 export const metadata: Metadata = {
-  title: 'İlan Daddy',
-  description: 'İlan yönetim sistemi',
-}
+  title: "İlan Daddy",
+  description: "İlan yönetim sistemi",
+};
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <ClientLayout>
-    <div className="container">
-      {children}
-    </div>
-  </ClientLayout>;
+  return <ClientLayout>{children}</ClientLayout>;
 }

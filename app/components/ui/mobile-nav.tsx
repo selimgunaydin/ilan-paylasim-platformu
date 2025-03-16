@@ -39,45 +39,51 @@ export function MobileNav() {
   }, [socket, isConnected, dispatch, user]);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t md:hidden z-50">
       <div className="flex items-center justify-between w-full">
         <Link href="/ilanlarim" className="flex-1 min-w-0">
-          <div className="flex flex-col items-center py-1.5 px-0.5">
-            <ListPlus className="h-4 w-4" />
+          <div className="flex flex-col items-center py-4 px-0.5">
+            <ListPlus className="h-6 w-6" />
             <span className="text-[10px] truncate mt-0.5">İlanlarım</span>
           </div>
         </Link>
         <Link href="/favorilerim" className="flex-1 min-w-0">
-          <div className="flex flex-col items-center py-1.5 px-0.5">
-            <Star className="h-4 w-4" />
+          <div className="flex flex-col items-center py-4 px-0.5">
+            <Star className="h-6 w-6" />
             <span className="text-[10px] truncate mt-0.5">Favorilerim</span>
           </div>
         </Link>
         <Link href="/gonderilen-mesajlar" className="flex-1 min-w-0">
-          <div className="flex flex-col items-center py-1.5 px-0.5 relative">
-            <Send className="h-4 w-4" />
-            <span className="text-[10px] truncate mt-0.5">Gönderilen</span>
+          <div className="flex flex-col items-center py-4 px-0.5 relative">
+            <div className="relative">
+            <Send className="h-6 w-6" />
             {outgoingUnreadMessages > 0 && (
-              <Badge variant="destructive" className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[8px]">
+              <Badge variant="destructive" className="absolute -top-4 -right-6 h-5 w-5 p-0 flex items-center justify-center text-[8px]">
                 {outgoingUnreadMessages > 99 ? '99+' : outgoingUnreadMessages}
               </Badge>
             )}
+            </div>
+            <span className="text-[10px] truncate mt-0.5">Gönderilen</span>
+
           </div>
         </Link>
         <Link href="/gelen-mesajlar" className="flex-1 min-w-0">
-          <div className="flex flex-col items-center py-1.5 px-0.5 relative">
-            <MessageCircle className="h-4 w-4" />
-            <span className="text-[10px] truncate mt-0.5">Gelen</span>
+          <div className="flex flex-col items-center py-4 px-0.5 relative">
+            <div className="relative">
+            <MessageCircle className="h-6 w-6" />
             {incomingUnreadMessages > 0 && (
-              <Badge variant="destructive" className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[8px]">
+              <Badge variant="destructive" className="absolute -top-4 -right-6 h-5 w-5 p-0 flex items-center justify-center text-[8px]">
                 {incomingUnreadMessages > 99 ? '99+' : incomingUnreadMessages}
               </Badge>
             )}
+            </div>
+            <span className="text-[10px] truncate mt-0.5">Gelen</span>
+
           </div>
         </Link>
         <Link href="/profilim" className="flex-1 min-w-0">
-          <div className="flex flex-col items-center py-1.5 px-0.5">
-            <User className="h-4 w-4" />
+          <div className="flex flex-col items-center py-4 px-0.5">
+            <User className="h-6 w-6" />
             <span className="text-[10px] truncate mt-0.5">Profilim</span>
           </div>
         </Link>
