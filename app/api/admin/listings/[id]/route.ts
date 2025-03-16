@@ -7,6 +7,7 @@ import { getToken } from 'next-auth/jwt';
 import { imageService } from '@/lib/image-service';
 import { v4 as uuidv4 } from 'uuid';
 import { storage } from '@/lib/storage';
+import { getListingImageUrl, getListingImagesUrls } from '@/lib/r2';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,7 +83,7 @@ export async function GET(
     // İlan resimlerini URL'lere dönüştür
     const listingWithImageUrls = {
       ...updatedListing,
-      images: updatedListing.images ? updatedListing.images.map(img => `/images/${img}`) : []
+      images: updatedListing.images ? getListingImagesUrls(updatedListing.images) : []
     };
 
     return NextResponse.json(listingWithImageUrls, { status: 200 });

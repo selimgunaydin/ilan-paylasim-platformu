@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@app/components/ui/dialog"
 import { AspectRatio } from "@app/components/ui/aspect-ratio";
 import { ChevronLeft, ChevronRight, Expand } from "lucide-react";
 import { Button } from "@app/components/ui/button";
-
+import { getListingImageUrlClient } from '@/utils/get-message-file-url';
 interface ImageGalleryProps {
   images: string[];
   title: string;
@@ -51,7 +51,7 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
               <AspectRatio ratio={4/3}>
                 <div className={`relative w-full h-full bg-gray-100 ${!loadedImages[image] ? 'animate-pulse' : ''}`}>
                   <img
-                    src={image}
+                    src={getListingImageUrlClient(image)}
                     alt={`${title} - Resim ${index + 1}`}
                     className={`object-cover w-full h-full transition-opacity duration-300 ${loadedImages[image] ? 'opacity-100' : 'opacity-0'}`}
                     loading="lazy"

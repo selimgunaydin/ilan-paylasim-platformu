@@ -7,8 +7,15 @@ import { getToken } from 'next-auth/jwt';
 import { imageService } from '@/lib/image-service';
 import { v4 as uuidv4 } from 'uuid';
 import { storage } from '@/lib/storage';
+import { r2Client } from '../../../lib/r2';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import sharp from 'sharp';
+import { getListingImageUrl, getListingImagesUrls } from '../../../lib/r2';
 
 export const dynamic = 'force-dynamic';
+
+// R2 bucket tanımlaması
+const LISTING_BUCKET = "seriilan";
 
 // Tekil ilan detayı API'si
 export async function GET(
@@ -82,7 +89,7 @@ export async function GET(
     // İlan resimlerini URL'lere dönüştür
     const listingWithImageUrls = {
       ...updatedListing,
-      images: updatedListing.images ? updatedListing.images.map(img => `/images/${img}`) : []
+      images: updatedListing.images ? getListingImagesUrls(updatedListing.images) : []
     };
 
     return NextResponse.json(listingWithImageUrls, { status: 200 });
@@ -196,23 +203,37 @@ export async function PUT(
       }
     }
 
-    // Görüntüleri kaydet
+    // Görüntüleri R2'ye kaydet
     let imageUrls: string[] = [];
     if (files && files.length > 0) {
       try {
-        // Burada dosyaların kaydedilmesi gerekiyor
-        // NextJS App Router'da dosya yükleme işlemi için özel bir implementasyon yapmalıyız
-        // Bu örnekte sadece dosya adlarını kaydediyoruz, gerçek uygulamada uygun depolama sistemine yüklenmelidir
-        
         for (const file of files) {
+          // Dosyayı işle
           const fileBuffer = Buffer.from(await file.arrayBuffer());
-          const fileExt = file.name.split('.').pop() || 'jpg';
-          const fileName = `${uuidv4()}.${fileExt}`;
           
-          // Burada dosyayı depolama sistemine yükleme kodu olmalı
-          // Örnek: await uploadToStorage(fileName, fileBuffer);
+          // Resmi optimize et (WebP'ye dönüştür)
+          const optimizedImage = await sharp(fileBuffer)
+            .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+            .webp({ quality: 80 })
+            .toBuffer();
           
-          // Şimdilik sadece dosya adını ekliyoruz
+          // Dosya adını oluştur
+          const timestamp = Date.now();
+          const random = uuidv4().slice(0, 8);
+          const fileName = `listings/listing_${timestamp}_${random}.webp`;
+          
+          // R2'ye yükle
+          await r2Client.send(
+            new PutObjectCommand({
+              Bucket: LISTING_BUCKET,
+              Key: fileName,
+              Body: optimizedImage,
+              ContentType: 'image/webp',
+              ACL: "public-read",
+            })
+          );
+          
+          // Dosya yolunu kaydet
           imageUrls.push(fileName);
         }
       } catch (error) {

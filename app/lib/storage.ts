@@ -19,7 +19,7 @@ import { eq, and, gte, ilike, sql, or, inArray, ne, asc } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "../../shared/db";
-import { getMessageFilesUrls } from "./r2";
+import { getMessageFileUrl, getMessageFilesUrls, getListingImageUrl, getListingImagesUrls } from "./r2";
 import { randomBytes } from "crypto";
 import { SQL } from "drizzle-orm";
 import { imageService } from "./image-service";
@@ -233,7 +233,7 @@ export class DatabaseStorage implements IStorage {
     if (userId && listing.userId === userId) {
       if (listing.images) {
         console.log("Original images:", listing.images);
-        listing.images = getMessageFilesUrls(listing.images);
+        listing.images = getListingImagesUrls(listing.images);
         console.log("Transformed images:", listing.images);
       }
       return listing;
@@ -241,7 +241,7 @@ export class DatabaseStorage implements IStorage {
 
     if (listing.approved && listing.active) {
       if (listing.images) {
-        listing.images = getMessageFilesUrls(listing.images);
+        listing.images = getListingImagesUrls(listing.images);
       }
       return listing;
     }
@@ -310,7 +310,7 @@ export class DatabaseStorage implements IStorage {
 
     const listingsWithUrls = data.map((listing) => ({
       ...listing,
-      images: listing.images ? getMessageFilesUrls(listing.images) : [],
+      images: listing.images ? getListingImagesUrls(listing.images) : [],
     }));
 
     return {
@@ -330,7 +330,7 @@ export class DatabaseStorage implements IStorage {
 
     return userListings.map((listing) => ({
       ...listing,
-      images: listing.images ? getMessageFilesUrls(listing.images) : [],
+      images: listing.images ? getListingImagesUrls(listing.images) : [],
     }));
   }
   async createListing(
@@ -472,7 +472,7 @@ export class DatabaseStorage implements IStorage {
       console.log("Listing updated successfully:", updatedListing);
 
       if (updatedListing.images) {
-        updatedListing.images = getMessageFilesUrls(updatedListing.images);
+        updatedListing.images = getListingImagesUrls(updatedListing.images);
       }
 
       return updatedListing;
@@ -942,7 +942,7 @@ export class DatabaseStorage implements IStorage {
 
     return userFavorites.map((f) => ({
       ...f.listing,
-      images: f.listing.images ? getMessageFilesUrls(f.listing.images) : [],
+      images: f.listing.images ? getListingImagesUrls(f.listing.images) : [],
     }));
   }
 
@@ -1126,6 +1126,6 @@ async function deleteMessageFiles(files: string[]): Promise<void> {
     await imageService.deleteMessageFiles(files);
   } catch (error) {
     console.error("Dosya silme hatası:", error);
-    // Hata durumnda bile işlemi devam ettir
+    // Hata durumunda bile işlemi devam ettir
   }
 }

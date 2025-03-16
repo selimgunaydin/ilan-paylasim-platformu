@@ -7,6 +7,10 @@ import jwt from 'jsonwebtoken'
 import { v4 as uuidv4 } from 'uuid'
 import { storage } from '@/lib/storage';
 import { getToken } from 'next-auth/jwt';
+import { r2Client } from '../../lib/r2';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import sharp from 'sharp';
+import { getListingImageUrl, getListingImagesUrls } from '../../lib/r2';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +41,9 @@ const createSearchCondition = (search: string): SQL<unknown> => {
   // Eğer searchCondition undefined ise varsayılan bir koşul döndür
   return searchCondition ?? sql`1=1`;
 }
+
+// R2 bucket tanımlaması
+const LISTING_BUCKET = "seriilan";
 
 // İlanları getirme API'si
 export async function GET(request: NextRequest) {
@@ -131,7 +138,7 @@ export async function GET(request: NextRequest) {
       // İlan resimlerini URL'e çevir
       const listingsWithUrls = data.map(listing => ({
         ...listing,
-        images: listing.images ? listing.images.map(img => `/images/${img}`) : []
+        images: listing.images ? getListingImagesUrls(listing.images) : []
       }))
 
       return NextResponse.json({
@@ -204,7 +211,7 @@ export async function GET(request: NextRequest) {
       // İlan resimlerini URL'e çevir
       const listingsWithUrls = data.map(listing => ({
         ...listing,
-        images: listing.images ? listing.images.map(img => `/images/${img}`) : []
+        images: listing.images ? getListingImagesUrls(listing.images) : []
       }))
 
       return NextResponse.json({
@@ -241,7 +248,7 @@ export async function GET(request: NextRequest) {
     // İlan resimlerini URL'e çevir
     const listingsWithUrls = data.map(listing => ({
       ...listing,
-      images: listing.images ? listing.images.map(img => `/images/${img}`) : []
+      images: listing.images ? getListingImagesUrls(listing.images) : []
     }))
 
     return NextResponse.json({
@@ -261,7 +268,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Auth token'ı al
-        const token = await getToken({ 
+    const token = await getToken({ 
       req: request, 
       secret: process.env.NEXTAUTH_SECRET 
     });
@@ -275,7 +282,7 @@ export async function POST(request: NextRequest) {
     }
 
     // userId'yi al
-    const userId = Number(token.sub);;
+    const userId = Number(token.sub);
 
     // Request body'den ilan bilgilerini al
     const formData = await request.formData();
@@ -326,23 +333,37 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Görüntüleri kaydet
+    // Görüntüleri R2'ye kaydet
     let imageUrls: string[] = [];
     if (files && files.length > 0) {
       try {
-        // Burada dosyaların kaydedilmesi gerekiyor
-        // NextJS App Router'da dosya yükleme işlemi için özel bir implementasyon yapmalıyız
-        // Bu örnekte sadece dosya adlarını kaydediyoruz, gerçek uygulamada uygun depolama sistemine yüklenmelidir
-        
         for (const file of files) {
+          // Dosyayı işle
           const fileBuffer = Buffer.from(await file.arrayBuffer());
-          const fileExt = file.name.split('.').pop() || 'jpg';
-          const fileName = `${uuidv4()}.${fileExt}`;
           
-          // Burada dosyayı depolama sistemine yükleme kodu olmalı
-          // Örnek: await uploadToStorage(fileName, fileBuffer);
+          // Resmi optimize et (WebP'ye dönüştür)
+          const optimizedImage = await sharp(fileBuffer)
+            .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+            .webp({ quality: 80 })
+            .toBuffer();
           
-          // Şimdilik sadece dosya adını ekliyoruz
+          // Dosya adını oluştur
+          const timestamp = Date.now();
+          const random = uuidv4().slice(0, 8);
+          const fileName = `listings/listing_${timestamp}_${random}.webp`;
+          
+          // R2'ye yükle
+          await r2Client.send(
+            new PutObjectCommand({
+              Bucket: LISTING_BUCKET,
+              Key: fileName,
+              Body: optimizedImage,
+              ContentType: 'image/webp',
+              ACL: "public-read",
+            })
+          );
+          
+          // Dosya yolunu kaydet
           imageUrls.push(fileName);
         }
       } catch (error) {

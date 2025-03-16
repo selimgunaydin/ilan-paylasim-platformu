@@ -7,7 +7,7 @@ import type { Category } from "@shared/schemas";
 import ListingDetailClient from "@/views/root/ilan-detay";
 import NotFound from "@/not-found";
 import { Metadata } from "next";
-
+import { getListingImageUrlClient } from "@/utils/get-message-file-url";
 export async function generateMetadata({
   params,
 }: {
@@ -179,7 +179,7 @@ export default async function ListingDetailPage({
                 {listing?.images && listing?.images.length > 0 && (
                   <div className="mb-6">
                     {/* Static image placeholder - client will handle interactivity */}
-                    <img src={listing?.images[0]} alt={listing.title} className="w-full h-64 object-cover rounded" />
+                    <img src={getListingImageUrlClient(listing?.images[0])} alt={listing.title} className="w-full h-64 object-cover rounded" />
                   </div>
                 )}
                 <div className="prose max-w-none">

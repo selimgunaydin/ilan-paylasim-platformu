@@ -265,3 +265,27 @@ export async function uploadProfileImage(
 
   return fileName;
 }
+
+// Listing resmi için URL oluşturma
+export function getListingImageUrl(key: string): string {
+  if (!key) return "";
+  
+  // Eğer zaten tam URL ise olduğu gibi döndür
+  if (key.startsWith("http")) {
+    return key;
+  }
+  
+  // Eğer yeni format (listings/ ile başlayan) ise
+  if (key.startsWith("listings/")) {
+    return `${LISTING_BUCKET_URL}/${key}`;
+  }
+  
+  // Eğer eski format ise (sadece dosya adı)
+  return `${LISTING_BUCKET_URL}/${key}`;
+}
+
+// Birden fazla listing resmi URL'si oluşturma
+export function getListingImagesUrls(keys: string[]): string[] {
+  if (!keys || !Array.isArray(keys)) return [];
+  return keys.map((key) => getListingImageUrl(key));
+}
