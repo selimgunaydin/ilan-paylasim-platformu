@@ -35,7 +35,7 @@ interface AdminUser {
   username: string;
   password: string;
   createdAt: Date;
-  type: 'admin';
+  type: "admin";
 }
 
 interface IStorage {
@@ -52,11 +52,11 @@ interface IStorage {
     city?: string,
     search?: string,
     limit?: number,
-    offset?: number,
+    offset?: number
   ): Promise<{ listings: Listing[]; total: number }>;
   getUserListings(userId: number): Promise<Listing[]>;
   createListing(
-    insertListing: Omit<Listing, "id" | "createdAt">,
+    insertListing: Omit<Listing, "id" | "createdAt">
   ): Promise<Listing>;
   getCategories(): Promise<Category[]>;
   getAllUsers(): Promise<User[]>;
@@ -68,13 +68,13 @@ interface IStorage {
     limit: number,
     search?: string,
     sortBy?: string,
-    sortOrder?: "asc" | "desc",
+    sortOrder?: "asc" | "desc"
   ): Promise<{ data: Listing[]; total: number }>;
   deleteListing(listingId: number, userId?: number): Promise<void>;
   updateListing(
     listingId: number,
     userId: number,
-    updates: Partial<Listing>,
+    updates: Partial<Listing>
   ): Promise<Listing>;
   updateUser(userId: number, updates: Partial<User>): Promise<User>;
   updateListingStatus(listingId: number, approved: boolean): Promise<void>;
@@ -84,12 +84,12 @@ interface IStorage {
   findConversation(
     listingId: number,
     senderId: number,
-    receiverId: number,
+    receiverId: number
   ): Promise<Conversation | undefined>;
   createConversation(
     listingId: number,
     senderId: number,
-    receiverId: number,
+    receiverId: number
   ): Promise<Conversation>;
   createMessage(
     conversationId: number,
@@ -97,7 +97,7 @@ interface IStorage {
     content: string,
     sender_ip?: string,
     files?: string[],
-    fileTypes?: string[],
+    fileTypes?: string[]
   ): Promise<Message>;
   getConversationMessages(conversationId: number): Promise<Message[]>;
   markMessagesAsRead(conversationId: number, userId: number): Promise<void>;
@@ -106,7 +106,7 @@ interface IStorage {
   deleteMessage(messageId: number, userId: number): Promise<MessageDeleteEvent>;
   getMessageEvents(
     conversationId: number,
-    since: Date,
+    since: Date
   ): Promise<MessageDeleteEvent[]>;
   clearVerificationToken(userId: number): Promise<void>;
   createPasswordResetToken(email: string): Promise<string>;
@@ -122,7 +122,7 @@ interface IStorage {
   deactivateListing(listingId: number, userId: number): Promise<void>;
   canUserModifyListingStatus(
     listingId: number,
-    userId: number,
+    userId: number
   ): Promise<boolean>;
   getAdminByUsername(username: string): Promise<AdminUser | null>;
   getAdmin(id: number): Promise<AdminUser | null>;
@@ -130,7 +130,9 @@ interface IStorage {
   createCategory(category: Omit<Category, "id">): Promise<Category>;
   updateCategory(id: number, updates: Partial<Category>): Promise<Category>;
   deleteCategory(id: number): Promise<void>;
-  reorderCategories(updates: Array<{ id: number; order: number; parentId: number | null }>): Promise<Category[]>;
+  reorderCategories(
+    updates: Array<{ id: number; order: number; parentId: number | null }>
+  ): Promise<Category[]>;
 }
 
 const PostgresqlStore = connectPg(session);
@@ -139,18 +141,20 @@ const createSearchCondition = (search: string | undefined) => {
   if (!search) return undefined;
   return or(
     ilike(listings.title, `%${search}%`),
-    ilike(listings.description, `%${search}%`),
+    ilike(listings.description, `%${search}%`)
   );
 };
 
 const createOrderByClause = (
   sortBy: string | undefined,
-  sortOrder: "asc" | "desc" | undefined,
+  sortOrder: "asc" | "desc" | undefined
 ) => {
   if (!sortBy || !(sortBy in listings)) {
     return sql`created_at ${sortOrder === "desc" ? sql`DESC` : sql`ASC`}`;
   }
-  return sql`${listings[sortBy as keyof typeof listings]} ${sortOrder === "desc" ? sql`DESC` : sql`ASC`}`;
+  return sql`${listings[sortBy as keyof typeof listings]} ${
+    sortOrder === "desc" ? sql`DESC` : sql`ASC`
+  }`;
 };
 
 export class DatabaseStorage implements IStorage {
@@ -191,11 +195,14 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     console.log("Creating user with data:", insertUser);
-    const [user] = await db.insert(users).values({
-      ...insertUser,
-      createdAt: new Date(),
-      ip_address: insertUser.ip_address || null
-    }).returning();
+    const [user] = await db
+      .insert(users)
+      .values({
+        ...insertUser,
+        createdAt: new Date(),
+        ip_address: insertUser.ip_address || null,
+      })
+      .returning();
     console.log("Created user:", user);
     return user;
   }
@@ -212,7 +219,7 @@ export class DatabaseStorage implements IStorage {
 
   async getListing(
     listingId: number,
-    userId?: number,
+    userId?: number
   ): Promise<Listing | undefined> {
     const listing = await db.query.listings.findFirst({
       where: eq(listings.id, listingId),
@@ -247,7 +254,7 @@ export class DatabaseStorage implements IStorage {
     city?: string,
     search?: string,
     limit: number = 10,
-    offset: number = 0,
+    offset: number = 0
   ): Promise<{ listings: Listing[]; total: number }> {
     const category = await db.query.categories.findFirst({
       where: eq(categories.id, categoryId),
@@ -327,7 +334,7 @@ export class DatabaseStorage implements IStorage {
     }));
   }
   async createListing(
-    insertListing: Omit<Listing, "id" | "createdAt">,
+    insertListing: Omit<Listing, "id" | "createdAt">
   ): Promise<Listing> {
     const [listing] = await db
       .insert(listings)
@@ -355,7 +362,7 @@ export class DatabaseStorage implements IStorage {
     limit: number,
     search?: string,
     sortBy?: string,
-    sortOrder?: "asc" | "desc",
+    sortOrder?: "asc" | "desc"
   ): Promise<{ data: Listing[]; total: number }> {
     const offset = (page - 1) * limit;
 
@@ -397,7 +404,7 @@ export class DatabaseStorage implements IStorage {
   async deleteListing(listingId: number, userId?: number): Promise<void> {
     try {
       console.log(
-        `Deleting listing ${listingId}. Messages and conversations will be preserved.`,
+        `Deleting listing ${listingId}. Messages and conversations will be preserved.`
       );
 
       const whereConditions = [eq(listings.id, listingId)];
@@ -412,7 +419,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       console.log(
-        `Listing ${listingId} deleted successfully. Related messages and conversations preserved.`,
+        `Listing ${listingId} deleted successfully. Related messages and conversations preserved.`
       );
     } catch (error) {
       console.error("Error in deleteListing:", error);
@@ -423,7 +430,7 @@ export class DatabaseStorage implements IStorage {
   async updateListing(
     listingId: number,
     userId: number,
-    updates: Partial<Listing>,
+    updates: Partial<Listing>
   ): Promise<Listing> {
     try {
       console.log("Updating listing with data:", {
@@ -481,7 +488,7 @@ export class DatabaseStorage implements IStorage {
       .update(users)
       .set({
         ...updates,
-        ip_address: updates.ip_address || undefined // Only update if provided
+        ip_address: updates.ip_address || undefined, // Only update if provided
       })
       .where(eq(users.id, userId))
       .returning();
@@ -491,7 +498,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateListingStatus(
     listingId: number,
-    approved: boolean,
+    approved: boolean
   ): Promise<void> {
     const [listing] = await db
       .select()
@@ -533,7 +540,7 @@ export class DatabaseStorage implements IStorage {
   async findConversation(
     listingId: number,
     senderId: number,
-    receiverId: number,
+    receiverId: number
   ): Promise<Conversation | undefined> {
     try {
       console.log("Konuşma aranıyor:", { listingId, senderId, receiverId });
@@ -547,14 +554,14 @@ export class DatabaseStorage implements IStorage {
             or(
               and(
                 eq(conversations.senderId, senderId),
-                eq(conversations.receiverId, receiverId),
+                eq(conversations.receiverId, receiverId)
               ),
               and(
                 eq(conversations.senderId, receiverId),
-                eq(conversations.receiverId, senderId),
-              ),
-            ),
-          ),
+                eq(conversations.receiverId, senderId)
+              )
+            )
+          )
         );
 
       console.log("Bulunan konuşma:", conversation);
@@ -568,7 +575,7 @@ export class DatabaseStorage implements IStorage {
   async createConversation(
     listingId: number,
     senderId: number,
-    receiverId: number,
+    receiverId: number
   ): Promise<Conversation> {
     try {
       console.log("Yeni konuşma oluşturuluyor:", {
@@ -601,7 +608,7 @@ export class DatabaseStorage implements IStorage {
     content: string,
     sender_ip?: string,
     files?: string[],
-    fileTypes?: string[],
+    fileTypes?: string[]
   ): Promise<Message> {
     try {
       console.log("Mesaj oluşturuluyor:", {
@@ -683,8 +690,8 @@ export class DatabaseStorage implements IStorage {
             username: users.username,
             profileImage: users.profileImage,
             gender: users.gender,
-            avatar: users.avatar
-          }
+            avatar: users.avatar,
+          },
         })
         .from(messages)
         .leftJoin(users, eq(messages.senderId, users.id))
@@ -692,30 +699,31 @@ export class DatabaseStorage implements IStorage {
         .orderBy(messages.createdAt);
 
       // Mesaj kayıtlarını logla
-      console.log('Ham mesaj kayıtları:', messageRecords);
+      console.log("Ham mesaj kayıtları:", messageRecords);
 
       // Mesajlardaki dosya URL'lerini düzenle
-      const transformedMessages = messageRecords.map(message => ({
+      const transformedMessages = messageRecords.map((message) => ({
         ...message,
         // Eğer mesajda dosya varsa, URL'lerini oluştur
-        files: message.files && Array.isArray(message.files)
-          ? getMessageFilesUrls(message.files)
-          : [],
+        files:
+          message.files && Array.isArray(message.files)
+            ? getMessageFilesUrls(message.files)
+            : [],
         // Dosya tiplerini koru
-        fileTypes: message.fileTypes || []
+        fileTypes: message.fileTypes || [],
       }));
 
-      console.log('Dönüştürülmüş mesajlar:', transformedMessages);
+      console.log("Dönüştürülmüş mesajlar:", transformedMessages);
       return transformedMessages as any;
     } catch (error) {
-      console.error('Mesajları getirme hatası:', error);
+      console.error("Mesajları getirme hatası:", error);
       throw error;
     }
   }
 
   async markMessagesAsRead(
     conversationId: number,
-    userId: number,
+    userId: number
   ): Promise<any> {
     try {
       // Önce konuşmayı bul
@@ -730,7 +738,9 @@ export class DatabaseStorage implements IStorage {
 
       // Kullanıcının bu konuşmanın alıcısı olduğunu doğrula
       if (conversation.receiverId !== userId) {
-        throw new Error("Bu konuşmadaki mesajları okundu olarak işaretleme yetkiniz yok");
+        throw new Error(
+          "Bu konuşmadaki mesajları okundu olarak işaretleme yetkiniz yok"
+        );
       }
 
       // Sadece gönderenden gelen ve okunmamış mesajları güncelle
@@ -769,8 +779,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         or(
           eq(conversations.senderId, userId),
-          eq(conversations.receiverId, userId),
-        ),
+          eq(conversations.receiverId, userId)
+        )
       );
     await db.delete(listings).where(eq(listings.userId, userId));
     await db.delete(users).where(eq(users.id, userId));
@@ -778,7 +788,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMessage(
     messageId: number,
-    userId: number,
+    userId: number
   ): Promise<MessageDeleteEvent> {
     try {
       // Önce mesajı bul ve dosyalarını kontrol et
@@ -824,7 +834,7 @@ export class DatabaseStorage implements IStorage {
 
   async getMessageEvents(
     conversationId: number,
-    since: Date,
+    since: Date
   ): Promise<MessageDeleteEvent[]> {
     return [];
   }
@@ -873,8 +883,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(users.resetPasswordToken, token),
-          gte(users.resetPasswordExpires!, new Date()),
-        ),
+          gte(users.resetPasswordExpires!, new Date())
+        )
       );
 
     return user;
@@ -917,7 +927,7 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(favorites)
       .where(
-        and(eq(favorites.userId, userId), eq(favorites.listingId, listingId)),
+        and(eq(favorites.userId, userId), eq(favorites.listingId, listingId))
       );
   }
 
@@ -941,14 +951,14 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(favorites)
       .where(
-        and(eq(favorites.userId, userId), eq(favorites.listingId, listingId)),
+        and(eq(favorites.userId, userId), eq(favorites.listingId, listingId))
       );
     return !!favorite;
   }
 
   async updateUserProfile(
     userId: number,
-    updates: Partial<User>,
+    updates: Partial<User>
   ): Promise<User> {
     const [updatedUser] = await db
       .update(users)
@@ -960,7 +970,7 @@ export class DatabaseStorage implements IStorage {
 
   async canUserModifyListingStatus(
     listingId: number,
-    userId: number,
+    userId: number
   ): Promise<boolean> {
     const [listing] = await db
       .select()
@@ -981,7 +991,7 @@ export class DatabaseStorage implements IStorage {
     const canModify = await this.canUserModifyListingStatus(listingId, userId);
     if (!canModify) {
       throw new Error(
-        "İlanı aktif hale getirme yetkiniz yok veya ilan süresi dolmuş",
+        "İlanı aktif hale getirme yetkiniz yok veya ilan süresi dolmuş"
       );
     }
 
@@ -995,7 +1005,7 @@ export class DatabaseStorage implements IStorage {
     const canModify = await this.canUserModifyListingStatus(listingId, userId);
     if (!canModify) {
       throw new Error(
-        "İlanı pasif hale getirme yetkiniz yok veya ilan süresi dolmuş",
+        "İlanı pasif hale getirme yetkiniz yok veya ilan süresi dolmuş"
       );
     }
 
@@ -1015,11 +1025,11 @@ export class DatabaseStorage implements IStorage {
 
       return {
         ...admin,
-        type: 'admin' as const,
-        createdAt: admin.createdAt as Date
+        type: "admin" as const,
+        createdAt: admin.createdAt as Date,
       };
     } catch (error) {
-      console.error('Error fetching admin by username:', error);
+      console.error("Error fetching admin by username:", error);
       return null;
     }
   }
@@ -1035,11 +1045,11 @@ export class DatabaseStorage implements IStorage {
 
       return {
         ...admin,
-        type: 'admin' as const,
-        createdAt: admin.createdAt as Date
+        type: "admin" as const,
+        createdAt: admin.createdAt as Date,
       };
     } catch (error) {
-      console.error('Error fetching admin by id:', error);
+      console.error("Error fetching admin by id:", error);
       return null;
     }
   }
@@ -1053,7 +1063,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Kategori güncelle
-  async updateCategory(id: number, updates: Partial<Category>): Promise<Category> {
+  async updateCategory(
+    id: number,
+    updates: Partial<Category>
+  ): Promise<Category> {
     const [updatedCategory] = await db
       .update(categories)
       .set(updates)
@@ -1077,15 +1090,12 @@ export class DatabaseStorage implements IStorage {
           .update(categories)
           .set({
             order: update.order,
-            parentId: update.parentId
+            parentId: update.parentId,
           })
           .where(eq(categories.id, update.id));
       }
 
-      return await tx
-        .select()
-        .from(categories)
-        .orderBy(asc(categories.order));
+      return await tx.select().from(categories).orderBy(asc(categories.order));
     });
   }
   // Kategori silme öncesi kontrolleri yapan yeni method
@@ -1094,7 +1104,7 @@ export class DatabaseStorage implements IStorage {
       // Kategoriye ait ilan sayısını getir
       const [result] = await db
         .select({
-          count: sql<number>`count(*)::int`
+          count: sql<number>`count(*)::int`,
         })
         .from(listings)
         .where(eq(listings.categoryId, categoryId));

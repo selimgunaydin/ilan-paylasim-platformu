@@ -3,14 +3,14 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const responseClone = res.clone();
-    const text = await responseClone.text() || res.statusText;
+    const text = (await responseClone.text()) || res.statusText;
     throw new Error(`${res.status}: ${text}`);
   }
 }
 
 interface ApiRequestOptions<T = unknown> {
   url: string;
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
   data?: T;
 }
 
@@ -30,7 +30,7 @@ export async function apiRequest<ResponseType = unknown, RequestType = unknown>(
   // Response'u klonla ve hata kontrolü için kullan
   const resForErrorCheck = res.clone();
   await throwIfResNotOk(resForErrorCheck);
-  
+
   // Orijinal response'u JSON olarak çözümle
   return res.json();
 }
@@ -44,18 +44,18 @@ export function getQueryFn<T>(
   pathOrOptions: string | GetQueryFnOptions,
   options: GetQueryFnOptions = {}
 ): QueryFunction<T> {
-  const path = typeof pathOrOptions === 'string' ? pathOrOptions : '';
-  const opts = typeof pathOrOptions === 'string' ? options : pathOrOptions;
+  const path = typeof pathOrOptions === "string" ? pathOrOptions : "";
+  const opts = typeof pathOrOptions === "string" ? options : pathOrOptions;
 
   return async ({ queryKey }): Promise<T> => {
     try {
-      const endpoint = typeof queryKey[0] === 'string' ? queryKey[0] : path;
-      const res = await fetch(endpoint, { 
-        credentials: 'include',
+      const endpoint = typeof queryKey[0] === "string" ? queryKey[0] : path;
+      const res = await fetch(endpoint, {
+        credentials: "include",
         cache: "no-store",
         headers: {
-          'Accept': 'application/json',
-        }
+          Accept: "application/json",
+        },
       });
 
       if (!res.ok) {
@@ -69,12 +69,12 @@ export function getQueryFn<T>(
           }
           throw new Error("Unauthorized");
         }
-        
+
         let errorMessage = "API request failed";
         try {
           const responseClone = res.clone();
           const errorText = await responseClone.text();
-          
+
           try {
             const errorData = JSON.parse(errorText);
             errorMessage = errorData.message || errorData.error || errorMessage;
@@ -84,7 +84,7 @@ export function getQueryFn<T>(
         } catch (e) {
           console.error("Error reading response:", e);
         }
-        
+
         throw new Error(errorMessage);
       }
 

@@ -5,7 +5,7 @@ import {
   HeadObjectCommand,
 } from "@aws-sdk/client-s3";
 import type { Express } from "express";
-import sharp from 'sharp';
+import sharp from "sharp";
 
 // Bucket tanımlamaları
 export const LISTING_BUCKET_URL = `https://images.ilandaddy.com`;
@@ -42,14 +42,14 @@ const ALLOWED_DOCUMENT_TYPES = [
 const ALLOWED_ARCHIVE_TYPES = [".zip", ".rar"];
 // iPhone formatları eklendi ve video/ses formatları güncellendi
 const ALLOWED_MEDIA_TYPES = [
-  ".mp3", 
-  ".wav", 
+  ".mp3",
+  ".wav",
   ".ogg",
-  ".m4a",  // iPhone ses kaydı formatı
-  ".mp4", 
+  ".m4a", // iPhone ses kaydı formatı
+  ".mp4",
   ".webm",
-  ".mov",  // iPhone video formatı
-  ".m4v"   // iPhone video formatı
+  ".mov", // iPhone video formatı
+  ".m4v", // iPhone video formatı
 ];
 
 // Dosya boyut limitleri (byte cinsinden)
@@ -106,14 +106,14 @@ async function convertImageToWebP(buffer: Buffer): Promise<Buffer> {
       .webp({ quality: 80 }) // %80 kalite - optimum sıkıştırma/kalite oranı
       .toBuffer();
   } catch (error) {
-    console.error('WebP dönüşüm hatası:', error);
-    throw new Error('Resim WebP formatına dönüştürülürken hata oluştu');
+    console.error("WebP dönüşüm hatası:", error);
+    throw new Error("Resim WebP formatına dönüştürülürken hata oluştu");
   }
 }
 
 // Mesaj dosyalarını yüklemek için fonksiyon
 export async function uploadMessageFile(
-  file: Express.Multer.File,
+  file: Express.Multer.File
 ): Promise<string> {
   const { allowed, type } = isAllowedFileType(file.originalname);
   if (!allowed) {
@@ -122,7 +122,9 @@ export async function uploadMessageFile(
 
   if (!isAllowedFileSize(file.size, type!)) {
     throw new Error(
-      `Dosya boyutu çok büyük. Maksimum boyut: ${type === "image" ? "2MB" : "20MB"}`,
+      `Dosya boyutu çok büyük. Maksimum boyut: ${
+        type === "image" ? "2MB" : "20MB"
+      }`
     );
   }
 
@@ -130,31 +132,33 @@ export async function uploadMessageFile(
   let finalMimeType = file.mimetype;
 
   // Mime type'a göre doğru uzantıyı belirle
-  const extension = finalMimeType.split('/')[1];
+  const extension = finalMimeType.split("/")[1];
   const timestamp = Date.now();
-  const fileName = `messages/${timestamp}-${file.originalname.split('.')[0]}.${extension}`;
+  const fileName = `messages/${timestamp}-${
+    file.originalname.split(".")[0]
+  }.${extension}`;
 
   // Eğer dosya bir resim ise WebP'ye dönüştür
-  if (type === 'image' && ALLOWED_IMAGE_TYPES.includes(file.originalname)) {
+  if (type === "image" && ALLOWED_IMAGE_TYPES.includes(file.originalname)) {
     try {
       processedBuffer = await sharp(file.buffer)
         .webp({ quality: 80 })
         .toBuffer();
-      finalMimeType = 'image/webp';
+      finalMimeType = "image/webp";
     } catch (error) {
-      console.error('WebP dönüşüm hatası:', error);
-      throw new Error('Resim WebP formatına dönüştürülürken hata oluştu');
+      console.error("WebP dönüşüm hatası:", error);
+      throw new Error("Resim WebP formatına dönüştürülürken hata oluştu");
     }
   }
 
   // Eğer yüklenen dosya bir resim ise WebP'ye dönüştür
-  if (type === 'image') {
+  if (type === "image") {
     try {
       processedBuffer = await convertImageToWebP(file.buffer);
-      finalMimeType = 'image/webp';
+      finalMimeType = "image/webp";
     } catch (error) {
-      console.error('Resim dönüştürme hatası:', error);
-      throw new Error('Resim dönüştürülürken bir hata oluştu');
+      console.error("Resim dönüştürme hatası:", error);
+      throw new Error("Resim dönüştürülürken bir hata oluştu");
     }
   }
 
@@ -168,7 +172,7 @@ export async function uploadMessageFile(
       Body: processedBuffer,
       ContentType: finalMimeType,
       ACL: "public-read",
-    }),
+    })
   );
 
   return key;
@@ -177,11 +181,11 @@ export async function uploadMessageFile(
 // Mesaj dosyasını silmek için fonksiyon
 export async function deleteMessageFile(key: string): Promise<void> {
   if (!key) {
-    console.log('Boş dosya anahtarı, işlem atlanıyor');
+    console.log("Boş dosya anahtarı, işlem atlanıyor");
     return;
   }
 
-  console.log('Dosya silme işlemi başlatıldı:', key);
+  console.log("Dosya silme işlemi başlatıldı:", key);
 
   try {
     // Önce dosyanın varlığını kontrol et
@@ -190,9 +194,9 @@ export async function deleteMessageFile(key: string): Promise<void> {
         new HeadObjectCommand({
           Bucket: MESSAGE_BUCKET_NAME,
           Key: key,
-        }),
+        })
       );
-      console.log('Dosya bulundu, silme işlemi başlıyor:', key);
+      console.log("Dosya bulundu, silme işlemi başlıyor:", key);
     } catch (error: any) {
       if (error.$metadata?.httpStatusCode === 404) {
         console.log(`Dosya zaten silinmiş veya mevcut değil: ${key}`);
@@ -206,12 +210,12 @@ export async function deleteMessageFile(key: string): Promise<void> {
       new DeleteObjectCommand({
         Bucket: MESSAGE_BUCKET_NAME,
         Key: key,
-      }),
+      })
     );
 
-    console.log('Dosya başarıyla silindi:', key);
+    console.log("Dosya başarıyla silindi:", key);
   } catch (error: any) {
-    console.error('Dosya silme hatası:', error);
+    console.error("Dosya silme hatası:", error);
     throw new Error(`Dosya silinirken hata oluştu: ${error.message}`);
   }
 }

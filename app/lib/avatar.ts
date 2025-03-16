@@ -12,23 +12,23 @@ export const getAvailableAvatars = (gender: string): string[] => {
       // Erkek avatarlarını döndür (male1.jpg - male23.jpg)
       return Array.from(
         { length: 2 },
-        (_, i) => `${MALE_AVATAR_PATH}/male${i + 1}.png`,
+        (_, i) => `${MALE_AVATAR_PATH}/male${i + 1}.png`
       );
     case "female":
       // Kadın avatarlarını döndür (female1.jpg - female24.jpg)
       return Array.from(
         { length: 2 },
-        (_, i) => `${FEMALE_AVATAR_PATH}/female${i + 1}.png`,
+        (_, i) => `${FEMALE_AVATAR_PATH}/female${i + 1}.png`
       );
     default:
       // Tüm avatarları döndür
       const maleAvatars = Array.from(
         { length: 2 },
-        (_, i) => `${MALE_AVATAR_PATH}/male${i + 1}.png`,
+        (_, i) => `${MALE_AVATAR_PATH}/male${i + 1}.png`
       );
       const femaleAvatars = Array.from(
         { length: 2 },
-        (_, i) => `${FEMALE_AVATAR_PATH}/female${i + 1}.png`,
+        (_, i) => `${FEMALE_AVATAR_PATH}/female${i + 1}.png`
       );
       return [...maleAvatars, ...femaleAvatars];
   }
