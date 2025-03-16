@@ -6,6 +6,10 @@ import { Card, CardContent } from "@app/components/ui/card";
 import { MessageSquare } from "lucide-react";
 import { Conversation } from "@/types";
 import ConversationCard from "@app/components/root/conversation-card";
+import { useAppDispatch } from "@/redux/hooks";
+import { fetchUnreadMessages } from "@/redux/slices/messageSlice";
+import { useEffect } from "react";
+import { useSocket } from '@/providers/socket-provider';
 
 // Skeleton Loader Component
 function SkeletonWrapper() {
@@ -34,6 +38,41 @@ function SkeletonWrapper() {
 export default function ReceivedMessages() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const { socket, isConnected } = useSocket();
+
+  // Komponent yüklendiğinde okunmamış mesaj sayısını güncelle
+  useEffect(() => {
+    dispatch(fetchUnreadMessages());
+  }, [dispatch]);
+
+  // Socket dinleyicilerini ayarla
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    // Yeni bir mesaj bildiriminde konuşma listesini ve okunmamış mesaj sayısını güncelle
+    const handleNewMessage = (data: any) => {
+      console.log('Gelen Mesajlar: Yeni mesaj bildirimi:', data);
+      
+      // Okunmamış mesaj sayısını güncelle
+      dispatch(fetchUnreadMessages());
+      
+      // Konuşma listesini güncelle
+      queryClient.invalidateQueries({
+        queryKey: ["conversations", "received"],
+      });
+    };
+
+    // Socket olaylarını dinle
+    socket.on('messageNotification', handleNewMessage);
+    socket.on('newConversation', handleNewMessage);
+    
+    // Temizlik
+    return () => {
+      socket.off('messageNotification', handleNewMessage);
+      socket.off('newConversation', handleNewMessage);
+    };
+  }, [socket, isConnected, dispatch, queryClient]);
 
   // Gelen mesajlar sorgusu
   const {
@@ -47,6 +86,13 @@ export default function ReceivedMessages() {
         return res.json();
       }),
   });
+
+  // Mesajlar yüklendiğinde okunmamış mesaj sayısını güncelle
+  useEffect(() => {
+    if (receivedConversations) {
+      dispatch(fetchUnreadMessages());
+    }
+  }, [receivedConversations, dispatch]);
 
   // Konuşma silme mutation'ı
   const deleteMutation = useMutation({
@@ -65,6 +111,8 @@ export default function ReceivedMessages() {
       queryClient.invalidateQueries({
         queryKey: ["conversations", "received"],
       });
+      // Konuşma silindiğinde okunmamış mesaj sayısını güncelle
+      dispatch(fetchUnreadMessages());
     },
     onError: () => {
       toast({
@@ -74,6 +122,23 @@ export default function ReceivedMessages() {
       });
     },
   });
+
+  // Mesajları okundu olarak işaretle
+  const markConversationAsRead = async (conversationId: number) => {
+    try {
+      await fetch(`/api/conversations/${conversationId}/read`, {
+        method: 'PATCH'
+      });
+      // Redux state'i güncelle
+      dispatch(fetchUnreadMessages());
+      // Cache'i güncelle
+      queryClient.invalidateQueries({
+        queryKey: ["conversations", "received"],
+      });
+    } catch (error) {
+      console.error("Error marking conversation as read:", error);
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -93,6 +158,7 @@ export default function ReceivedMessages() {
               conversation={conversation} 
               deleteMutation={deleteMutation} 
               type="received" 
+              onCardClick={() => markConversationAsRead(conversation.id)}
             />
           ))
         ) : (

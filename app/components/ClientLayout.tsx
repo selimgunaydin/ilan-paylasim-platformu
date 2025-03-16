@@ -11,6 +11,7 @@ import { Footer } from "@/views/footer";
 import { SocketProvider } from "@/providers/socket-provider";
 import { AuthProvider } from "@/hooks/use-auth";
 import { SessionProvider } from "next-auth/react";
+import { MessageNotificationProvider } from "@/providers/message-notification-provider";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -18,15 +19,17 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       <SessionProvider>
         <AuthProvider>
           <SocketProvider>
-            <SidebarProvider>
-              <Header />
-              <div className="pt-16 pb-16 md:pb-0">
-                <div className="mx-auto">{children}</div>
-              </div>
-              <MobileNav />
-              <Toaster />
-              <Footer />
-            </SidebarProvider>
+            <MessageNotificationProvider>
+              <SidebarProvider>
+                <Header />
+                <div className="pt-16 pb-16 md:pb-0">
+                  <div className="mx-auto">{children}</div>
+                </div>
+                <MobileNav />
+                <Toaster />
+                <Footer />
+              </SidebarProvider>
+            </MessageNotificationProvider>
           </SocketProvider>
         </AuthProvider>
       </SessionProvider>

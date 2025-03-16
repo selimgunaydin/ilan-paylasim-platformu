@@ -6,6 +6,10 @@ import { Card, CardContent } from "@app/components/ui/card";
 import { MessageSquare } from "lucide-react";
 import { Conversation } from "@/types";
 import ConversationCard from "@app/components/root/conversation-card";
+import { useAppDispatch } from "@/redux/hooks";
+import { fetchUnreadMessages } from "@/redux/slices/messageSlice";
+import { useEffect } from "react";
+import { useSocket } from '@/providers/socket-provider';
 
 // Skeleton Loader Component
 function SkeletonWrapper() {
@@ -34,6 +38,41 @@ function SkeletonWrapper() {
 export default function SentMessages() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const { socket, isConnected } = useSocket();
+
+  // Komponent yüklendiğinde okunmamış mesaj sayısını güncelle
+  useEffect(() => {
+    dispatch(fetchUnreadMessages());
+  }, [dispatch]);
+
+  // Socket dinleyicilerini ayarla
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    // Yeni bir mesaj bildiriminde konuşma listesini ve okunmamış mesaj sayısını güncelle
+    const handleNewMessage = (data: any) => {
+      console.log('Gönderilen Mesajlar: Yeni mesaj bildirimi:', data);
+      
+      // Okunmamış mesaj sayısını güncelle
+      dispatch(fetchUnreadMessages());
+      
+      // Konuşma listesini güncelle
+      queryClient.invalidateQueries({
+        queryKey: ["conversations", "sent"],
+      });
+    };
+
+    // Socket olaylarını dinle
+    socket.on('messageNotification', handleNewMessage);
+    socket.on('newConversation', handleNewMessage);
+    
+    // Temizlik
+    return () => {
+      socket.off('messageNotification', handleNewMessage);
+      socket.off('newConversation', handleNewMessage);
+    };
+  }, [socket, isConnected, dispatch, queryClient]);
 
   // Gönderilen mesajlar sorgusu
   const { data: sentConversations, isLoading: isLoadingSentConversations } = useQuery<Conversation[]>({
@@ -41,8 +80,15 @@ export default function SentMessages() {
     queryFn: () => fetch("/api/conversations/sent").then(res => {
       if (!res.ok) throw new Error('Failed to fetch sent conversations');
       return res.json();
-    }),
+    })
   });
+
+  // Mesajlar yüklendiğinde okunmamış mesaj sayısını güncelle
+  useEffect(() => {
+    if (sentConversations) {
+      dispatch(fetchUnreadMessages());
+    }
+  }, [sentConversations, dispatch]);
 
   // Konuşma silme mutation'ı
   const deleteConversationMutation = useMutation({
@@ -59,6 +105,8 @@ export default function SentMessages() {
         title: "Başarılı",
         description: "Konuşma başarıyla silindi",
       });
+      // Konuşma silindiğinde okunmamış mesaj sayısını güncelle
+      dispatch(fetchUnreadMessages());
     },
     onError: () => {
       toast({
@@ -68,6 +116,23 @@ export default function SentMessages() {
       });
     },
   });
+
+  // Mesajları okundu olarak işaretle
+  const markConversationAsRead = async (conversationId: number) => {
+    try {
+      await fetch(`/api/conversations/${conversationId}/read`, {
+        method: 'PATCH'
+      });
+      // Redux state'i güncelle
+      dispatch(fetchUnreadMessages());
+      // Cache'i güncelle
+      queryClient.invalidateQueries({
+        queryKey: ["conversations", "sent"],
+      });
+    } catch (error) {
+      console.error("Error marking conversation as read:", error);
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -86,6 +151,7 @@ export default function SentMessages() {
               conversation={conversation} 
               deleteMutation={deleteConversationMutation} 
               type="sent" 
+              onCardClick={() => markConversationAsRead(conversation.id)}
             />
           ))
         ) : (

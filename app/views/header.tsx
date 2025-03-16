@@ -14,6 +14,18 @@ import { Tabs, TabsList, TabsTrigger } from "@app/components/ui/tabs";
 import { useRouter, usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
+import { useAppDispatch, useAppSelector } from "../redux/hooks";
+import { fetchUnreadMessages, selectIncomingUnreadMessages, selectOutgoingUnreadMessages } from "../redux/slices/messageSlice";
+import { Badge } from "../components/ui/badge";
+import { useSocket } from "@/providers/socket-provider";
+
+// MenuItem türünü genişletelim
+interface MenuItem {
+  label: string;
+  icon: any;
+  path: string;
+  unreadCount?: number;
+}
 
 export function Header() {
   const { data: session } = useSession();
@@ -21,18 +33,73 @@ export function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Redux state'ten okunmamış mesaj sayılarını al
+  const incomingUnreadMessages = useAppSelector(selectIncomingUnreadMessages);
+  const outgoingUnreadMessages = useAppSelector(selectOutgoingUnreadMessages);
+  const dispatch = useAppDispatch();
+  const { socket, isConnected } = useSocket();
+
+  // Okunmamış mesaj sayısını yükle
+  useEffect(() => {
+    if (user) {
+      dispatch(fetchUnreadMessages());
+    }
+  }, [dispatch, user]);
+
+  // Socket.IO ile gerçek zamanlı mesaj bildirimlerini dinle
+  useEffect(() => {
+    if (!socket || !isConnected || !user) return;
+
+    // Yeni bir mesaj veya konuşma geldiğinde okunmamış mesaj sayısını güncelle
+    const handleMessageNotification = () => {
+      dispatch(fetchUnreadMessages());
+    };
+
+    // Socket olaylarını dinle
+    socket.on('messageNotification', handleMessageNotification);
+    socket.on('newConversation', handleMessageNotification);
+    
+    // Temizlik
+    return () => {
+      socket.off('messageNotification', handleMessageNotification);
+      socket.off('newConversation', handleMessageNotification);
+    };
+  }, [socket, isConnected, dispatch, user]);
 
   // Kullanıcı menüsü seçenekleri - hem mobil hem masaüstü görünümde kullanılacak
-  const userMenuItems = [
+  const userMenuItems: MenuItem[] = [
     { label: "İlanlarım", icon: ListPlus, path: "/ilanlarim" },
     { label: "Favorilerim", icon: Star, path: "/favorilerim" },
-    { label: "Gönderilen", icon: Send, path: "/gonderilen-mesajlar" },
-    { label: "Gelen", icon: MessageCircle, path: "/gelen-mesajlar" },
+    { 
+      label: "Gönderilen", 
+      icon: Send, 
+      path: "/gonderilen-mesajlar",
+      unreadCount: outgoingUnreadMessages
+    },
+    { 
+      label: "Gelen", 
+      icon: MessageCircle, 
+      path: "/gelen-mesajlar",
+      unreadCount: incomingUnreadMessages
+    },
     { label: "Profilim", icon: User, path: "/profilim" },
   ];
 
   // Aktif tab'ı belirle
   const activeTab = pathname ? userMenuItems.find((item) => pathname === item.path)?.path : "/ilanlarim";
+
+  // Periyodik olarak okunmamış mesaj sayısını güncelle
+  useEffect(() => {
+    if (!user) return;
+    
+    // 30 saniyede bir güncelle
+    const interval = setInterval(() => {
+      dispatch(fetchUnreadMessages());
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [dispatch, user]);
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-white shadow-md`}>
@@ -78,6 +145,11 @@ export function Header() {
                         <div className="flex items-center gap-2">
                           <User className="h-5 w-5" />
                           <span>{user.name || 'Hesabım'}</span>
+                          {(incomingUnreadMessages + outgoingUnreadMessages) > 0 && (
+                            <Badge variant="destructive" className="ml-auto text-xs">
+                              {incomingUnreadMessages + outgoingUnreadMessages}
+                            </Badge>
+                          )}
                         </div>
                       </NavigationMenuTrigger>
                       <NavigationMenuContent>
@@ -86,10 +158,17 @@ export function Header() {
                             <Link
                               key={item.path}
                               href={item.path}
-                              className="flex items-center gap-2 p-2 hover:bg-blue-50 rounded-md cursor-pointer"
+                              className="flex items-center justify-between gap-2 p-2 hover:bg-blue-50 rounded-md cursor-pointer"
                             >
-                              <item.icon className="h-5 w-5 text-blue-600" />
-                              <span>{item.label}</span>
+                              <div className="flex items-center gap-2">
+                                <item.icon className="h-5 w-5 text-blue-600" />
+                                <span>{item.label}</span>
+                              </div>
+                              {item.unreadCount && item.unreadCount > 0 && (
+                                <Badge variant="destructive" className="ml-auto text-xs">
+                                  {item.unreadCount}
+                                </Badge>
+                              )}
                             </Link>
                           ))}
                           <div className="border-t my-2"></div>
@@ -153,10 +232,17 @@ export function Header() {
                       <Link
                         key={item.path}
                         href={item.path}
-                        className="flex items-center gap-2 p-2 hover:bg-blue-50 rounded-md"
+                        className="flex items-center justify-between gap-2 p-2 hover:bg-blue-50 rounded-md"
                       >
-                        <item.icon className="h-5 w-5 text-blue-600" />
-                        <span>{item.label}</span>
+                        <div className="flex items-center gap-2">
+                          <item.icon className="h-5 w-5 text-blue-600" />
+                          <span>{item.label}</span>
+                        </div>
+                        {item.unreadCount && item.unreadCount > 0 && (
+                          <Badge variant="destructive" className="ml-auto text-xs">
+                            {item.unreadCount}
+                          </Badge>
+                        )}
                       </Link>
                     ))}
 

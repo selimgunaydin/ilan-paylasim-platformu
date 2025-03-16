@@ -13,7 +13,19 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getProfileImageUrl } from '@/lib/avatar';
 import Link from 'next/link';
 
-export default function ConversationCard({ conversation, deleteMutation, type }: { conversation: Conversation, deleteMutation: any, type: 'sent' | 'received' }) {
+interface ConversationCardProps {
+  conversation: Conversation;
+  deleteMutation: any;
+  type: 'sent' | 'received';
+  onCardClick?: (id: number) => void;
+}
+
+export default function ConversationCard({ 
+  conversation, 
+  deleteMutation, 
+  type,
+  onCardClick 
+}: ConversationCardProps) {
   const router = useRouter();
 
   const formatRelativeDate = (date: Date) => {
@@ -31,6 +43,13 @@ export default function ConversationCard({ conversation, deleteMutation, type }:
     if (days < 7) return `${days} gün önce`;
     if (days < 30) return `${Math.floor(days / 7)} hafta önce`;
     return `${Math.floor(days / 30)} ay önce`;
+  };
+
+  // Link'e tıklandığında ve onCardClick prop'u varsa çağır
+  const handleClick = () => {
+    if (onCardClick) {
+      onCardClick(conversation.id);
+    }
   };
 
   return (
@@ -52,7 +71,9 @@ export default function ConversationCard({ conversation, deleteMutation, type }:
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-4">
           {/* Sol taraf - Profil ve kullanıcı bilgileri */}
-          <Link  href={`/mesajlar/${conversation.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+          <Link href={`/mesajlar/${conversation.id}`} 
+                className="flex items-center gap-3 flex-1 min-w-0"
+                onClick={handleClick}>
             <Avatar className="h-12 w-12">
               <AvatarImage
                 src={getProfileImageUrl(
