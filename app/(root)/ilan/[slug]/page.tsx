@@ -265,33 +265,25 @@ export default async function ListingDetailPage({
                     <span className="bg-yellow-500 text-white px-2 py-1 rounded">Öncelikli İlan</span>
                   )}
                 </div>
-                {listing?.images && listing?.images.length > 0 && (
-                  <div className="mb-6">
-                    {/* Updated image with dynamic alt and title attributes */}
-                    <img 
-                      src={getListingImageUrlClient(listing?.images[0])} 
-                      alt={listing.title} 
-                      title={`${listing.title} ${category?.name ? `- ${category.name}` : ''}`}
-                      className="w-full h-64 object-cover rounded" 
-                    />
-                  </div>
-                )}
-                <div className="prose max-w-none">
-                  <p className="whitespace-pre-wrap text-lg">{listing.description}</p>
-                </div>
+                {/* The static preview image is now removed as we're using the gallery */}
+              </div>
+              <div className="prose max-w-none px-6">
+                <p className="whitespace-pre-wrap text-lg">{listing.description}</p>
               </div>
             </div>
 
-            <ListingDetailClient
-              listing={{
-                ...listing,
-                // Add category name for client component to use in image titles
-                categoryName: category?.name || ""
-              }}
-              user={session?.user || null}
-              initialFavoriteStatus={favoriteStatus.isFavorite}
-              slug={params.slug}
-            />
+            <div className="mt-6">
+              <ListingDetailClient
+                listing={{
+                  ...listing,
+                  // Add category name for client component to use in image titles
+                  categoryName: category?.name || ""
+                }}
+                user={session?.user || null}
+                initialFavoriteStatus={favoriteStatus.isFavorite}
+                slug={params.slug}
+              />
+            </div>
 
             {/* Similar Listings */}
             <div className="bg-white rounded-lg shadow mt-6">

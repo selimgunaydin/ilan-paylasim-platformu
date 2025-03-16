@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
-import { Dialog, DialogContent, DialogTrigger } from "@app/components/ui/dialog";
+import { Dialog, DialogContent } from "@app/components/ui/dialog";
 import { AspectRatio } from "@app/components/ui/aspect-ratio";
-import { ChevronLeft, ChevronRight, Expand } from "lucide-react";
+import { ChevronLeft, ChevronRight, Expand, X } from "lucide-react";
 import { Button } from "@app/components/ui/button";
 import { getListingImageUrlClient } from '@/utils/get-message-file-url';
+
 interface ImageGalleryProps {
   images: string[];
   title: string;
@@ -12,18 +13,31 @@ interface ImageGalleryProps {
 }
 
 export function ImageGallery({ images, title, categoryName }: ImageGalleryProps) {
-  const [emblaRef, emblaApi] = useEmblaCarousel();
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
+  const [fullscreenEmblaRef, fullscreenEmblaApi] = useEmblaCarousel({ loop: true });
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [loadedImages, setLoadedImages] = useState<{ [key: string]: boolean }>({});
 
   const scrollPrev = () => emblaApi && emblaApi.scrollPrev();
   const scrollNext = () => emblaApi && emblaApi.scrollNext();
+  const fullscreenScrollPrev = () => fullscreenEmblaApi && fullscreenEmblaApi.scrollPrev();
+  const fullscreenScrollNext = () => fullscreenEmblaApi && fullscreenEmblaApi.scrollNext();
 
   const handleSelect = () => {
     if (emblaApi) {
       setSelectedImageIndex(emblaApi.selectedScrollSnap());
     }
+  };
+
+  const openFullscreen = (index: number) => {
+    setFullscreenOpen(true);
+    // After dialog opens, scroll to the selected image
+    setTimeout(() => {
+      if (fullscreenEmblaApi) {
+        fullscreenEmblaApi.scrollTo(index);
+      }
+    }, 50);
   };
 
   React.useEffect(() => {
@@ -36,56 +50,45 @@ export function ImageGallery({ images, title, categoryName }: ImageGalleryProps)
   }, [emblaApi]);
 
   if (!images || images.length === 0) {
-    console.log("No images provided to ImageGallery");
     return null;
   }
 
-  console.log("ImageGallery received images:", images);
+  // Process all image URLs once
+  const processedImages = images.map(img => getListingImageUrlClient(img));
 
   return (
     <div className="relative group">
-      {/* Ana Galeri */}
-      <div className="overflow-hidden" ref={emblaRef}>
+      {/* Main Gallery */}
+      <div className="overflow-hidden rounded-lg" ref={emblaRef}>
         <div className="flex">
-          {images.map((image, index) => (
+          {processedImages.map((imageUrl, index) => (
             <div key={index} className="relative flex-[0_0_100%] min-w-0">
               <AspectRatio ratio={4/3}>
-                <div className={`relative w-full h-full bg-gray-100 ${!loadedImages[image] ? 'animate-pulse' : ''}`}>
+                <div className={`relative w-full h-full bg-gray-100 ${!loadedImages[imageUrl] ? 'animate-pulse' : ''}`}>
                   <img
-                    src={getListingImageUrlClient(image)}
+                    src={imageUrl}
                     alt={title}
                     title={`${title}${categoryName ? ` - ${categoryName}` : ''}`}
-                    className={`object-cover w-full h-full transition-opacity duration-300 ${loadedImages[image] ? 'opacity-100' : 'opacity-0'}`}
-                    loading="lazy"
-                    onLoad={(e) => {
-                      console.log("Image loaded:", image);
-                      setLoadedImages(prev => ({ ...prev, [image]: true }));
+                    className={`object-cover w-full h-full transition-opacity duration-300 rounded-lg ${loadedImages[imageUrl] ? 'opacity-100' : 'opacity-0'}`}
+                    loading={index === 0 ? "eager" : "lazy"}
+                    onLoad={() => {
+                      setLoadedImages(prev => ({ ...prev, [imageUrl]: true }));
                     }}
-                    onError={(e) => {
-                      console.error("Image load error:", image);
-                      setLoadedImages(prev => ({ ...prev, [image]: false }));
+                    onError={() => {
+                      setLoadedImages(prev => ({ ...prev, [imageUrl]: false }));
                     }}
                   />
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        size="icon"
-                        className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => setFullscreenImage(image)}
-                      >
-                        <Expand className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-[90vw] max-h-[90vh] p-0">
-                      <img
-                        src={fullscreenImage || ''}
-                        alt={title}
-                        title={`${title}${categoryName ? ` - ${categoryName}` : ''}`}
-                        className="w-full h-full object-contain"
-                      />
-                    </DialogContent>
-                  </Dialog>
+                  <Button 
+                    variant="outline" 
+                    size="icon"
+                    className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 hover:bg-white"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openFullscreen(index);
+                    }}
+                  >
+                    <Expand className="h-4 w-4" />
+                  </Button>
                 </div>
               </AspectRatio>
             </div>
@@ -93,13 +96,75 @@ export function ImageGallery({ images, title, categoryName }: ImageGalleryProps)
         </div>
       </div>
 
-      {/* Navigasyon Butonları */}
+      {/* Fullscreen Dialog */}
+      <Dialog open={fullscreenOpen} onOpenChange={setFullscreenOpen}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black text-white border-none">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="absolute top-2 right-2 z-50 text-white hover:bg-black/20" 
+            onClick={() => setFullscreenOpen(false)}
+          >
+            <X className="h-5 w-5" />
+          </Button>
+          
+          <div className="relative h-full w-full" ref={fullscreenEmblaRef}>
+            <div className="flex h-full">
+              {processedImages.map((imageUrl, index) => (
+                <div key={index} className="relative flex-[0_0_100%] min-w-0 h-full flex items-center justify-center">
+                  <img
+                    src={imageUrl}
+                    alt={title}
+                    title={`${title}${categoryName ? ` - ${categoryName}` : ''}`}
+                    className="max-w-full max-h-full object-contain"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {images.length > 1 && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute left-2 top-1/2 -translate-y-1/2 text-white hover:bg-black/20"
+                onClick={fullscreenScrollPrev}
+              >
+                <ChevronLeft className="h-8 w-8" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-white hover:bg-black/20"
+                onClick={fullscreenScrollNext}
+              >
+                <ChevronRight className="h-8 w-8" />
+              </Button>
+              
+              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+                {processedImages.map((_, idx) => (
+                  <button
+                    key={idx}
+                    className={`w-3 h-3 rounded-full transition-colors ${
+                      idx === selectedImageIndex ? 'bg-white' : 'bg-gray-500 hover:bg-gray-300'
+                    }`}
+                    onClick={() => fullscreenEmblaApi?.scrollTo(idx)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Navigation Buttons */}
       {images.length > 1 && (
         <>
           <Button
             variant="outline"
             size="icon"
-            className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 hover:bg-white"
             onClick={scrollPrev}
           >
             <ChevronLeft className="h-4 w-4" />
@@ -107,7 +172,7 @@ export function ImageGallery({ images, title, categoryName }: ImageGalleryProps)
           <Button
             variant="outline"
             size="icon"
-            className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 hover:bg-white"
             onClick={scrollNext}
           >
             <ChevronRight className="h-4 w-4" />
@@ -115,23 +180,25 @@ export function ImageGallery({ images, title, categoryName }: ImageGalleryProps)
         </>
       )}
 
-      {/* Thumbnail Navigasyon */}
+      {/* Thumbnails */}
       {images.length > 1 && (
         <div className="flex gap-2 mt-2 overflow-x-auto pb-2">
-          {images.map((thumb, index) => (
+          {processedImages.map((imageUrl, index) => (
             <button
               key={index}
               onClick={() => emblaApi?.scrollTo(index)}
-              className={`relative flex-[0_0_80px] cursor-pointer overflow-hidden rounded-md ${
-                selectedImageIndex === index ? 'ring-2 ring-blue-500' : ''
+              className={`relative flex-[0_0_80px] cursor-pointer overflow-hidden rounded-md transition-all ${
+                selectedImageIndex === index 
+                  ? 'ring-2 ring-blue-500 shadow-md' 
+                  : 'opacity-70 hover:opacity-100'
               }`}
             >
               <AspectRatio ratio={4/3}>
                 <img
-                  src={getListingImageUrlClient(thumb)}
+                  src={imageUrl}
                   alt={`${title} - Önizleme ${index + 1}`}
                   title={`${title}${categoryName ? ` - ${categoryName}` : ''}`}
-                  className="object-cover w-full h-full"
+                  className="object-cover w-full h-full rounded-md"
                   loading="lazy"
                 />
               </AspectRatio>
