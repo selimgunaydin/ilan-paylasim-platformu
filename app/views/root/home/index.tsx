@@ -3,25 +3,24 @@ import { Category } from "@shared/schemas";
 import IlanSearch from "@app/components/ilan-search";
 import { Footer } from "@/views/footer";
 
-// Category tipini genişleterek listingCount özelliğini ekleyelim
+// Category tipini genişleterek listingCount ve children özelliklerini ekleyelim
 interface CategoryWithCount extends Category {
   listingCount?: number;
+  children?: CategoryWithCount[];
 }
 
 export default function HomePage({ categories }: { categories: CategoryWithCount[] }) {
+  // Ana kategoriler (parentId null olanlar)
   const mainCategories = Array.isArray(categories)
     ? categories.filter((c) => !c.parentId)
     : [];
 
-  // Function to calculate total listing count for subcategories under a main category
-  const getSubcategoryListingCount = (mainCategoryId: number) => {
-    const subCategories = categories?.filter(
-      (c) => c.parentId === mainCategoryId,
-    );
+  // Alt kategorilerin toplam ilan sayısını hesaplayan fonksiyon
+  const getSubcategoryListingCount = (mainCategory: CategoryWithCount) => {
     return (
-      subCategories?.reduce(
+      mainCategory.children?.reduce(
         (total, subCat) => total + (subCat.listingCount || 0),
-        0,
+        0
       ) || 0
     );
   };
@@ -63,7 +62,7 @@ export default function HomePage({ categories }: { categories: CategoryWithCount
               <div className="flex items-center">
                 <div className="bg-white/20 p-3 rounded-full mr-3">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2 2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
                 </div>
                 <div className="text-left">
@@ -96,11 +95,8 @@ export default function HomePage({ categories }: { categories: CategoryWithCount
         
         <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {mainCategories.map((mainCategory: CategoryWithCount) => {
-            const totalSubcategoryListings = getSubcategoryListingCount(
-              mainCategory.id,
-            );
-            const totalListings =
-              (mainCategory.listingCount || 0) + totalSubcategoryListings;
+            const totalSubcategoryListings = getSubcategoryListingCount(mainCategory);
+            const totalListings = (mainCategory.listingCount || 0) + totalSubcategoryListings;
 
             return (
               <div key={mainCategory.id} className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
@@ -119,9 +115,15 @@ export default function HomePage({ categories }: { categories: CategoryWithCount
                     )}
                   </div>
                   <div className="space-y-2">
-                    {categories
-                      ?.filter((c) => c.parentId === mainCategory.id)
-                      .slice(0, 5)
+                    {mainCategory.children
+                      ?.sort((a, b) => {
+                        // İlan sayısı büyükten küçüğe (ilan olanlar üstte)
+                        const listingCountDiff = (b.listingCount || 0) - (a.listingCount || 0);
+                        if (listingCountDiff !== 0) return listingCountDiff;
+                        // İlan sayıları eşitse order'a göre sırala
+                        return a.order - b.order;
+                      })
+                      .slice(0, 5) // İlk 5 alt kategoriyi göster
                       .map((subCategory: CategoryWithCount) => (
                         <Link
                           key={subCategory.id}

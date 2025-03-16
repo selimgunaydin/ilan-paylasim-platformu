@@ -39,7 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function Home() {
   const categories = await safeFetch<Category[]>(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/categories`,
+    `${process.env.NEXT_PUBLIC_API_URL}/api/categories/all`,
     undefined,
     []
   );
