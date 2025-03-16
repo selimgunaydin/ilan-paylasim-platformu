@@ -6,6 +6,56 @@ import Link from "next/link";
 import type { Category } from "@shared/schemas";
 import ListingDetailClient from "@/views/root/ilan-detay";
 import NotFound from "@/not-found";
+import { Metadata } from "next";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  const id = params.slug?.split("-").pop();
+  if (!id || isNaN(Number(id))) {
+    return {
+      title: "Geçersiz İlan | Site Adı",
+      description: "Bu ilan ID'si geçersiz veya bulunamadı.",
+    };
+  }
+
+  try {
+    const headersList = headers();
+    const cookies = headersList.get("cookie") || "";
+    const listing = await fetchListing(id, cookies);
+
+    const title = `${listing.title} | ${listing.city} | Site Adı`;
+    const description = listing.description
+      ? `${listing.description.substring(0, 160)}...`
+      : `${listing.title} - ${listing.city} şehrinde bu ilanı keşfedin.`;
+
+    return {
+      title,
+      description,
+      keywords: `${listing.title}, ${listing.city}, ${listing.categoryId}, ikinci el, ilan`, // Kategori ve şehir bazlı anahtar kelimeler
+      openGraph: {
+        title,
+        description,
+        url: `${process.env.NEXT_PUBLIC_SITE_URL}/ilan/${params.slug}`,
+        type: "article",
+        images: listing.images?.[0] ? [listing.images[0]] : [],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        images: listing.images?.[0] ? [listing.images[0]] : [],
+      },
+    };
+  } catch (error) {
+    return {
+      title: "İlan Bulunamadı | Site Adı",
+      description: "Bu ilan yüklenemedi veya mevcut değil.",
+    };
+  }
+}
 
 async function fetchListing(id: string, cookies: string) {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/listings/${id}`, {
