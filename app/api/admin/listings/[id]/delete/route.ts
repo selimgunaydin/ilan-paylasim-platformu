@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { db } from '@shared/db';
-import { listings, conversations, messages } from '@shared/schemas';
+import { listings, conversations, messages, users } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import { imageService } from '@/lib/image-service';
+import { sendEmail } from '../../../../../../services/email';
+import { generateListingDeletedEmail } from '../../../../../../services/email-templates';
 // İlan silme API'si
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-
     const listingId = parseInt(params.id);
     if (isNaN(listingId)) {
       return NextResponse.json(
@@ -21,22 +22,29 @@ export async function DELETE(
     }
 
     // İlanı bul
-    const listing = await db
+    const [listing] = await db
       .select()
       .from(listings)
-      .where(eq(listings.id, listingId))
-      .limit(1);
+      .where(eq(listings.id, listingId));
 
-    if (!listing.length) {
+    if (!listing) {
       return NextResponse.json(
         { error: "İlan bulunamadı" },
         { status: 404 }
       );
     }
 
+    // Store the user ID and listing title before deletion
+    const userId = listing.userId;
+    const listingTitle = listing.title;
+
     // İlgili resimleri sil
-    if (listing[0].images && listing[0].images.length > 0) {
-      await imageService.deleteMultipleImages(listing[0].images);
+    if (listing.images && listing.images.length > 0) {
+      try {
+        await imageService.deleteMultipleImages(listing.images);
+      } catch (error) {
+        console.error("Error deleting images:", error);
+      }
     }
 
     // İlanla ilgili konuşmaları bul
@@ -58,23 +66,40 @@ export async function DELETE(
       .where(eq(conversations.listingId, listingId));
 
     // İlanı sil
-    const [deletedListing] = await db
+    await db
       .delete(listings)
-      .where(eq(listings.id, listingId))
-      .returning();
+      .where(eq(listings.id, listingId));
 
-    return NextResponse.json({
-      success: true,
-      deletedData: {
-        listing: deletedListing,
-        conversationsCount: conversationsToDelete.length,
-        imagesCount: listing[0].images?.length || 0,
+    // İlan sahibini bul ve e-posta gönder
+    if (userId) {
+      const [listingOwner] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId));
+
+      if (listingOwner && listingOwner.email) {
+        const emailTemplate = generateListingDeletedEmail(
+          listingOwner.username,
+          listingTitle
+        );
+        
+        emailTemplate.to = listingOwner.email;
+        
+        try {
+          await sendEmail(emailTemplate);
+          console.log(`Deletion email sent to ${listingOwner.email} for listing ${listingId}`);
+        } catch (emailError) {
+          console.error("Error sending deletion email:", emailError);
+          // Email gönderimi başarısız olsa bile API yanıtını etkilemez
+        }
       }
-    });
+    }
+
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("İlan silme hatası:", error);
     return NextResponse.json(
-      { error: "İlan ve ilgili veriler silinemedi" },
+      { error: "İlan silinemedi" },
       { status: 500 }
     );
   }

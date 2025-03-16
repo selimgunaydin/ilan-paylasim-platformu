@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { db } from '@shared/db';
-import { listings } from '@shared/schemas';
+import { listings, users } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
+import { sendEmail } from '../../../../../../services/email';
+import { generateListingDeactivatedEmail } from '../../../../../../services/email-templates';
 
 // İlan pasif duruma getirme API'si
 export async function PUT(
@@ -30,6 +32,31 @@ export async function PUT(
         { error: "İlan bulunamadı" },
         { status: 404 }
       );
+    }
+
+    // İlan sahibini bul ve e-posta gönder
+    if (updatedListing.userId) {
+      const [listingOwner] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, updatedListing.userId));
+
+      if (listingOwner && listingOwner.email) {
+        const emailTemplate = generateListingDeactivatedEmail(
+          listingOwner.username,
+          updatedListing.title
+        );
+        
+        emailTemplate.to = listingOwner.email;
+        
+        try {
+          await sendEmail(emailTemplate);
+          console.log(`Deactivation email sent to ${listingOwner.email} for listing ${listingId}`);
+        } catch (emailError) {
+          console.error("Error sending deactivation email:", emailError);
+          // Email gönderimi başarısız olsa bile API yanıtını etkilemez
+        }
+      }
     }
 
     return NextResponse.json({ success: true, listing: updatedListing });

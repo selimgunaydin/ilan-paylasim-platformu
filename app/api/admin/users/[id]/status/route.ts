@@ -3,6 +3,8 @@ import type { NextRequest } from 'next/server';
 import { db } from '@shared/db';
 import { users } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
+import { sendEmail } from '../../../../../../services/email';
+import { generateUserBannedEmail, generateUserReactivatedEmail } from '../../../../../../services/email-templates';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,6 +49,39 @@ export async function PATCH(
         { error: "Kullanıcı bulunamadı" },
         { status: 404 }
       );
+    }
+
+    // Kullanıcı banlandıysa e-posta gönder
+    if (status === false || status === 'false' || status === '0' || status === 'no') {
+      if (updatedUser.email) {
+        const emailTemplate = generateUserBannedEmail(updatedUser.username);
+        
+        emailTemplate.to = updatedUser.email;
+        
+        try {
+          await sendEmail(emailTemplate);
+          console.log(`Ban notification email sent to ${updatedUser.email}`);
+        } catch (emailError) {
+          console.error("Error sending ban notification email:", emailError);
+          // Email gönderimi başarısız olsa bile API yanıtını etkilemez
+        }
+      }
+    }
+    // Kullanıcı aktifleştirildiyse e-posta gönder
+    else if (status === true || status === 'true' || status === '1' || status === 'yes') {
+      if (updatedUser.email) {
+        const emailTemplate = generateUserReactivatedEmail(updatedUser.username);
+        
+        emailTemplate.to = updatedUser.email;
+        
+        try {
+          await sendEmail(emailTemplate);
+          console.log(`Reactivation notification email sent to ${updatedUser.email}`);
+        } catch (emailError) {
+          console.error("Error sending reactivation notification email:", emailError);
+          // Email gönderimi başarısız olsa bile API yanıtını etkilemez
+        }
+      }
     }
 
     // Hassas bilgileri çıkar
