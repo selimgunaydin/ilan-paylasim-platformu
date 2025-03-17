@@ -1,7 +1,7 @@
 import React from "react";
 import HomePage from "@/views/root/home";
-import { safeFetch } from "@shared/utils/fetch-helper";
 import { Metadata } from "next";
+import { headers } from "next/headers";
 
 interface Category {
   id: number;
@@ -23,7 +23,6 @@ interface CategoryWithCount extends Category {
 }
 
 export const dynamic = "force-dynamic";
-export const revalidate = 3600; // 1 saatte bir yenile (ISR)
 
 export async function generateMetadata(): Promise<Metadata> {
   const siteName = "İlan Daddy";
@@ -56,11 +55,16 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Home() {
-  const categories = await safeFetch<CategoryWithCount[]>(
+  const cookies = headers().get('cookie');
+  const categories: CategoryWithCount[] = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/api/categories/all`,
-    undefined,
-    []
-  );
+    {
+      headers: {
+        'Cookie': cookies || '',
+      },
+      cache: 'no-store'
+    }
+  ).then(res => res.json());
 
   const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://example.com";
 
