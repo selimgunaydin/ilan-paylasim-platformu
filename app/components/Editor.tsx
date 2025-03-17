@@ -174,7 +174,7 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
         <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
           <PopoverTrigger asChild>
             <Button size="sm" variant="outline" type="button">
-              Emoji
+              😊
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">

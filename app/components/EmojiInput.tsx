@@ -52,9 +52,9 @@ export function EmojiInput({ value, onChange, ...props }: EmojiInputProps) {
             type="button"
             variant="ghost"
             size="icon"
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 me-2"
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
           >
-            Emoji
+            😊
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="end">

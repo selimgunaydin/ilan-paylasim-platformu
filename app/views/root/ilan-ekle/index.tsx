@@ -325,7 +325,7 @@ export default function CreateListing({ isAdmin = false }: CreateListingProps) {
                     <FormItem>
                       <FormLabel>İlgili Kişi</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} placeholder="İlgili kişi adını yazın" />
                       </FormControl>
                     </FormItem>
                   )}
@@ -334,12 +334,33 @@ export default function CreateListing({ isAdmin = false }: CreateListingProps) {
                 <FormField
                   control={form.control}
                   name="phone"
+                  rules={{ 
+                    required: "Telefon numarası zorunludur",
+                    pattern: {
+                      value: /^5\d{9}$/,
+                      message: "Telefon numarası 5 ile başlayan 10 haneli olmalıdır (5XXXXXXXXX)"
+                    },
+                    minLength: {
+                      value: 10,
+                      message: "Telefon numarası 10 haneli olmalıdır"
+                    },
+                    maxLength: {
+                      value: 10,
+                      message: "Telefon numarası 10 haneli olmalıdır"
+                    }
+                  }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Telefon</FormLabel>
                       <FormControl>
-                        <Input {...field} type="tel" />
+                        <Input 
+                          {...field} 
+                          type="tel" 
+                          placeholder="5XXXXXXXXX"
+                          maxLength={10}
+                        />
                       </FormControl>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
