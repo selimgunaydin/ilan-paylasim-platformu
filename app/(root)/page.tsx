@@ -1,7 +1,6 @@
 import React from "react";
 import HomePage from "@/views/root/home";
 import { Metadata } from "next";
-import { headers } from "next/headers";
 
 interface Category {
   id: number;
@@ -55,13 +54,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Home() {
-  const cookies = headers().get('cookie');
   const categories: CategoryWithCount[] = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/api/categories/all`,
     {
-      headers: {
-        'Cookie': cookies || '',
-      },
       cache: 'no-store'
     }
   ).then(res => res.json());
