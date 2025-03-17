@@ -308,13 +308,14 @@ type ConversationDirection = "sent" | "received";
 export default function MessagesView({
   conversationId: id,
   type,
+  onBack,
 }: {
   conversationId: string;
   type: ConversationDirection;
+  onBack: () => void;
 }) {
   const { socket } = useSocket();
   const { toast } = useToast();
-  const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [localMessages, setLocalMessages] = React.useState<Message[]>([]);
@@ -426,6 +427,13 @@ export default function MessagesView({
     }, 100),
     [hasNextPage, isFetchingNextPage, fetchNextPage]
   );
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack(); // Use custom back handler if provided (mobile)
+    }
+  };
+
 
   useEffect(() => {
     if (isInitialMount.current && allMessages.length > 0) {
@@ -569,13 +577,13 @@ export default function MessagesView({
   if (!session?.user) return null;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-200px)] bg-white md:container mx-auto">
+    <div className="flex flex-col h-full bg-white">
       <div
         ref={headerRef}
         className="sticky z-10 bg-white border-b px-4 py-3 flex items-center justify-between"
       >
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => router.back()}>
+          <Button variant="ghost" size="sm" onClick={handleBack}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <Avatar className="h-10 w-10">

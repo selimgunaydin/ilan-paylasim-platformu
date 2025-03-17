@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -35,64 +35,58 @@ function SkeletonWrapper() {
   );
 }
 
-// Gönderilen mesajlar sayfası
 export default function SentMessages() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
   const { socket, isConnected } = useSocket();
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
+  const [isMobile, setIsMobile] = useState(false); // Track mobile view
 
-  // Komponent yüklendiğinde okunmamış mesaj sayısını güncelle
+  // Check if mobile view on mount and resize
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768); // md breakpoint
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   useEffect(() => {
     dispatch(fetchUnreadMessages());
   }, [dispatch]);
 
-  // Socket dinleyicilerini ayarla
   useEffect(() => {
     if (!socket || !isConnected) return;
 
-    // Yeni bir mesaj bildiriminde konuşma listesini ve okunmamış mesaj sayısını güncelle
     const handleNewMessage = (data: any) => {
       console.log('Gönderilen Mesajlar: Yeni mesaj bildirimi:', data);
-      
-      // Okunmamış mesaj sayısını güncelle
       dispatch(fetchUnreadMessages());
-      
-      // Konuşma listesini güncelle
-      queryClient.invalidateQueries({
-        queryKey: ["conversations", "sent"],
-      });
+      queryClient.invalidateQueries({ queryKey: ["conversations", "sent"] });
     };
 
-    // Socket olaylarını dinle
     socket.on('messageNotification', handleNewMessage);
     socket.on('newConversation', handleNewMessage);
-    
-    // Temizlik
+
     return () => {
       socket.off('messageNotification', handleNewMessage);
       socket.off('newConversation', handleNewMessage);
     };
   }, [socket, isConnected, dispatch, queryClient]);
 
-  // Gönderilen mesajlar sorgusu
   const { data: sentConversations, isLoading: isLoadingSentConversations } = useQuery<Conversation[]>({
     queryKey: ["conversations", "sent"],
     queryFn: () => fetch("/api/conversations/sent").then(res => {
       if (!res.ok) throw new Error('Failed to fetch sent conversations');
       return res.json();
-    })
+    }),
   });
 
-  // Mesajlar yüklendiğinde okunmamış mesaj sayısını güncelle
   useEffect(() => {
     if (sentConversations) {
       dispatch(fetchUnreadMessages());
     }
   }, [sentConversations, dispatch]);
 
-  // Konuşma silme mutation'ı
   const deleteConversationMutation = useMutation({
     mutationFn: async (conversationId: number) => {
       const response = await fetch(`/api/conversations/${conversationId}`, {
@@ -107,8 +101,10 @@ export default function SentMessages() {
         title: "Başarılı",
         description: "Konuşma başarıyla silindi",
       });
-      // Konuşma silindiğinde okunmamış mesaj sayısını güncelle
       dispatch(fetchUnreadMessages());
+      if (selectedConversationId) {
+        setSelectedConversationId(null); // Reset selection if deleted
+      }
     },
     onError: () => {
       toast({
@@ -119,77 +115,90 @@ export default function SentMessages() {
     },
   });
 
-  // Mesajları okundu olarak işaretle
   const markConversationAsRead = async (conversationId: number) => {
-    setSelectedConversationId(conversationId);
     try {
       await fetch(`/api/conversations/${conversationId}/read`, {
-        method: 'PATCH'
+        method: 'PATCH',
       });
-      // Redux state'i güncelle
       dispatch(fetchUnreadMessages());
-      // Cache'i güncelle
-      queryClient.invalidateQueries({
-        queryKey: ["conversations", "sent"],
-      });
+      queryClient.invalidateQueries({ queryKey: ["conversations", "sent"] });
     } catch (error) {
       console.error("Error marking conversation as read:", error);
     }
   };
 
+  const handleConversationClick = (conversationId: number) => {
+    markConversationAsRead(conversationId);
+    setSelectedConversationId(conversationId);
+  };
+
+  const handleBack = () => {
+    setSelectedConversationId(null); // Go back to conversation list
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 h-screen flex flex-col">
-      {/* Şık başlık */}
       <div className="flex items-center gap-2 mb-6">
         <MessageSquare className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-semibold">Gönderilen Mesajlar</h1>
       </div>
 
-      {/* Split layout: Sol - Mesaj listesi, Sağ - Mesaj görünümü */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 overflow-hidden">
-        {/* Sol taraf: Mesaj listesi */}
-        <div className="col-span-1 h-full overflow-y-auto border-r border-gray-200 pr-4">
-          {isLoadingSentConversations ? (
-            <SkeletonWrapper />
-          ) : sentConversations && sentConversations.length > 0 ? (
-            sentConversations.map((conversation) => (
-              <ConversationCard
-                key={conversation.id}
-                conversation={conversation}
-                deleteMutation={deleteConversationMutation}
-                type="sent"
-                onCardClick={() => markConversationAsRead(conversation.id)}
-                isSelected={selectedConversationId === conversation.id}
-                className="cursor-pointer hover:bg-gray-100 transition-colors"
-              />
-            ))
-          ) : (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <p className="text-muted-foreground">Henüz bir mesaj göndermediniz</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+      <div className="flex-1 overflow-hidden">
+        {/* Mobile: Toggle between list and chat; Desktop: Side-by-side */}
+        {isMobile && selectedConversationId ? (
+          <MessagesView
+            conversationId={selectedConversationId.toString()}
+            type="sent"
+            onBack={handleBack} // Pass custom back handler
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
+            {/* Conversation List */}
+            <div className="col-span-1 h-full overflow-y-auto border-r border-gray-200 md:pr-4">
+              {isLoadingSentConversations ? (
+                <SkeletonWrapper />
+              ) : sentConversations && sentConversations.length > 0 ? (
+                sentConversations.map((conversation) => (
+                  <ConversationCard
+                    key={conversation.id}
+                    conversation={conversation}
+                    deleteMutation={deleteConversationMutation}
+                    type="sent"
+                    onCardClick={() => handleConversationClick(conversation.id)}
+                    isSelected={selectedConversationId === conversation.id}
+                    className="cursor-pointer hover:bg-gray-100 transition-colors"
+                  />
+                ))
+              ) : (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <p className="text-muted-foreground">Henüz bir mesaj göndermediniz</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
 
-        {/* Sağ taraf: Mesaj görünümü */}
-        <div className="col-span-2 h-full overflow-y-auto">
-          {selectedConversationId ? (
-            <MessagesView
-              conversationId={selectedConversationId.toString()}
-              type="sent"
-            />
-          ) : (
-            <Card className="h-full flex items-center justify-center">
-              <CardContent className="text-center">
-                <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <p className="text-muted-foreground">
-                  Bir konuşma seçerek mesajları görüntüleyin
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+            {/* Messages View (Desktop only) */}
+            <div className="hidden md:block md:col-span-2 h-full overflow-y-auto">
+              {selectedConversationId ? (
+                <MessagesView
+                  conversationId={selectedConversationId.toString()}
+                  type="sent"
+                  onBack={handleBack}
+                />
+              ) : (
+                <Card className="h-full flex items-center justify-center">
+                  <CardContent className="text-center">
+                    <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <p className="text-muted-foreground">
+                      Bir konuşma seçerek mesajları görüntüleyin
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

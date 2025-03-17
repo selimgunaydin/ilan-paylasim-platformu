@@ -42,8 +42,18 @@ export default function ReceivedMessages() {
   const dispatch = useAppDispatch();
   const { socket, isConnected } = useSocket();
   const [selectedConversationId, setSelectedConversationId] = useState<
-    number | undefined
-  >(undefined);
+    number | null
+  >(null);
+
+  const [isMobile, setIsMobile] = useState(false); // Track mobile view
+
+  // Check if mobile view on mount and resize
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768); // md breakpoint
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Komponent yüklendiğinde okunmamış mesaj sayısını güncelle
   useEffect(() => {
@@ -135,59 +145,79 @@ export default function ReceivedMessages() {
     }
   };
 
+  const handleConversationClick = (conversationId: number) => {
+    markConversationAsRead(conversationId);
+    setSelectedConversationId(conversationId);
+  };
+
+
+  const handleBack = () => {
+    setSelectedConversationId(null); // Go back to conversation list
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 h-screen flex flex-col">
-      {/* Şık başlık */}
       <div className="flex items-center gap-2 mb-6">
         <MessageSquare className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-semibold">Gelen Mesajlar</h1>
       </div>
 
-      {/* Split layout: Sol - Mesaj listesi, Sağ - Mesaj görünümü */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 overflow-hidden">
-        {/* Sol taraf: Mesaj listesi */}
-        <div className="col-span-1 h-full overflow-y-auto border-r border-gray-200 pr-4">
-          {isLoadingReceivedConversations ? (
-            <SkeletonWrapper />
-          ) : receivedConversations && receivedConversations.length > 0 ? (
-            receivedConversations.map((conversation) => (
-              <ConversationCard
-                key={conversation.id}
-                conversation={conversation}
-                deleteMutation={deleteMutation}
-                type="received"
-                onCardClick={() => markConversationAsRead(conversation.id)}
-                isSelected={selectedConversationId === conversation.id}
-                className="cursor-pointer hover:bg-gray-100 transition-colors"
-              />
-            ))
-          ) : (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <p className="text-muted-foreground">Henüz bir mesaj almadınız</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+      <div className="flex-1 overflow-hidden">
+        {/* Mobile: Toggle between list and chat; Desktop: Side-by-side */}
+        {isMobile && selectedConversationId ? (
+          <MessagesView
+            conversationId={selectedConversationId.toString()}
+            type="received"
+            onBack={handleBack} // Pass custom back handler
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
+            {/* Conversation List */}
+            <div className="col-span-1 h-full overflow-y-auto border-r border-gray-200 md:pr-4">
+              {isLoadingReceivedConversations ? (
+                <SkeletonWrapper />
+              ) : receivedConversations && receivedConversations.length > 0 ? (
+                receivedConversations.map((conversation) => (
+                  <ConversationCard
+                    key={conversation.id}
+                    conversation={conversation}
+                    deleteMutation={deleteMutation}
+                    type="received"
+                    onCardClick={() => handleConversationClick(conversation.id)}
+                    isSelected={selectedConversationId === conversation.id}
+                    className="cursor-pointer hover:bg-gray-100 transition-colors"
+                  />
+                ))
+              ) : (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <p className="text-muted-foreground">Henüz bir mesaj almadınız</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
 
-        {/* Sağ taraf: Mesaj görünümü */}
-        <div className="col-span-2 h-full overflow-y-auto">
-          {selectedConversationId ? (
-            <MessagesView
-              conversationId={selectedConversationId.toString()}
-              type="received"
-            />
-          ) : (
-            <Card className="h-full flex items-center justify-center">
-              <CardContent className="text-center">
-                <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <p className="text-muted-foreground">
-                  Bir konuşma seçerek mesajları görüntüleyin
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+            {/* Messages View (Desktop only) */}
+            <div className="hidden md:block md:col-span-2 h-full overflow-y-auto">
+              {selectedConversationId ? (
+                <MessagesView
+                  conversationId={selectedConversationId.toString()}
+                  type="received"
+                  onBack={handleBack}
+                />
+              ) : (
+                <Card className="h-full flex items-center justify-center">
+                  <CardContent className="text-center">
+                    <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <p className="text-muted-foreground">
+                      Bir konuşma seçerek mesajları görüntüleyin
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
