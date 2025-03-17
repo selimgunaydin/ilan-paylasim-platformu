@@ -10,7 +10,7 @@ import { useAppDispatch } from "@/redux/hooks";
 import { fetchUnreadMessages } from "@/redux/slices/messageSlice";
 import { useEffect, useState } from "react";
 import { useSocket } from "@/providers/socket-provider";
-import MessagesView from "../messages";
+import MessagesView from "../mesaj-detay";
 
 // Skeleton Loader Component
 function SkeletonWrapper() {
@@ -35,17 +35,17 @@ function SkeletonWrapper() {
   );
 }
 
-// Gelen mesajlar sayfası
-export default function ReceivedMessages() {
+interface MessagesProps {
+  type: "received" | "sent";
+}
+
+export default function Messages({ type }: MessagesProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
   const { socket, isConnected } = useSocket();
-  const [selectedConversationId, setSelectedConversationId] = useState<
-    number | null
-  >(null);
-
-  const [isMobile, setIsMobile] = useState(false); // Track mobile view
+  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Check if mobile view on mount and resize
   useEffect(() => {
@@ -55,21 +55,19 @@ export default function ReceivedMessages() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Komponent yüklendiğinde okunmamış mesaj sayısını güncelle
+  // Fetch unread messages on mount
   useEffect(() => {
     dispatch(fetchUnreadMessages());
   }, [dispatch]);
 
-  // Socket dinleyicilerini ayarla
+  // Set up socket listeners
   useEffect(() => {
     if (!socket || !isConnected) return;
 
     const handleNewMessage = (data: any) => {
-      console.log("Gelen Mesajlar: Yeni mesaj bildirimi:", data);
+      console.log(`${type === "received" ? "Gelen" : "Gönderilen"} Mesajlar: Yeni mesaj bildirimi:`, data);
       dispatch(fetchUnreadMessages());
-      queryClient.invalidateQueries({
-        queryKey: ["conversations", "received"],
-      });
+      queryClient.invalidateQueries({ queryKey: ["conversations", type] });
     };
 
     socket.on("messageNotification", handleNewMessage);
@@ -79,29 +77,29 @@ export default function ReceivedMessages() {
       socket.off("messageNotification", handleNewMessage);
       socket.off("newConversation", handleNewMessage);
     };
-  }, [socket, isConnected, dispatch, queryClient]);
+  }, [socket, isConnected, dispatch, queryClient, type]);
 
-  // Gelen mesajlar sorgusu
+  // Fetch conversations based on type
   const {
-    data: receivedConversations,
-    isLoading: isLoadingReceivedConversations,
+    data: conversations,
+    isLoading: isLoadingConversations,
   } = useQuery<Conversation[]>({
-    queryKey: ["conversations", "received"],
+    queryKey: ["conversations", type],
     queryFn: () =>
-      fetch("/api/conversations/received").then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch received conversations");
+      fetch(`/api/conversations/${type}`).then((res) => {
+        if (!res.ok) throw new Error(`Failed to fetch ${type} conversations`);
         return res.json();
       }),
   });
 
-  // Mesajlar yüklendiğinde okunmamış mesaj sayısını güncelle
+  // Update unread messages when conversations load
   useEffect(() => {
-    if (receivedConversations) {
+    if (conversations) {
       dispatch(fetchUnreadMessages());
     }
-  }, [receivedConversations, dispatch]);
+  }, [conversations, dispatch]);
 
-  // Konuşma silme mutation'ı
+  // Delete conversation mutation
   const deleteMutation = useMutation({
     mutationFn: (conversationId: number) =>
       fetch(`/api/conversations/${conversationId}`, {
@@ -115,10 +113,11 @@ export default function ReceivedMessages() {
         title: "Başarılı",
         description: "Konuşma başarıyla silindi",
       });
-      queryClient.invalidateQueries({
-        queryKey: ["conversations", "received"],
-      });
+      queryClient.invalidateQueries({ queryKey: ["conversations", type] });
       dispatch(fetchUnreadMessages());
+      if (selectedConversationId) {
+        setSelectedConversationId(null); // Reset selection if deleted
+      }
     },
     onError: () => {
       toast({
@@ -129,17 +128,14 @@ export default function ReceivedMessages() {
     },
   });
 
-  // Mesajları okundu olarak işaretle
+  // Mark conversation as read
   const markConversationAsRead = async (conversationId: number) => {
-    setSelectedConversationId(conversationId);
     try {
       await fetch(`/api/conversations/${conversationId}/read`, {
         method: "PATCH",
       });
       dispatch(fetchUnreadMessages());
-      queryClient.invalidateQueries({
-        queryKey: ["conversations", "received"],
-      });
+      queryClient.invalidateQueries({ queryKey: ["conversations", type] });
     } catch (error) {
       console.error("Error marking conversation as read:", error);
     }
@@ -150,7 +146,6 @@ export default function ReceivedMessages() {
     setSelectedConversationId(conversationId);
   };
 
-
   const handleBack = () => {
     setSelectedConversationId(null); // Go back to conversation list
   };
@@ -159,7 +154,9 @@ export default function ReceivedMessages() {
     <div className="container mx-auto px-4 py-8 h-screen flex flex-col">
       <div className="flex items-center gap-2 mb-6">
         <MessageSquare className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-semibold">Gelen Mesajlar</h1>
+        <h1 className="text-2xl font-semibold">
+          {type === "received" ? "Gelen Mesajlar" : "Gönderilen Mesajlar"}
+        </h1>
       </div>
 
       <div className="flex-1 overflow-hidden">
@@ -167,22 +164,22 @@ export default function ReceivedMessages() {
         {isMobile && selectedConversationId ? (
           <MessagesView
             conversationId={selectedConversationId.toString()}
-            type="received"
-            onBack={handleBack} // Pass custom back handler
+            type={type}
+            onBack={handleBack}
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
             {/* Conversation List */}
             <div className="col-span-1 h-full overflow-y-auto border-r border-gray-200 md:pr-4">
-              {isLoadingReceivedConversations ? (
+              {isLoadingConversations ? (
                 <SkeletonWrapper />
-              ) : receivedConversations && receivedConversations.length > 0 ? (
-                receivedConversations.map((conversation) => (
+              ) : conversations && conversations.length > 0 ? (
+                conversations.map((conversation) => (
                   <ConversationCard
                     key={conversation.id}
                     conversation={conversation}
                     deleteMutation={deleteMutation}
-                    type="received"
+                    type={type}
                     onCardClick={() => handleConversationClick(conversation.id)}
                     isSelected={selectedConversationId === conversation.id}
                     className="cursor-pointer hover:bg-gray-100 transition-colors"
@@ -191,7 +188,11 @@ export default function ReceivedMessages() {
               ) : (
                 <Card>
                   <CardContent className="p-8 text-center">
-                    <p className="text-muted-foreground">Henüz bir mesaj almadınız</p>
+                    <p className="text-muted-foreground">
+                      {type === "received"
+                        ? "Henüz bir mesaj almadınız"
+                        : "Henüz bir mesaj göndermediniz"}
+                    </p>
                   </CardContent>
                 </Card>
               )}
@@ -202,7 +203,7 @@ export default function ReceivedMessages() {
               {selectedConversationId ? (
                 <MessagesView
                   conversationId={selectedConversationId.toString()}
-                  type="received"
+                  type={type}
                   onBack={handleBack}
                 />
               ) : (

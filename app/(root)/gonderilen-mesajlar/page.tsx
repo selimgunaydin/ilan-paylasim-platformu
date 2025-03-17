@@ -1,4 +1,4 @@
-import SentMessagesView from '@/views/root/gonderilen-mesajlar'
+import Messages from '@/views/root/mesajlar'
 
 export async function generateMetadata() {
   return {
@@ -8,6 +8,6 @@ export async function generateMetadata() {
 }
 export default function SentMessagesPage() {
   return (
-    <SentMessagesView />
+    <Messages type="sent" />
   )
 }

@@ -97,7 +97,7 @@ type MessageFormProps = {
 };
 
 export function MessageForm({ socket, conversationId, receiverId, onSuccess, listingId }: MessageFormProps) {
-  const { user } = useAuth();
+  console.log(receiverId);
   const { toast } = useToast();
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);

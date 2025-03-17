@@ -1,4 +1,4 @@
-import ReceivedMessagesView from '@/views/root/gelen-mesajlar'
+import ReceivedMessagesView from '@/views/root/mesajlar'
 
 export async function generateMetadata() {
   return {
@@ -8,6 +8,6 @@ export async function generateMetadata() {
 }
 export default function ReceivedMessagesPage() {
   return (
-    <ReceivedMessagesView />
+    <ReceivedMessagesView type="received" />
   )
 }

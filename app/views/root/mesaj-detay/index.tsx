@@ -348,7 +348,7 @@ export default function MessagesView({
     });
 
   const otherUserId = React.useMemo(() => {
-    const firstMessage = data?.pages[0]?.messages[0];
+    const firstMessage = data?.pages[0]?.messages[0]; 
     if (!firstMessage) return null;
     return type === "sent" ? firstMessage.receiverId : firstMessage.senderId;
   }, [data, type]);
