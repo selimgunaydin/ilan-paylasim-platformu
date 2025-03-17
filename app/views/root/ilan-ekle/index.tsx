@@ -7,7 +7,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@app/components/ui/button";
 import { Input } from "@app/components/ui/input";
-import { Textarea } from "@app/components/ui/textarea";
+import { EmojiInput } from "@app/components/EmojiInput";
+import { RichTextEditor } from "@app/components/Editor";
 import {
   Select,
   SelectContent,
@@ -230,7 +231,13 @@ export default function CreateListing({ isAdmin = false }: CreateListingProps) {
                     <FormItem>
                       <FormLabel>İlan Başlığı</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <EmojiInput 
+                          value={field.value} 
+                          onChange={field.onChange}
+                          placeholder="İlan başlığını yazın"
+                          id={field.name}
+                          name={field.name}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -245,7 +252,11 @@ export default function CreateListing({ isAdmin = false }: CreateListingProps) {
                     <FormItem>
                       <FormLabel>İlan Detayı</FormLabel>
                       <FormControl>
-                        <Textarea {...field} className="min-h-[200px]" />
+                        <RichTextEditor 
+                          value={field.value} 
+                          onChange={field.onChange}
+                          placeholder="İlan detaylarını yazınız..."
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

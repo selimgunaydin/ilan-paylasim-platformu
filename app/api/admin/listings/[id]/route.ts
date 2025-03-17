@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { db } from "@shared/db";
-import { listings, conversations, messages } from '@shared/schemas';
+import { listings, conversations, messages, users } from '@shared/schemas';
 import { eq, sql } from 'drizzle-orm';
 import { getToken } from 'next-auth/jwt';
 import { imageService } from '@/lib/image-service';
@@ -38,8 +38,6 @@ export async function GET(
         { status: 401 }
       );
     }
-    // Token varsa kullanıcı ID'sini çıkar
-    let userId = Number(token.sub)
 
     // Önce ilanı bul
     const listing = await db.query.listings.findFirst({
@@ -53,37 +51,16 @@ export async function GET(
       );
     }
 
-    // İlan sahibi veya onaylı ve aktif ilan kontrolü
-    if (!(userId && listing.userId === userId) && !(listing.approved && listing.active)) {
-      return NextResponse.json(
-        { success: false, message: 'Bu ilana erişim izniniz yok' },
-        { status: 403 }
-      );
-    }
-
-    // İlan görüntüleme sayısını artır
-    await db.execute(sql`
-      UPDATE listings
-      SET views = COALESCE(views, 0) + 1
-      WHERE id = ${id};
-    `);
-
-    // Güncel ilanı yeniden al
-    const updatedListing = await db.query.listings.findFirst({
-      where: eq(listings.id, id),
+    const listingWithUser = await db.query.users.findFirst({
+      where: eq(users.id, Number(listing.userId)),
     });
 
-    if (!updatedListing) {
-      return NextResponse.json(
-        { success: false, message: 'İlan güncellenirken bir hata oluştu' },
-        { status: 500 }
-      );
-    }
 
     // İlan resimlerini URL'lere dönüştür
     const listingWithImageUrls = {
-      ...updatedListing,
-      images: updatedListing.images ? getListingImagesUrls(updatedListing.images) : []
+      ...listing,
+      images: listing.images ? getListingImagesUrls(listing.images) : [],
+      user: listingWithUser
     };
 
     return NextResponse.json(listingWithImageUrls, { status: 200 });

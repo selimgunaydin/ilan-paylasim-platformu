@@ -131,7 +131,7 @@ export default function ListingDetailAdmin() {
                 <dl className="space-y-2">
                   <div>
                     <dt className="text-sm text-muted-foreground">Kategori</dt>
-                    <dd className="font-medium">{listing.category?.name || 'Belirtilmemiş'}</dd>
+                    <dd className="font-medium">{listing.user.username || 'Belirtilmemiş'}</dd>
                   </div>
                   <div>
                     <dt className="text-sm text-muted-foreground">Şehir</dt>
@@ -189,7 +189,7 @@ export default function ListingDetailAdmin() {
 
             <div>
               <h3 className="font-medium mb-2">İlan Açıklaması</h3>
-              <p className="whitespace-pre-wrap text-gray-700">{listing.description}</p>
+              <div className="whitespace-pre-wrap text-gray-700 border rounded-lg p-4"  dangerouslySetInnerHTML={{ __html: listing.description }} />
             </div>
 
             <div className="flex justify-end gap-4 mt-8">

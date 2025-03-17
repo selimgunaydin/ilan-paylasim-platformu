@@ -502,9 +502,8 @@ export default async function ListingDetailPage({
                 </h2>
                 <div className="prose max-w-none">
                   {listing.description ? (
-                    <p className="whitespace-pre-wrap text-sm sm:text-base text-gray-700 leading-relaxed">
-                      {listing.description}
-                    </p>
+                    <div dangerouslySetInnerHTML={{ __html: listing.description }} className="whitespace-pre-wrap text-sm sm:text-base text-gray-700 leading-relaxed">
+                    </div>
                   ) : (
                     <p className="text-gray-500 italic text-sm sm:text-base">
                       Bu ilan için detay bilgisi bulunmuyor.
