@@ -18,13 +18,17 @@ interface ConversationCardProps {
   deleteMutation: any;
   type: 'sent' | 'received';
   onCardClick?: (id: number) => void;
+  isSelected?: boolean;
+  className?: string;
 }
 
 export default function ConversationCard({ 
   conversation, 
   deleteMutation, 
   type,
-  onCardClick 
+  onCardClick,
+  isSelected,
+  className
 }: ConversationCardProps) {
   const router = useRouter();
 
@@ -55,7 +59,7 @@ export default function ConversationCard({
   return (
     <Card
     key={conversation.id}
-    className="hover:bg-accent/50 transition-colors relative"
+    className={`hover:bg-accent/50 transition-colors relative ${isSelected ? 'bg-accent/50' : ''} ${className}`}
   >
     {/* Tüm kart tıklanabilir yapıldı */}
 
@@ -71,7 +75,7 @@ export default function ConversationCard({
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-4">
           {/* Sol taraf - Profil ve kullanıcı bilgileri */}
-          <Link href={`/mesajlar/${conversation.id}`} 
+          <div
                 className="flex items-center gap-3 flex-1 min-w-0"
                 onClick={handleClick}>
             <Avatar className="h-12 w-12">
@@ -95,7 +99,7 @@ export default function ConversationCard({
                 {conversation.listingTitle}
               </p>
             </div>
-          </Link>
+          </div>
 
           {/* Sağ taraf - Tarih ve silme butonu */}
           <div className="flex flex-col items-end gap-2">

@@ -8,8 +8,9 @@ import { Conversation } from "@/types";
 import ConversationCard from "@app/components/root/conversation-card";
 import { useAppDispatch } from "@/redux/hooks";
 import { fetchUnreadMessages } from "@/redux/slices/messageSlice";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSocket } from '@/providers/socket-provider';
+import MessagesView from "../messages";
 
 // Skeleton Loader Component
 function SkeletonWrapper() {
@@ -40,6 +41,7 @@ export default function SentMessages() {
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
   const { socket, isConnected } = useSocket();
+  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
 
   // Komponent yüklendiğinde okunmamış mesaj sayısını güncelle
   useEffect(() => {
@@ -119,6 +121,7 @@ export default function SentMessages() {
 
   // Mesajları okundu olarak işaretle
   const markConversationAsRead = async (conversationId: number) => {
+    setSelectedConversationId(conversationId);
     try {
       await fetch(`/api/conversations/${conversationId}/read`, {
         method: 'PATCH'
@@ -135,32 +138,58 @@ export default function SentMessages() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 h-screen flex flex-col">
+      {/* Şık başlık */}
       <div className="flex items-center gap-2 mb-6">
         <MessageSquare className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-semibold">Gönderilen Mesajlar</h1>
       </div>
 
-      <div className="space-y-4">
-        {isLoadingSentConversations ? (
-          <SkeletonWrapper />
-        ) : sentConversations && sentConversations.length > 0 ? (
-          sentConversations.map((conversation) => (
-            <ConversationCard 
-              key={conversation.id} 
-              conversation={conversation} 
-              deleteMutation={deleteConversationMutation} 
-              type="sent" 
-              onCardClick={() => markConversationAsRead(conversation.id)}
+      {/* Split layout: Sol - Mesaj listesi, Sağ - Mesaj görünümü */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 overflow-hidden">
+        {/* Sol taraf: Mesaj listesi */}
+        <div className="col-span-1 h-full overflow-y-auto border-r border-gray-200 pr-4">
+          {isLoadingSentConversations ? (
+            <SkeletonWrapper />
+          ) : sentConversations && sentConversations.length > 0 ? (
+            sentConversations.map((conversation) => (
+              <ConversationCard
+                key={conversation.id}
+                conversation={conversation}
+                deleteMutation={deleteConversationMutation}
+                type="sent"
+                onCardClick={() => markConversationAsRead(conversation.id)}
+                isSelected={selectedConversationId === conversation.id}
+                className="cursor-pointer hover:bg-gray-100 transition-colors"
+              />
+            ))
+          ) : (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <p className="text-muted-foreground">Henüz bir mesaj göndermediniz</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Sağ taraf: Mesaj görünümü */}
+        <div className="col-span-2 h-full overflow-y-auto">
+          {selectedConversationId ? (
+            <MessagesView
+              conversationId={selectedConversationId.toString()}
+              type="sent"
             />
-          ))
-        ) : (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <p className="text-muted-foreground">Henüz bir görüşme başlatmadınız</p>
-            </CardContent>
-          </Card>
-        )}
+          ) : (
+            <Card className="h-full flex items-center justify-center">
+              <CardContent className="text-center">
+                <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <p className="text-muted-foreground">
+                  Bir konuşma seçerek mesajları görüntüleyin
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );
