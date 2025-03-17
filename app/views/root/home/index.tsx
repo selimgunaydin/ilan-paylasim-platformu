@@ -1,14 +1,26 @@
 import Link from "next/link";
-import { Category } from "@shared/schemas";
 import IlanSearch from "@app/components/ilan-search";
 import { Footer } from "@/views/footer";
 
 // Category tipini genişleterek listingCount ve children özelliklerini ekleyelim
-interface CategoryWithCount extends Category {
-  listingCount?: number;
-  children?: CategoryWithCount[];
+interface Category {
+  id: number;
+  name: string;
+  parentId: number | null;
+  slug: string;
+  order: number;
+  customTitle: string | null;
+  metaDescription: string | null;
+  content: string | null;
+  faqs: string | null;
+  listingCount: number;
+  children: Category[];
 }
 
+// Category tipini genişleterek listingCount özelliğini opsiyonel olarak ekleyelim
+interface CategoryWithCount extends Category {
+  listingCount: number;
+}
 export default function HomePage({ categories }: { categories: CategoryWithCount[] }) {
   // Ana kategoriler (parentId null olanlar)
   const mainCategories = Array.isArray(categories)

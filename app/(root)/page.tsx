@@ -1,8 +1,26 @@
 import React from "react";
 import HomePage from "@/views/root/home";
-import { Category } from "@shared/schemas";
 import { safeFetch } from "@shared/utils/fetch-helper";
 import { Metadata } from "next";
+
+interface Category {
+  id: number;
+  name: string;
+  parentId: number | null;
+  slug: string;
+  order: number;
+  customTitle: string | null;
+  metaDescription: string | null;
+  content: string | null;
+  faqs: string | null;
+  listingCount: number;
+  children: Category[];
+}
+
+// Category tipini genişleterek listingCount özelliğini opsiyonel olarak ekleyelim
+interface CategoryWithCount extends Category {
+  listingCount: number;
+}
 
 export const dynamic = "force-dynamic";
 export const revalidate = 3600; // 1 saatte bir yenile (ISR)
@@ -38,7 +56,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Home() {
-  const categories = await safeFetch<Category[]>(
+  const categories = await safeFetch<CategoryWithCount[]>(
     `${process.env.NEXT_PUBLIC_API_URL}/api/categories/all`,
     undefined,
     []
