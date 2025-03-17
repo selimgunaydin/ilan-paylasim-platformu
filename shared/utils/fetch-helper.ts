@@ -8,6 +8,12 @@ export async function safeFetch<T>(
   fallback: T = [] as unknown as T
 ): Promise<T> {
   try {
+    // Skip during production build to prevent ECONNREFUSED errors
+    if (process.env.NODE_ENV === 'production' && process.env.NEXT_PHASE === 'phase-production-build') {
+      console.log(`Skipping fetch to ${url} during build time`);
+      return fallback;
+    }
+
     const res = await fetch(url, {
       ...options,
       cache: 'no-store',
