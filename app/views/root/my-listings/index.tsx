@@ -89,7 +89,7 @@ export default function MyListings({ initialListings }: MyListingsProps) {
       }
     }
   };
-  console.log(initialListings)
+
   const handleDeactivate = async (listingId: number) => {
     if (
       window.confirm(

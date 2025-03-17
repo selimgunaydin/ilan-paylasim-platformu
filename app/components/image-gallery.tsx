@@ -66,8 +66,6 @@ export function ImageGallery({
   // Process all image URLs once
   const processedImages = images.map((img) => getListingImageUrlClient(img));
 
-  console.log(loadedImages);
-
   return (
     <div className="relative group w-full">
       {/* Main Gallery */}

@@ -22,8 +22,6 @@ export function SocketMessageListener() {
 
     // Yeni mesaj bildirimi alındığında
     const handleMessageNotification = (data: any) => {
-      console.log('Yeni mesaj bildirimi alındı:', data);
-      
       // Redux store'u güncelle
       dispatch(fetchUnreadMessages());
       

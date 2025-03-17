@@ -65,7 +65,6 @@ export default function Messages({ type }: MessagesProps) {
     if (!socket || !isConnected) return;
 
     const handleNewMessage = (data: any) => {
-      console.log(`${type === "received" ? "Gelen" : "Gönderilen"} Mesajlar: Yeni mesaj bildirimi:`, data);
       dispatch(fetchUnreadMessages());
       queryClient.invalidateQueries({ queryKey: ["conversations", type] });
     };

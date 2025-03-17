@@ -80,8 +80,6 @@ export default function EditListing() {
   // Redirect if listing is not editable
   useEffect(() => {
     if (listing && !isLoadingListing) {
-      console.log('listing', listing)
-      console.log('user', user)
       // Kullanıcı kontrolü
       if (!user || listing.userId !== user.id) {
         toast({

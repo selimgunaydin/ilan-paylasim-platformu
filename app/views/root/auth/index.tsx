@@ -394,8 +394,6 @@ function RegisterForm({ onSubmit }: { onSubmit: (data: any) => void }) {
     }
   };
 
-  console.log(form.formState.errors);
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
