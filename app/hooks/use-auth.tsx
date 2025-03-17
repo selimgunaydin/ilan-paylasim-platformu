@@ -40,8 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     gcTime: 1000 * 60 * 60 * 8, // 8 saat (cacheTime yerine gcTime kullanılacak)
     refetchInterval: 1000 * 60 * 60 * 2, // 2 saatte bir yenileme
     retry: 2,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
+    refetchOnWindowFocus: false, // Sayfa yenilendiğinde otomatik yenileme yapma
+    refetchOnReconnect: false, // Bağlantı yenilendiğinde otomatik yenileme yapma
+    enabled: false, // Başlangıçta sorguyu devre dışı bırak
   });
 
   const loginMutation = useMutation({
@@ -75,6 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
+      // Giriş başarılı olduğunda sorguyu etkinleştir
+      queryClient.setQueryDefaults(["/api/user"], {
+        enabled: true,
+      });
     },
     onError: (error: Error) => {
       toast({
@@ -135,6 +140,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: () => {
       queryClient.setQueryData(["/api/user"], null);
       queryClient.clear(); // Clear all queries on logout
+      // Çıkış yapıldığında sorguyu devre dışı bırak
+      queryClient.setQueryDefaults(["/api/user"], {
+        enabled: false,
+      });
     },
     onError: (error: Error) => {
       toast({
