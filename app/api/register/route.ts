@@ -15,11 +15,19 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { username, email, password, ip_address } = body;
+    const { username, email, password, ip_address, terms } = body;
 
     if (!username || !email || !password) {
       return NextResponse.json(
         { success: false, message: 'Kullanıcı adı, email ve şifre gereklidir' },
+        { status: 400 }
+      );
+    }
+
+    // Terms kontrolü
+    if (!terms) {
+      return NextResponse.json(
+        { success: false, message: 'Kullanım koşullarını kabul etmelisiniz' },
         { status: 400 }
       );
     }

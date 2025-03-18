@@ -372,18 +372,40 @@ function ForgotPasswordForm() {
 function RegisterForm({ onSubmit }: { onSubmit: (data: any) => void }) {
   const [isLoading, setIsLoading] = React.useState(false);
   const form = useForm({
-    resolver: zodResolver(insertUserSchema),
+    resolver: zodResolver(
+      z.object({
+        username: z.string().min(1, "Kullanıcı adı gereklidir"),
+        email: z.string().email("Geçerli bir email adresi giriniz"),
+        password: z.string().min(6, "Şifre en az 6 karakter olmalıdır"),
+        confirmPassword: z.string(),
+        gender: z.string().min(1, "Cinsiyet seçimi gereklidir"),
+        terms: z.boolean().refine((val) => val === true, {
+          message: "Kullanım koşullarını kabul etmelisiniz",
+        }),
+      }).refine((data) => data.password === data.confirmPassword, {
+        message: "Şifreler eşleşmiyor",
+        path: ["confirmPassword"],
+      })
+    ),
     defaultValues: {
       username: "",
       email: "",
       password: "",
       confirmPassword: "",
+      gender: "",
       terms: false,
-      gender: ""
     },
   });
 
   const handleSubmit = async (data: any) => {
+    if (!data.terms) {
+      form.setError("terms", {
+        type: "manual",
+        message: "Kullanım koşullarını kabul etmelisiniz",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const ip_address = await getClientIp();
