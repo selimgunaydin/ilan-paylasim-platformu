@@ -29,8 +29,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const { toast } = useToast();
 
-  console.log(session?.user)
-
   useEffect(() => {
     if (!session?.user) {
       if (socket) {
