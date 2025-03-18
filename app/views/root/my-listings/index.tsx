@@ -205,7 +205,7 @@ export default function MyListings({ initialListings }: MyListingsProps) {
             value="pending"
             className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-800"
           >
-            Onay Bekleyen
+            Onay
             <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
               {pendingCount}
             </span>
