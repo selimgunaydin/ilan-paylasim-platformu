@@ -1,9 +1,9 @@
-import React from 'react'
-import { redirect } from 'next/navigation'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/api/auth/[...nextauth]/route'
-import { headers } from 'next/headers'
-import MyListings from '@/views/root/my-listings'
+import React from "react";
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/api/auth/[...nextauth]/route";
+import { headers } from "next/headers";
+import MyListings from "@/views/root/my-listings";
 
 export async function generateMetadata() {
   return {
@@ -12,37 +12,35 @@ export async function generateMetadata() {
   };
 }
 
-
 async function getListings() {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession(authOptions);
 
   if (!session) {
-    redirect('/auth')
+    redirect("/auth");
   }
 
-  const headersList = headers()
-  const cookies = headersList.get('cookie')
+  const headersList = headers();
+  const cookies = headersList.get("cookie");
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/listings/user`, {
-    headers: {
-      'Cookie': cookies || '',
-    },
-    cache: 'no-store'
-  })
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/api/listings/user`,
+    {
+      headers: {
+        Cookie: cookies || "",
+      },
+      cache: "no-store",
+    }
+  );
 
   if (!res.ok) {
-    throw new Error('İlanlar getirilemedi')
+    throw new Error("İlanlar getirilemedi");
   }
 
-  return res.json()
+  return res.json();
 }
 
 export default async function DashboardPage() {
-  const listings = await getListings()
-  
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <MyListings initialListings={listings} />
-    </div>
-  )
-} 
+  const listings = await getListings();
+
+  return <MyListings initialListings={listings} />;
+}
