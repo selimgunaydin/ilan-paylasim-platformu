@@ -55,11 +55,9 @@ declare module "next-auth" {
 function AuthContent() {
   const location = useSearchParams();
   const verified = location.get("verified") === "true";
-  const [showVerificationMessage, setShowVerificationMessage] =
-    React.useState(false);
   const [activeTab, setActiveTab] = React.useState("login");
   const { toast } = useToast();
-
+  const router = useRouter();
   return (
     <>
       <div className="min-h-screen flex items-center justify-center">
@@ -70,20 +68,7 @@ function AuthContent() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {showVerificationMessage ? (
-              <div className="text-center space-y-4">
-                <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto" />
-                <p className="text-lg font-medium text-gray-900">
-                  Kayıt işleminiz başarıyla tamamlandı!
-                </p>
-                <p className="text-sm text-gray-600">
-                  Üyeliğinizi e-posta adresinize gönderilen bağlantıyı
-                  tıklayarak onayladıktan sonra sitemizi kullanmaya hemen
-                  başlayabilirsiniz.
-                </p>
-              </div>
-            ) : (
-              <Tabs
+          <Tabs
                 value={activeTab}
                 onValueChange={setActiveTab}
                 className="w-full"
@@ -128,7 +113,7 @@ function AuthContent() {
                         });
                         
                         if (response.ok) {
-                          setShowVerificationMessage(true);
+                          router.push('/auth/success');
                         } else {
                           const errorData = await response.json();
                           toast({
@@ -153,7 +138,6 @@ function AuthContent() {
                   <ForgotPasswordForm />
                 </TabsContent>
               </Tabs>
-            )}
           </CardContent>
         </Card>
       </div>

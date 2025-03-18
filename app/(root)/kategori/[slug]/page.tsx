@@ -272,7 +272,7 @@ export default async function CategoryPage({
               >
                 <h2 className="text-xl font-semibold mb-2">{listing.title}</h2>
               </Link>
-              <p className="text-gray-600 mb-3 line-clamp-2">{listing.description}</p>
+              <div dangerouslySetInnerHTML={{ __html: listing.description }} className="text-gray-600 mb-3 line-clamp-2" />
               <div className="flex justify-between items-center text-sm text-gray-500">
                 <div className="flex items-center gap-1">
                   <Link
