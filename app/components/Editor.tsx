@@ -8,6 +8,8 @@ import Placeholder from '@tiptap/extension-placeholder';
 import EmojiPicker from 'emoji-picker-react';
 import { Button } from '@app/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@app/components/ui/popover';
+import { Color } from '@tiptap/extension-color'
+import TextStyle from '@tiptap/extension-text-style';
 
 interface RichTextEditorProps {
   value: string;
@@ -21,6 +23,16 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
 
   const editor = useEditor({
     extensions: [
+      Color.configure({
+        types: ['textStyle'],
+      }),
+      TextStyle, // Add this
+      Color.configure({
+        types: ['textStyle'], // This connects Color to TextStyle
+      }),
+      Color.configure({
+        types: ['textStyle'], // This connects Color to TextStyle
+      }),
       StarterKit.configure({
         heading: {
           levels: [1, 2, 3], // Enable H1, H2, H3
@@ -43,7 +55,7 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
     editorProps: {
       attributes: {
         class:
-          'prose prose-sm sm:prose-base lg:prose-lg xl:prose-xl focus:outline-none min-h-[200px] max-w-none p-4 rounded-md border border-input bg-background ring-offset-background',
+          'focus:outline-none min-h-[200px] max-w-none p-4 rounded-md border border-input bg-background ring-offset-background text-sm', // prose sınıfları kaldırıldı, text-sm eklendi
       },
     },
   });
@@ -58,6 +70,7 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
   const toggleCodeBlock = () => editor?.chain().focus().toggleCodeBlock().run();
   const setTextAlign = (align: 'left' | 'center' | 'right' | 'justify') =>
     editor?.chain().focus().setTextAlign(align).run();
+  const setColor = (color: string) => editor?.chain().focus().setColor(color).run();
 
   const insertEmoji = (emoji: any) => {
     editor?.chain().focus().insertContent(emoji.emoji).run();
@@ -70,6 +83,12 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
     <div className="rich-text-editor">
       <div className="flex flex-wrap items-center gap-1 p-1 mb-2 border border-input bg-muted/30 rounded-md">
         {/* Bold, Italic */}
+        <input
+            type="color"
+            onInput={event => setColor((event.target as HTMLInputElement).value)}
+            value={editor?.getAttributes('textStyle').color}
+            data-testid="setColor"
+          />
         <Button size="sm" variant={editor?.isActive('bold') ? 'default' : 'outline'} onClick={toggleBold} type="button">
           <span className="font-bold">B</span>
         </Button>
