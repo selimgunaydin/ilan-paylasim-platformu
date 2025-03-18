@@ -340,7 +340,7 @@ export default function MessagesView({
           messages: result.messages,
           nextPage: result.hasMore ? pageParam + 1 : undefined,
           listingId: result.listingId,
-          conversationStarterId: result.conversationStarterId
+          conversationStarterId: result.conversationStarterId,
         };
       },
       getNextPageParam: (lastPage) => lastPage.nextPage,
@@ -351,8 +351,8 @@ export default function MessagesView({
   const otherUserId = React.useMemo(() => {
     const conversationStarterId = data?.pages[0]?.conversationStarterId;
     if (!conversationStarterId) return null;
-    
-    return conversationStarterId
+
+    return conversationStarterId;
   }, [data, type]);
 
   const { data: otherUser } = useQuery({
@@ -435,7 +435,6 @@ export default function MessagesView({
       onBack(); // Use custom back handler if provided (mobile)
     }
   };
-
 
   useEffect(() => {
     if (isInitialMount.current && allMessages.length > 0) {
@@ -579,10 +578,10 @@ export default function MessagesView({
   if (!session?.user) return null;
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white md:border rounded-xl overflow-hidden">
       <div
         ref={headerRef}
-        className="sticky z-10 bg-white border-b px-4 py-3 flex items-center justify-between"
+        className="sticky z-10 border-b bg-white py-3 flex items-center justify-between"
       >
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={handleBack}>
@@ -620,7 +619,7 @@ export default function MessagesView({
 
       <div
         ref={scrollContainerRef}
-        className="flex-1 mb-16 md:mb-0 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+        className="flex-1 mb-16 md:mb-0 md:px-4 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
         onScroll={handleScroll}
       >
         {isFetchingNextPage && (
@@ -725,7 +724,7 @@ export default function MessagesView({
         </Button>
       )}
 
-      <div className="sticky bottom-[70px] md:bottom-0 z-10 bg-white border-t p-4">
+      <div className="fixed md:sticky w-full md:w-auto left-0 md:left-auto bottom-[70px] md:bottom-0 z-10 bg-white border-t p-4">
         <MessageForm
           socket={socket}
           conversationId={parseInt(id)}

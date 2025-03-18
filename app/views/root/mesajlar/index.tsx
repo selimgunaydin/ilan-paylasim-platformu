@@ -11,7 +11,7 @@ import { fetchUnreadMessages } from "@/redux/slices/messageSlice";
 import { useEffect, useState } from "react";
 import { useSocket } from "@/providers/socket-provider";
 import MessagesView from "../mesaj-detay";
-
+import { cn } from "@/lib/utils";
 // Skeleton Loader Component
 function SkeletonWrapper() {
   return (
@@ -44,7 +44,9 @@ export default function Messages({ type }: MessagesProps) {
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
   const { socket, isConnected } = useSocket();
-  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<
+    number | null
+  >(null);
   const [isMobile, setIsMobile] = useState(false);
 
   // Check if mobile view on mount and resize
@@ -79,10 +81,9 @@ export default function Messages({ type }: MessagesProps) {
   }, [socket, isConnected, dispatch, queryClient, type]);
 
   // Fetch conversations based on type
-  const {
-    data: conversations,
-    isLoading: isLoadingConversations,
-  } = useQuery<Conversation[]>({
+  const { data: conversations, isLoading: isLoadingConversations } = useQuery<
+    Conversation[]
+  >({
     queryKey: ["conversations", type],
     queryFn: () =>
       fetch(`/api/conversations/${type}`).then((res) => {
@@ -150,14 +151,37 @@ export default function Messages({ type }: MessagesProps) {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 h-screen flex flex-col">
-      <div className="flex items-center gap-2 mb-6">
-        <MessageSquare className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-semibold">
-          {type === "received" ? "Gelen Mesajlar" : "Gönderilen Mesajlar"}
-        </h1>
-      </div>
+    <div
+      className={cn(
+        "container mx-auto px-4 py-8 h-screen flex flex-col",
+        selectedConversationId && isMobile && "py-0"
+      )}
+    >
+      {!selectedConversationId && isMobile && (
+        <div className="mb-4 px-4 md:px-0">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {type === "received" ? "Alınan Mesajlar" : "Gönderilen Mesajlar"}
+          </h1>
+          <p className="text-gray-600">
+            {type === "received"
+              ? "Alınan mesajlarınızı görüntüleyebilirsiniz"
+              : "Gönderilen mesajlarınızı görüntüleyebilirsiniz"}
+          </p>
+        </div>
+      )}
 
+      {!isMobile && (
+        <div className="mb-4 px-4 md:px-0">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {type === "received" ? "Alınan Mesajlar" : "Gönderilen Mesajlar"}
+          </h1>
+          <p className="text-gray-600">
+            {type === "received"
+              ? "Alınan mesajlarınızı görüntüleyebilirsiniz"
+              : "Gönderilen mesajlarınızı görüntüleyebilirsiniz"}
+          </p>
+        </div>
+      )}
       <div className="flex-1 overflow-hidden">
         {/* Mobile: Toggle between list and chat; Desktop: Side-by-side */}
         {isMobile && selectedConversationId ? (

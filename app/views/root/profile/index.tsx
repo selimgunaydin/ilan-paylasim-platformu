@@ -123,15 +123,18 @@ export default function Profile({ initialData }: any) {
   const ageOptions = Array.from({ length: 73 }, (_, i) => i + 18);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2 text-center">Profilim</h1>
-        <p className="text-gray-500 text-center mb-8">Kişisel bilgilerinizi güncelleyin</p>
-        
-        <Card className="shadow-xl rounded-xl overflow-hidden border-0">
+    <div className="container min-h-screen pt-4 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Profilim</h1>
+        <p className="text-gray-600">
+          Kişisel bilgilerinizi güncelleyebilirsiniz
+        </p>
+      </div>
+        <Card className=" rounded-xl overflow-hidden border">
           <CardContent className="p-0">
             {/* Profile Header with Banner */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 h-32 sm:h-40 relative">
+            <div className="bg-gradient-to-r from-gray-200 to-gray-100 h-32 sm:h-40 relative">
               <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
                 <div className="relative">
                   <div className="w-32 h-32 rounded-full bg-white p-1 shadow-lg">
