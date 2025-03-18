@@ -220,8 +220,7 @@ export function generateVerificationEmail(
 ): EmailOptions {
   const baseUrl =
     process.env.NODE_ENV === "production"
-      ? process.env.APP_URL || "https://yourdomain.com"
-      : "http://localhost:3000";
+      ? process.env.APP_URL : "http://localhost:3000";
 
   console.log("Generating verification email with base URL:", baseUrl);
 
@@ -264,8 +263,7 @@ export function generatePasswordResetEmail(
 ): EmailOptions {
   const baseUrl =
     process.env.NODE_ENV === "production"
-      ? process.env.APP_URL || "https://yourdomain.com"
-      : "http://localhost:3000";
+      ? process.env.APP_URL : "http://localhost:3000";
 
   const resetLink = `${baseUrl}/reset-password?token=${token}`;
   const subject = "Şifre Sıfırlama İsteği";
