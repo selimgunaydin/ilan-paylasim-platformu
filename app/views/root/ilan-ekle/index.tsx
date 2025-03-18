@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import React from "react";
 import { useForm } from "react-hook-form";
@@ -16,7 +16,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@app/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@app/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@app/components/ui/card";
 import {
   Form,
   FormControl,
@@ -26,96 +31,33 @@ import {
   FormMessage,
 } from "@app/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@app/components/ui/radio-group";
-import type { Category } from "@shared/schemas";
 import { queryClient } from "@/lib/queryClient";
 import { useRouter } from "next/navigation";
-
-const turkishCities = [
-  "İstanbul",
-  "Adana",
-  "Adıyaman",
-  "Afyonkarahisar",
-  "Ağrı",
-  "Aksaray",
-  "Amasya",
-  "Ankara",
-  "Antalya",
-  "Ardahan",
-  "Artvin",
-  "Aydın",
-  "Balıkesir",
-  "Bartın",
-  "Batman",
-  "Bayburt",
-  "Bilecik",
-  "Bingöl",
-  "Bitlis",
-  "Bolu",
-  "Burdur",
-  "Bursa",
-  "Çanakkale",
-  "Çankırı",
-  "Çorum",
-  "Denizli",
-  "Diyarbakır",
-  "Düzce",
-  "Edirne",
-  "Elazığ",
-  "Erzincan",
-  "Erzurum",
-  "Eskişehir",
-  "Gaziantep",
-  "Giresun",
-  "Gümüşhane",
-  "Hakkari",
-  "Hatay",
-  "Iğdır",
-  "Isparta",
-  "İzmir",
-  "Kahramanmaraş",
-  "Karabük",
-  "Karaman",
-  "Kars",
-  "Kastamonu",
-  "Kayseri",
-  "Kilis",
-  "Kırıkkale",
-  "Kırklareli",
-  "Kırşehir",
-  "Kocaeli",
-  "Konya",
-  "Kütahya",
-  "Malatya",
-  "Manisa",
-  "Mardin",
-  "Mersin",
-  "Muğla",
-  "Muş",
-  "Nevşehir",
-  "Niğde",
-  "Ordu",
-  "Osmaniye",
-  "Rize",
-  "Sakarya",
-  "Samsun",
-  "Siirt",
-  "Sinop",
-  "Sivas",
-  "Şanlıurfa",
-  "Şırnak",
-  "Tekirdağ",
-  "Tokat",
-  "Trabzon",
-  "Tunceli",
-  "Uşak",
-  "Van",
-  "Yalova",
-  "Yozgat",
-  "Zonguldak",
-];
+import { TermsModal } from "@/components/TermsModal";
+import { Checkbox } from "@app/components/ui/checkbox";
+import { turkishCities } from "@/lib/constants";
 
 interface CreateListingProps {
   isAdmin?: boolean;
+}
+
+interface Category {
+  id: number;
+  name: string;
+  parentId: number | null;
+  slug: string;
+  order: number;
+  customTitle: string | null;
+  metaDescription: string | null;
+  content: string | null;
+  faqs: string | null;
+  listingCount: number;
+  children: Category[];
+}
+
+// Category tipini genişleterek listingCount özelliğini opsiyonel olarak ekleyelim
+interface CategoryWithCount extends Category {
+  listingCount: number;
 }
 
 export default function CreateListing({ isAdmin = false }: CreateListingProps) {
@@ -130,15 +72,20 @@ export default function CreateListing({ isAdmin = false }: CreateListingProps) {
       phone: "",
       listingType: "standard",
       images: undefined as FileList | undefined,
+      contractAccepted: false,
     },
   });
 
   const router = useRouter();
 
-  const { data: categories } = useQuery<Category[]>({
+  const { data: categoriesData } = useQuery<Category[]>({
     queryKey: ["categories"],
-    queryFn: () => fetch("/api/categories").then((res) => res.json()),
+    queryFn: () => fetch("/api/categories/all").then((res) => res.json()),
   });
+
+  const categories = categoriesData?.filter(
+    (category) => category.parentId === null
+  );
 
   const onSubmit = async (values: any) => {
     try {
@@ -146,7 +93,8 @@ export default function CreateListing({ isAdmin = false }: CreateListingProps) {
         !values.categoryId ||
         !values.title ||
         !values.description ||
-        !values.city
+        !values.city ||
+        !values.contractAccepted
       ) {
         throw new Error("Zorunlu alanları doldurunuz");
       }
@@ -231,8 +179,8 @@ export default function CreateListing({ isAdmin = false }: CreateListingProps) {
                     <FormItem>
                       <FormLabel>İlan Başlığı</FormLabel>
                       <FormControl>
-                        <EmojiInput 
-                          value={field.value} 
+                        <EmojiInput
+                          value={field.value}
                           onChange={field.onChange}
                           placeholder="İlan başlığını yazın"
                           id={field.name}
@@ -252,8 +200,8 @@ export default function CreateListing({ isAdmin = false }: CreateListingProps) {
                     <FormItem>
                       <FormLabel>İlan Detayı</FormLabel>
                       <FormControl>
-                        <RichTextEditor 
-                          value={field.value} 
+                        <RichTextEditor
+                          value={field.value}
                           onChange={field.onChange}
                           placeholder="İlan detaylarını yazınız..."
                         />
@@ -303,13 +251,27 @@ export default function CreateListing({ isAdmin = false }: CreateListingProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {categories?.map((category) => (
-                            <SelectItem
-                              key={category.id}
-                              value={String(category.id)}
-                            >
-                              {category.name}
-                            </SelectItem>
+                          {categoriesData?.map((category) => (
+                            <React.Fragment key={category.id}>
+                              {/* Main category - disabled */}
+                              <SelectItem
+                                value={category.id.toString()}
+                                disabled={true}
+                                className="font-bold bg-gray-100"
+                              >
+                                {category.name}
+                              </SelectItem>
+                              {/* Subcategories - selectable */}
+                              {category.children.map((subCategory) => (
+                                <SelectItem
+                                  key={subCategory.id}
+                                  value={subCategory.id.toString()}
+                                  className="pl-6"
+                                >
+                                  {subCategory.name}
+                                </SelectItem>
+                              ))}
+                            </React.Fragment>
                           ))}
                         </SelectContent>
                       </Select>
@@ -325,45 +287,47 @@ export default function CreateListing({ isAdmin = false }: CreateListingProps) {
                     <FormItem>
                       <FormLabel>İlgili Kişi</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="İlgili kişi adını yazın" />
+                        <Input
+                          {...field}
+                          placeholder="İlgili kişi adını yazın"
+                        />
                       </FormControl>
                     </FormItem>
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  rules={{ 
-                    required: "Telefon numarası zorunludur",
-                    pattern: {
-                      value: /^5\d{9}$/,
-                      message: "Telefon numarası 5 ile başlayan 10 haneli olmalıdır (5XXXXXXXXX)"
-                    },
-                    minLength: {
-                      value: 10,
-                      message: "Telefon numarası 10 haneli olmalıdır"
-                    },
-                    maxLength: {
-                      value: 10,
-                      message: "Telefon numarası 10 haneli olmalıdır"
-                    }
-                  }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Telefon</FormLabel>
-                      <FormControl>
-                        <Input 
-                          {...field} 
-                          type="tel" 
-                          placeholder="5XXXXXXXXX"
-                          maxLength={10}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+<FormField
+  control={form.control}
+  name="phone"
+  rules={{
+    required: "Telefon numarası zorunludur",
+    pattern: {
+      value: /^[0-9]*$/,
+      message: "Sadece rakam kullanabilirsiniz"
+    }
+  }}
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Telefon</FormLabel>
+      <FormControl>
+        <Input
+          {...field}
+          type="tel"
+          placeholder="Telefon numarasını yazın"
+          pattern="[0-9]*"
+          onKeyPress={(e) => {
+            const charCode = e.charCode;
+            if (charCode < 48 || charCode > 57) {
+              e.preventDefault();
+            }
+          }}
+          inputMode="numeric" // Mobil cihazlarda sayısal klavye açılır
+        />
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
 
                 <FormField
                   control={form.control}
@@ -418,6 +382,32 @@ export default function CreateListing({ isAdmin = false }: CreateListingProps) {
                           </FormItem>
                         </RadioGroup>
                       </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="contractAccepted"
+                  rules={{ required: "Sözleşmeyi kabul etmelisiniz" }}
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="cursor-pointer">
+                          <TermsModal>
+                            <span className="text-primary hover:underline">
+                              Sözleşmeyi okudum ve kabul ediyorum
+                            </span>
+                          </TermsModal>
+                        </FormLabel>
+                        <FormMessage />
+                      </div>
                     </FormItem>
                   )}
                 />
