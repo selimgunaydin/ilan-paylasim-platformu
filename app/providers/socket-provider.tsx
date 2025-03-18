@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Socket, io } from 'socket.io-client';
-import { useAuth } from '@/hooks/use-auth';
+import { useSession } from 'next-auth/react';
 import { useToast } from '@/hooks/use-toast';
 
 type SocketContextType = {
@@ -26,11 +26,13 @@ export const useSocket = () => {
 export function SocketProvider({ children }: { children: React.ReactNode }) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const { user } = useAuth();
+  const { data: session } = useSession();
   const { toast } = useToast();
 
+  console.log(session?.user)
+
   useEffect(() => {
-    if (!user) {
+    if (!session?.user) {
       if (socket) {
         socket.disconnect();
         setSocket(null);
@@ -39,8 +41,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const userWithToken = user as { token?: string };
-    const token = userWithToken.token;
+    const token = session.user.token;
 
     if (!token) {
       toast({
@@ -75,7 +76,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     return () => {
       socketInstance.disconnect();
     };
-  }, [user, toast]);
+  }, [session, toast]);
 
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>

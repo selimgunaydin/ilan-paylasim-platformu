@@ -30,6 +30,7 @@ declare module "next-auth" {
     isAdmin?: boolean;
     type?: 'user' | 'admin';
     username?: string;
+    token?: string;
   }
   
   interface Session {
@@ -41,6 +42,7 @@ declare module "next-auth" {
       isAdmin?: boolean;
       type?: 'user' | 'admin';
       username?: string;
+      token?: string;
     }
   }
 }
@@ -55,6 +57,7 @@ declare module "next-auth/jwt" {
     isAdmin?: boolean;
     type?: 'user' | 'admin';
     username?: string;
+    token?: string;
   }
 }
 
@@ -109,6 +112,9 @@ export const authOptions: NextAuthOptions = {
             })
             .where(eq(users.id, user.id));
 
+          // JWT token oluştur
+          const token = await hashPassword(user.id.toString());
+
           return {
             id: String(user.id),
             email: user.email,
@@ -116,13 +122,12 @@ export const authOptions: NextAuthOptions = {
             emailVerified: user.emailVerified,
             isAdmin: user.isAdmin || false,
             type: 'user',
-            username: user.username
+            username: user.username,
+            token
           };
         } catch (error) {
-          if (error instanceof Error) {
-            throw error;
-          }
-          throw new Error("Giriş sırasında bir hata oluştu");
+          console.error("Login error:", error);
+          throw error;
         }
       }
     }),
@@ -164,7 +169,8 @@ export const authOptions: NextAuthOptions = {
             emailVerified: true,
             isAdmin: true,
             type: 'admin',
-            username: admin.username
+            username: admin.username,
+            token: await hashPassword(admin.id.toString())
           };
         } catch (error) {
           console.error("Admin auth error:", error);
@@ -183,6 +189,7 @@ export const authOptions: NextAuthOptions = {
         token.isAdmin = Boolean(user.isAdmin);
         token.type = user.type || "user";
         token.username = user.username || "";
+        token.token = user.token || "";
       }
       return token;
     },
@@ -195,6 +202,7 @@ export const authOptions: NextAuthOptions = {
         session.user.isAdmin = token.isAdmin;
         session.user.type = token.type;
         session.user.username = token.username;
+        session.user.token = token.token;
       }
       return session;
     }

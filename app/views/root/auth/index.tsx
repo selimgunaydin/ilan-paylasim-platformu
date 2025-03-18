@@ -35,6 +35,7 @@ import { signIn, useSession } from "next-auth/react";
 import { useState } from "react";
 import { TermsModal } from "@/components/TermsModal";
 import { Suspense } from "react";
+import { queryClient } from "@/lib/queryClient";
 // NextAuth session tipini genişlet
 declare module "next-auth" {
   interface Session {
@@ -46,6 +47,7 @@ declare module "next-auth" {
       isAdmin?: boolean;
       type?: 'user' | 'admin';
       username?: string;
+      token?: string;
     }
   }
 }
@@ -212,6 +214,8 @@ function LoginForm({
           message: result.error
         });
       } else if (result?.url) {
+        // Invalidate user query cache after successful login
+        await queryClient.invalidateQueries({ queryKey: ["/api/user"] });
         router.push(result.url);
       }
     } catch (error) {
@@ -375,7 +379,7 @@ function RegisterForm({ onSubmit }: { onSubmit: (data: any) => void }) {
       password: "",
       confirmPassword: "",
       terms: false,
-      gender: "",
+      gender: ""
     },
   });
 

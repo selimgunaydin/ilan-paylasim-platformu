@@ -1,5 +1,4 @@
 'use client';
-import { useAuth } from "@/hooks/use-auth";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
