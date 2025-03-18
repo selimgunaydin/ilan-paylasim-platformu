@@ -220,7 +220,7 @@ export function generateVerificationEmail(
 ): EmailOptions {
   const baseUrl =
     process.env.NODE_ENV === "production"
-      ? process.env.APP_URL : "http://localhost:3000";
+      ? process.env.APP_URL : "http://localhost:3000"; 
 
   console.log("Generating verification email with base URL:", baseUrl);
 
