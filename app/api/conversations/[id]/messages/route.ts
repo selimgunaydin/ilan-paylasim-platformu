@@ -85,12 +85,15 @@ export async function GET(
         ));
     }
 
+    const conversationStarterId = conversation.senderId === userId ? conversation.receiverId : conversation.senderId;
+
     return NextResponse.json({
       messages: messagesList,
       hasMore,
       page,
       total,
-      listingId: conversation.listingId
+      listingId: conversation.listingId,
+      conversationStarterId: conversationStarterId
     }, { status: 200 });
 
   } catch (error) {

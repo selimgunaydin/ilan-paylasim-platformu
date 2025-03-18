@@ -75,7 +75,7 @@ export default function ConversationCard({
       {/* Tüm kart tıklanabilir yapıldı */}
 
       {conversation?.unreadCount > 0 && (
-        <div className="absolute -top-2 -right-4 bg-red-500 text-white px-2 py-1 rounded-full text-xs">
+        <div className="absolute -top-2 right-0 lg:-right-4 bg-red-500 text-white px-2 py-1 rounded-full text-xs">
           {conversation.unreadCount} Yeni
         </div>
       )}

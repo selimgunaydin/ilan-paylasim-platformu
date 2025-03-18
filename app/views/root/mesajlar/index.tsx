@@ -169,7 +169,7 @@ export default function Messages({ type }: MessagesProps) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
             {/* Conversation List */}
-            <div className="col-span-1 h-full overflow-y-auto border-r border-gray-200 md:pr-4">
+            <div className="col-span-1 h-full overflow-y-auto border-gray-200 md:pr-4 pt-4">
               {isLoadingConversations ? (
                 <SkeletonWrapper />
               ) : conversations && conversations.length > 0 ? (
@@ -198,7 +198,7 @@ export default function Messages({ type }: MessagesProps) {
             </div>
 
             {/* Messages View (Desktop only) */}
-            <div className="hidden md:block md:col-span-2 h-full overflow-y-auto">
+            <div className="hidden md:block md:col-span-2 h-full overflow-y-auto pt-4">
               {selectedConversationId ? (
                 <MessagesView
                   conversationId={selectedConversationId.toString()}

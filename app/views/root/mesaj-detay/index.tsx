@@ -340,6 +340,7 @@ export default function MessagesView({
           messages: result.messages,
           nextPage: result.hasMore ? pageParam + 1 : undefined,
           listingId: result.listingId,
+          conversationStarterId: result.conversationStarterId
         };
       },
       getNextPageParam: (lastPage) => lastPage.nextPage,
@@ -348,12 +349,10 @@ export default function MessagesView({
     });
 
   const otherUserId = React.useMemo(() => {
-    const firstMessage = data?.pages[0]?.messages[0];
-    if (!firstMessage) return null;
+    const conversationStarterId = data?.pages[0]?.conversationStarterId;
+    if (!conversationStarterId) return null;
     
-    return type === "received" 
-        ? firstMessage.senderId 
-        : firstMessage.receiverId;
+    return conversationStarterId
   }, [data, type]);
 
   const { data: otherUser } = useQuery({
