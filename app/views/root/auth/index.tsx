@@ -374,7 +374,6 @@ function RegisterForm({ onSubmit }: { onSubmit: (data: any) => void }) {
       confirmPassword: "",
       gender: "",
       terms: false,
-      gender: "",
     },
   });
 
