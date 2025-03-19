@@ -108,6 +108,7 @@ export const listings = pgTable("listings", {
   expiresAt: timestamp("expires_at"),
   active: boolean("active").default(true),
   user_ip: text("user_ip"),
+  updated_at: timestamp("updated_at").defaultNow(),
 });
 
 export const conversations = pgTable("conversations", {
