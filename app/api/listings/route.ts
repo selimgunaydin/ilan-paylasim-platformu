@@ -395,6 +395,7 @@ export async function POST(request: NextRequest) {
       active: true,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 gün sonra
       user_ip,
+      updated_at: new Date(),
     });
 
     // İlan oluşturuldu bilgisini logla
