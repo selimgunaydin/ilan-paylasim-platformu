@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@app/components/ui/button';
 import { Textarea } from '@app/components/ui/textarea';
+import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Paperclip, X, Image as ImageIcon, FileText, Music, Video, Archive, File as FileIcon, Send, Mic } from 'lucide-react';
 import { Socket } from 'socket.io-client';

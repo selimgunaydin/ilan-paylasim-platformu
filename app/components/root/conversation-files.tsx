@@ -1,6 +1,8 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@app/components/ui/button";
 import { Card, CardContent } from "@app/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -14,7 +16,7 @@ import {
 } from "lucide-react";
 import { FileGroup } from "@/types";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+
 const getFileIcon = (fileName: string) => {
   const extension = fileName.split(".").pop()?.toLowerCase();
 
@@ -42,7 +44,7 @@ const getFileIcon = (fileName: string) => {
 
 export default function ConversationFiles() {
   const { id } = useParams<{ id: string }>();
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -64,11 +66,11 @@ export default function ConversationFiles() {
       }
       return response.json();
     },
-    enabled: Boolean(session?.user) && Boolean(id),
+    enabled: Boolean(user) && Boolean(id),
   });
 
   React.useEffect(() => {
-    if (!session?.user) {
+    if (!user) {
       router.push("/dashboard");
       toast({
         title: "Yetkisiz Erişim",
@@ -76,9 +78,9 @@ export default function ConversationFiles() {
         variant: "destructive",
       });
     }
-  }, [session?.user, router, toast]);
+  }, [user, router, toast]);
 
-  if (!session?.user) return null;
+  if (!user) return null;
 
   return (
     <div className="container mx-auto px-4 py-8">

@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter, useParams } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@app/components/ui/button";
 import { Input } from "@app/components/ui/input";
 import { Textarea } from "@app/components/ui/textarea";
@@ -28,12 +29,11 @@ import { RadioGroup, RadioGroupItem } from "@app/components/ui/radio-group";
 import type { Category, Listing } from "@shared/schemas";
 import { turkishCities } from "@/lib/constants";
 import { queryClient } from "@/lib/queryClient";
-import { useSession } from "next-auth/react";
 
 export default function EditListing() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const router = useRouter();
 
   const form = useForm({
@@ -81,7 +81,7 @@ export default function EditListing() {
   useEffect(() => {
     if (listing && !isLoadingListing) {
       // Kullanıcı kontrolü
-      if (!session?.user || listing.userId !== Number(session.user.id)) {
+      if (!user || listing.userId !== user.id) {
         toast({
           title: "Hata",
           description: "Bu ilanı düzenleme yetkiniz yok",
@@ -121,7 +121,7 @@ export default function EditListing() {
         listingType: userData?.used_free_ad === 1 ? "premium" : listing.listingType,
       });
     }
-  }, [listing, session?.user, form, isLoadingListing, userData]);
+  }, [listing, user, form, isLoadingListing, userData]);
 
   const updateMutation = useMutation({
     mutationFn: async (values: any) => {

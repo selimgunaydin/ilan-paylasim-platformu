@@ -4,8 +4,8 @@ import { useEffect } from 'react';
 import { useSocket } from '@/providers/socket-provider';
 import { useAppDispatch } from '@/redux/hooks';
 import { fetchUnreadMessages, addMessageNotification } from '@/redux/slices/messageSlice';
+import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { useSession } from 'next-auth/react';
 
 /**
  * Websocket üzerinden mesaj bildirimlerini dinleyen ve Redux store'u güncelleyen bileşen.
@@ -14,11 +14,11 @@ import { useSession } from 'next-auth/react';
 export function SocketMessageListener() {
   const { socket, isConnected } = useSocket();
   const dispatch = useAppDispatch();
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!socket || !isConnected || !session?.user) return;
+    if (!socket || !isConnected || !user) return;
 
     // Yeni mesaj bildirimi alındığında
     const handleMessageNotification = (data: any) => {
@@ -70,7 +70,7 @@ export function SocketMessageListener() {
       socket.off('messageNotification', handleMessageNotification);
       socket.off('newConversation');
     };
-  }, [socket, isConnected, dispatch, session?.user, toast]);
+  }, [socket, isConnected, dispatch, user, toast]);
 
   // Hiçbir görsel çıktı üretmez
   return null;
