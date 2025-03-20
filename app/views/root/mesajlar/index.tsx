@@ -99,6 +99,10 @@ export default function Messages({ type }: MessagesProps) {
     }
   }, [conversations, dispatch]);
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [])
+
   // Delete conversation mutation
   const deleteMutation = useMutation({
     mutationFn: (conversationId: number) =>
@@ -153,7 +157,7 @@ export default function Messages({ type }: MessagesProps) {
   return (
     <div
       className={cn(
-        "container mx-auto px-4 py-8 h-screen flex flex-col",
+        "md:container mx-auto px-0 md:px-4 py-8 h-[calc(100vh-2rem)] md:h-screen flex flex-col",
         selectedConversationId && isMobile && "py-0"
       )}
     >
@@ -193,7 +197,7 @@ export default function Messages({ type }: MessagesProps) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
             {/* Conversation List */}
-            <div className="col-span-1 h-full overflow-y-auto border-gray-200 md:pr-4 pt-4">
+            <div className="col-span-1 h-full overflow-y-auto border-gray-200 md:pr-4 pt-4 mx-4 md:mx-0">
               {isLoadingConversations ? (
                 <SkeletonWrapper />
               ) : conversations && conversations.length > 0 ? (

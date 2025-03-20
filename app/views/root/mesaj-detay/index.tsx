@@ -452,6 +452,19 @@ export default function MessagesView({
       socket.emit("leaveConversation", id);
     };
   }, [socket, id]);
+  
+  useEffect(() => {
+    const footer = document.querySelector('footer')
+    if (footer && window?.innerWidth < 768) {
+      footer.style.display = 'none'
+    }
+    return () => {
+      if (footer && window?.innerWidth < 768) {
+        footer.style.display = 'block'
+      }
+    }
+  }, [])
+
 
   useEffect(() => {
     if (!socket || !id) return;
@@ -578,10 +591,10 @@ export default function MessagesView({
   if (!session?.user) return null;
 
   return (
-    <div className="flex flex-col h-full bg-white md:border rounded-xl overflow-hidden">
+    <div className="flex flex-col h-full bg-white md:border rounded-xl overflow-hidden pb-28 md:pb-0">
       <div
         ref={headerRef}
-        className="sticky z-10 border-b bg-white py-3 flex items-center justify-between"
+        className="fixed left-0 md:left-auto w-full md:w-auto md:sticky z-10 border-b bg-white py-3 flex items-center justify-between"
       >
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={handleBack}>
@@ -619,7 +632,7 @@ export default function MessagesView({
 
       <div
         ref={scrollContainerRef}
-        className="flex-1 mb-16 md:mb-0 md:px-4 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+        className="flex-1 mb-16 md:mb-0 px-4 overflow-y-auto overflow-x-hidden space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
         onScroll={handleScroll}
       >
         {isFetchingNextPage && (
