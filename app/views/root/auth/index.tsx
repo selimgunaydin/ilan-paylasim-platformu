@@ -186,8 +186,8 @@ function LoginForm({
         username: data.username,
         password: data.password,
         ip_address,
-        redirect: false,
-        callbackUrl: "/dashboard"
+        redirect: true,
+        callbackUrl: "/"
       });
       
       if (result?.error) {
