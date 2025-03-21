@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,7 +8,7 @@ import { Input } from "@app/components/ui/input";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { DataTable } from "@app/components/ui/data-table";
-import { FaToggleOff, FaTrash, FaFlag } from 'react-icons/fa';
+import { FaToggleOff, FaTrash, FaFlag } from "react-icons/fa";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import {
@@ -21,7 +21,7 @@ import {
 } from "@app/components/ui/select";
 import type { Row } from "@tanstack/react-table";
 import Link from "next/link";
-
+import { Loader2 } from "lucide-react";
 interface Listing {
   id: number;
   title: string;
@@ -45,14 +45,14 @@ export default function ActiveListings() {
   const rejectMutation = useMutation({
     mutationFn: async (id: number) => {
       const res = await fetch(`/api/admin/listings/${id}/reject`, {
-        method: 'PUT',
-        credentials: 'include' 
+        method: "PUT",
+        credentials: "include",
       });
-      if (!res.ok) throw new Error('İlan reddedilemedi');
+      if (!res.ok) throw new Error("İlan reddedilemedi");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['active-listings'] });
+      queryClient.invalidateQueries({ queryKey: ["active-listings"] });
       toast({
         title: "Başarılı",
         description: "İlan reddedildi",
@@ -62,22 +62,22 @@ export default function ActiveListings() {
       toast({
         title: "Hata",
         description: error.message,
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const deactivateMutation = useMutation({
     mutationFn: async (id: number) => {
       const res = await fetch(`/api/admin/listings/${id}/deactivate`, {
-        method: 'PUT',
-        credentials: 'include' 
+        method: "PUT",
+        credentials: "include",
       });
-      if (!res.ok) throw new Error('İlan pasife alınamadı');
+      if (!res.ok) throw new Error("İlan pasife alınamadı");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['active-listings'] });
+      queryClient.invalidateQueries({ queryKey: ["active-listings"] });
       toast({
         title: "Başarılı",
         description: "İlan pasife alındı",
@@ -87,22 +87,22 @@ export default function ActiveListings() {
       toast({
         title: "Hata",
         description: error.message,
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       const res = await fetch(`/api/admin/listings/${id}/delete`, {
-        method: 'DELETE',
-        credentials: 'include' 
+        method: "DELETE",
+        credentials: "include",
       });
-      if (!res.ok) throw new Error('İlan silinemedi');
+      if (!res.ok) throw new Error("İlan silinemedi");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['active-listings'] });
+      queryClient.invalidateQueries({ queryKey: ["active-listings"] });
       toast({
         title: "Başarılı",
         description: "İlan ve ilgili tüm veriler silindi",
@@ -112,16 +112,20 @@ export default function ActiveListings() {
       toast({
         title: "Hata",
         description: error.message,
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
-  const { data: listings, isLoading, error } = useQuery<Listing[]>({
+  const {
+    data: listings,
+    isLoading,
+    error,
+  } = useQuery<Listing[]>({
     queryKey: ["active-listings"],
     queryFn: async () => {
       const res = await fetch("/api/admin/listings/active", {
-        credentials: 'include' 
+        credentials: "include",
       });
       if (!res.ok) throw new Error("İlanlar yüklenemedi");
       return res.json();
@@ -129,29 +133,43 @@ export default function ActiveListings() {
   });
 
   // Get unique categories and cities from listings
-  const categories = Array.from(new Set(listings?.map((listing: Listing) => listing.categoryName) || []));
-  const cities = Array.from(new Set(listings?.map((listing: Listing) => listing.city) || []));
+  const categories = Array.from(
+    new Set(listings?.map((listing: Listing) => listing.categoryName) || [])
+  );
+  const cities = Array.from(
+    new Set(listings?.map((listing: Listing) => listing.city) || [])
+  );
 
   const filteredListings = listings?.filter((listing: Listing) => {
-    if (selectedCategory && selectedCategory !== "all" && listing.categoryName !== selectedCategory) return false;
-    if (selectedCity && selectedCity !== "all" && listing.city !== selectedCity) return false;
+    if (
+      selectedCategory &&
+      selectedCategory !== "all" &&
+      listing.categoryName !== selectedCategory
+    )
+      return false;
+    if (selectedCity && selectedCity !== "all" && listing.city !== selectedCity)
+      return false;
     return true;
   });
 
   const handleReject = async (id: number) => {
-    if (window.confirm('Bu ilanı reddetmek istediğinize emin misiniz?')) {
+    if (window.confirm("Bu ilanı reddetmek istediğinize emin misiniz?")) {
       await rejectMutation.mutateAsync(id);
     }
   };
 
   const handleDeactivate = async (id: number) => {
-    if (window.confirm('Bu ilanı pasife almak istediğinize emin misiniz?')) {
+    if (window.confirm("Bu ilanı pasife almak istediğinize emin misiniz?")) {
       await deactivateMutation.mutateAsync(id);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Bu ilanı ve ilgili tüm verileri kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) {
+    if (
+      window.confirm(
+        "Bu ilanı ve ilgili tüm verileri kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
+      )
+    ) {
       await deleteMutation.mutateAsync(id);
     }
   };
@@ -167,7 +185,7 @@ export default function ActiveListings() {
         >
           {row.original.title}
         </Link>
-      )
+      ),
     },
     {
       header: "Kategori",
@@ -176,33 +194,39 @@ export default function ActiveListings() {
     {
       header: "Eklenme Tarihi",
       accessorKey: "createdAt",
-      cell: ({ row }: { row: Row<Listing> }) => format(new Date(row.original.createdAt), 'dd.MM.yy', { locale: tr })
+      cell: ({ row }: { row: Row<Listing> }) =>
+        format(new Date(row.original.createdAt), "dd.MM.yy", { locale: tr }),
     },
     {
       header: "Bitiş",
       accessorKey: "endDate",
-      cell: ({ row }: { row: Row<Listing> }) => row.original.endDate ? format(new Date(row.original.endDate), 'dd.MM.yy', { locale: tr }) : '-'
+      cell: ({ row }: { row: Row<Listing> }) =>
+        row.original.endDate
+          ? format(new Date(row.original.endDate), "dd.MM.yy", { locale: tr })
+          : "-",
     },
     {
       header: "Görülme",
       accessorKey: "viewCount",
-      cell: ({ row }: { row: Row<Listing> }) => row.original.viewCount || 0
+      cell: ({ row }: { row: Row<Listing> }) => row.original.viewCount || 0,
     },
     {
       header: "Şehir",
       accessorKey: "city",
-      cell: ({ row }: { row: Row<Listing> }) => row.original.city
+      cell: ({ row }: { row: Row<Listing> }) => row.original.city,
     },
     {
       header: "Tipi",
       accessorKey: "listingType",
       cell: ({ row }: { row: Row<Listing> }) => (
-        <span className={cn(
-          row.original.listingType === 'premium' && "text-blue-500 font-bold"
-        )}>
-          {row.original.listingType === 'premium' ? 'Premium' : 'Standart'}
+        <span
+          className={cn(
+            row.original.listingType === "premium" && "text-blue-500 font-bold"
+          )}
+        >
+          {row.original.listingType === "premium" ? "Premium" : "Standart"}
         </span>
-      )
+      ),
     },
     {
       header: "İşlemler",
@@ -236,11 +260,17 @@ export default function ActiveListings() {
             <FaTrash className="h-4 w-4" />
           </Button>
         </div>
-      )
-    }
+      ),
+    },
   ];
 
-  if (isLoading) return <div>Yükleniyor...</div>;
+  if (isLoading)
+    return (
+      <div className="flex flex-col gap-2 items-center justify-center h-screen">
+        <Loader2 className="animate-spin w-8 h-8" />
+      </div>
+    );
+
   if (error) return <div>Hata oluştu: {(error as Error).message}</div>;
 
   return (
@@ -281,10 +311,7 @@ export default function ActiveListings() {
         </Select>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={filteredListings || []}
-      />
+      <DataTable columns={columns} data={filteredListings || []} />
     </div>
   );
 }

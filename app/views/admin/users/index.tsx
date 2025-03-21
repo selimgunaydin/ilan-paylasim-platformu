@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { DataTable } from "@app/components/ui/data-table";
 import type { Row } from "@tanstack/react-table";
-
+import { Loader2 } from "lucide-react";
 interface User {
   id: number;
   username: string;
@@ -158,7 +158,12 @@ export default function UsersPage() {
     },
   ];
 
-  if (isLoading) return <div>Yükleniyor...</div>;
+  if (isLoading)
+    return (
+      <div className="flex flex-col gap-2 items-center justify-center h-screen">
+        <Loader2 className="animate-spin w-8 h-8" />
+      </div>
+  );
   if (error) return <div>Hata oluştu: {error.message}</div>;
 
   const filteredUsers = users?.filter((user) => {

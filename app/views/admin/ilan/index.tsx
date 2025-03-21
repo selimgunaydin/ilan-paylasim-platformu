@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@app/components/ui/button";
@@ -10,6 +10,7 @@ import { tr } from "date-fns/locale";
 import { Card, CardContent } from "@app/components/ui/card";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 
 export default function ListingDetailAdmin() {
   const { id } = useParams<{ id: string }>();
@@ -17,7 +18,11 @@ export default function ListingDetailAdmin() {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  const { data: listing, isLoading, isError } = useQuery({
+  const {
+    data: listing,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["admin", "listing", id],
     queryFn: async () => {
       console.log("Fetching listing with ID:", id);
@@ -39,76 +44,87 @@ export default function ListingDetailAdmin() {
   const approveMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/admin/listings/${id}/approve`, {
-        method: 'PUT'
+        method: "PUT",
       });
-      if (!res.ok) throw new Error('İlan onaylanamadı');
+      if (!res.ok) throw new Error("İlan onaylanamadı");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pending-listings'] });
+      queryClient.invalidateQueries({ queryKey: ["pending-listings"] });
       toast({
         title: "Başarılı",
         description: "İlan onaylandı",
       });
-      router.push('/yonetim/onaybekleyenilanlar');
+      router.push("/yonetim/onaybekleyenilanlar");
     },
     onError: () => {
       toast({
         title: "Hata",
         description: "İlan onaylanırken bir hata oluştu",
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const rejectMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/admin/listings/${id}/reject`, {
-        method: 'PUT'
+        method: "PUT",
       });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || 'İlan reddedilemedi');
+        throw new Error(errorData.error || "İlan reddedilemedi");
       }
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pending-listings'] });
+      queryClient.invalidateQueries({ queryKey: ["pending-listings"] });
       toast({
         title: "Başarılı",
         description: "İlan reddedildi",
       });
-      router.push('/yonetim/onaybekleyenilanlar');
+      router.push("/yonetim/onaybekleyenilanlar");
     },
     onError: (error: Error) => {
       toast({
         title: "Hata",
         description: error.message,
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const handleApprove = async () => {
-    if (window.confirm('Bu ilanı onaylamak istediğinize emin misiniz?')) {
+    if (window.confirm("Bu ilanı onaylamak istediğinize emin misiniz?")) {
       await approveMutation.mutateAsync();
     }
   };
 
   const handleReject = async () => {
-    if (window.confirm('Bu ilanı reddetmek istediğinize emin misiniz?')) {
+    if (window.confirm("Bu ilanı reddetmek istediğinize emin misiniz?")) {
       await rejectMutation.mutateAsync();
     }
   };
 
-  if (isLoading) return <div className="p-8 text-center mt-24">Yükleniyor...</div>;
-  if (isError || !listing) return <div className="p-8 text-center text-red-500 mt-24">İlan bulunamadı</div>;
+  if (isLoading)
+    return (
+      <div className="flex flex-col gap-2 items-center justify-center h-screen">
+        <Loader2 className="animate-spin w-8 h-8" />
+      </div>
+    );
+  if (isError || !listing)
+    return (
+      <div className="p-8 text-center text-red-500 mt-24">İlan bulunamadı</div>
+    );
 
   return (
     <div className="container mx-auto px-4 py-8 mt-24">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">İlan İnceleme</h1>
-        <Link href="/yonetim/onaybekleyenilanlar" className="text-blue-500 hover:text-blue-700">
+        <Link
+          href="/yonetim/onaybekleyenilanlar"
+          className="text-blue-500 hover:text-blue-700"
+        >
           Listeye Dön
         </Link>
       </div>
@@ -118,8 +134,12 @@ export default function ListingDetailAdmin() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-semibold">{listing.title}</h2>
-              <Badge variant={listing.listingType === 'premium' ? 'default' : 'secondary'}>
-                {listing.listingType === 'premium' ? 'Premium' : 'Standart'}
+              <Badge
+                variant={
+                  listing.listingType === "premium" ? "default" : "secondary"
+                }
+              >
+                {listing.listingType === "premium" ? "Premium" : "Standart"}
               </Badge>
             </div>
 
@@ -131,25 +151,41 @@ export default function ListingDetailAdmin() {
                 <dl className="space-y-2">
                   <div>
                     <dt className="text-sm text-muted-foreground">Kategori</dt>
-                    <dd className="font-medium">{listing.user.username || 'Belirtilmemiş'}</dd>
+                    <dd className="font-medium">
+                      {listing.user.username || "Belirtilmemiş"}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-sm text-muted-foreground">Şehir</dt>
                     <dd className="font-medium">{listing.city}</dd>
                   </div>
                   <div>
-                    <dt className="text-sm text-muted-foreground">Eklenme Tarihi</dt>
+                    <dt className="text-sm text-muted-foreground">
+                      Eklenme Tarihi
+                    </dt>
                     <dd className="font-medium">
-                      {format(new Date(listing.createdAt), 'dd MMMM yyyy HH:mm', { locale: tr })}
+                      {format(
+                        new Date(listing.createdAt),
+                        "dd MMMM yyyy HH:mm",
+                        { locale: tr }
+                      )}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-sm text-muted-foreground">İletişim Telefonu</dt>
-                    <dd className="font-medium">{listing.phone || 'Belirtilmemiş'}</dd>
+                    <dt className="text-sm text-muted-foreground">
+                      İletişim Telefonu
+                    </dt>
+                    <dd className="font-medium">
+                      {listing.phone || "Belirtilmemiş"}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="text-sm text-muted-foreground">İletişim Kişisi</dt>
-                    <dd className="font-medium">{listing.contactPerson || 'Belirtilmemiş'}</dd>
+                    <dt className="text-sm text-muted-foreground">
+                      İletişim Kişisi
+                    </dt>
+                    <dd className="font-medium">
+                      {listing.contactPerson || "Belirtilmemiş"}
+                    </dd>
                   </div>
                 </dl>
               </div>
@@ -158,7 +194,9 @@ export default function ListingDetailAdmin() {
                 <h3 className="font-medium mb-2">İlan Sahibi</h3>
                 <dl className="space-y-2">
                   <div>
-                    <dt className="text-sm text-muted-foreground">Kullanıcı Adı</dt>
+                    <dt className="text-sm text-muted-foreground">
+                      Kullanıcı Adı
+                    </dt>
                     <dd className="font-medium">{listing.user?.username}</dd>
                   </div>
                   <div>
@@ -183,13 +221,18 @@ export default function ListingDetailAdmin() {
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground">Bu ilan için görsel bulunmuyor.</p>
+                <p className="text-muted-foreground">
+                  Bu ilan için görsel bulunmuyor.
+                </p>
               )}
             </div>
 
             <div>
               <h3 className="font-medium mb-2">İlan Açıklaması</h3>
-              <div className="whitespace-pre-wrap text-gray-700 border rounded-lg p-4"  dangerouslySetInnerHTML={{ __html: listing.description }} />
+              <div
+                className="whitespace-pre-wrap text-gray-700 border rounded-lg p-4"
+                dangerouslySetInnerHTML={{ __html: listing.description }}
+              />
             </div>
 
             <div className="flex justify-end gap-4 mt-8">

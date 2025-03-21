@@ -29,7 +29,7 @@ import { RadioGroup, RadioGroupItem } from "@app/components/ui/radio-group";
 import type { Category, Listing } from "@shared/schemas";
 import { turkishCities } from "@/lib/constants";
 import { queryClient } from "@/lib/queryClient";
-
+import { Loader2 } from "lucide-react";
 export default function EditListing() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
@@ -195,7 +195,11 @@ export default function EditListing() {
   };
 
   if (isLoadingListing) {
-    return <div className="p-8 text-center">Yükleniyor...</div>;
+    return (
+      <div className="flex flex-col gap-2 items-center justify-center h-screen">
+        <Loader2 className="animate-spin w-8 h-8" />
+      </div>
+    );
   }
 
   if (!listing) {

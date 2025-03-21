@@ -5,7 +5,7 @@ import { Button } from "@app/components/ui/button";
 import { Input } from "@app/components/ui/input";
 import { Card } from "@app/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-
+import { Loader2 } from "lucide-react";
 // Alt kategoriler sayfası
 export default function AltKategorilerPage() {
   const { toast } = useToast();
@@ -145,7 +145,11 @@ export default function AltKategorilerPage() {
 
   // Yükleme durumu kontrolü
   if (isLoading) {
-    return <div>Kategoriler yükleniyor...</div>;
+    return (
+      <div className="flex flex-col gap-2 items-center justify-center h-screen">
+        <Loader2 className="animate-spin w-8 h-8" />
+      </div>
+    );
   }
 
   // Hata durumu kontrolü
