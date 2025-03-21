@@ -131,7 +131,7 @@ export default function ManagementHome({ children }: { children?: React.ReactNod
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <main className="pt-16">
+        <main>
           <div className="container mx-auto px-4 py-8">
             <div className="mb-8 space-y-4">
               <Skeleton className="h-10 w-1/3" />
@@ -161,7 +161,7 @@ export default function ManagementHome({ children }: { children?: React.ReactNod
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <main className="pt-16">
+        <main>
           <div className="container mx-auto px-4 py-8">
             <div className="rounded-md bg-red-50 p-4 mb-8">
               <div className="flex">
@@ -194,7 +194,7 @@ export default function ManagementHome({ children }: { children?: React.ReactNod
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Ana İçerik */}
-      <main className="pt-16">
+      <main>
         <div className="container mx-auto px-4 py-8">
           {children ?? (
             <>

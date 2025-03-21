@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import * as React from "react";
 import { useRouter, useParams } from "next/navigation";
@@ -10,7 +10,7 @@ import { Message } from "@/types";
 import {
   ArrowLeft,
   FileText,
-  Image,
+  Image as ImageIcon,
   File,
   Music,
   Video,
@@ -19,28 +19,23 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@app/components/ui/avatar";
 import { getProfileImageUrl } from "@/lib/avatar";
 import Link from "next/link";
-import { getMessageFileUrClient } from '@/utils/get-message-file-url';
+import { getMessageFileUrClient } from "@/utils/get-message-file-url";
 
-// Dosya tipine göre ikon döndüren yardımcı fonksiyon
+// Helper function to return file icons based on extension
 const getFileIcon = (fileName: string) => {
   const extension = fileName.split(".").pop()?.toLowerCase();
-
-  if (["jpg", "jpeg", "png", "gif", "webp", "heic"].includes(extension || "")) {
-    return <Image className="h-5 w-5" />;
-  }
-  if (["pdf", "doc", "docx", "txt"].includes(extension || "")) {
-    return <FileText className="h-5 w-5" />;
-  }
-  if (["mp3", "wav"].includes(extension || "")) {
-    return <Music className="h-5 w-5" />;
-  }
-  if (["mp4", "webm"].includes(extension || "")) {
-    return <Video className="h-5 w-5" />;
-  }
-  if (["zip", "rar"].includes(extension || "")) {
-    return <Archive className="h-5 w-5" />;
-  }
-  return <File className="h-5 w-5" />;
+  const iconClass = "h-5 w-5 text-muted-foreground";
+  if (["jpg", "jpeg", "png", "gif", "webp", "heic"].includes(extension || ""))
+    return <ImageIcon className={iconClass} />;
+  if (["pdf", "doc", "docx", "txt"].includes(extension || ""))
+    return <FileText className={iconClass} />;
+  if (["mp3", "wav"].includes(extension || ""))
+    return <Music className={iconClass} />;
+  if (["mp4", "webm"].includes(extension || ""))
+    return <Video className={iconClass} />;
+  if (["zip", "rar"].includes(extension || ""))
+    return <Archive className={iconClass} />;
+  return <File className={iconClass} />;
 };
 
 export default function AdminConversationDetail() {
@@ -48,7 +43,7 @@ export default function AdminConversationDetail() {
   const { toast } = useToast();
   const router = useRouter();
 
-  // Admin yetkisi kontrolü
+  // Check admin authorization
   const { data: adminUser, isError: isAdminError } = useQuery({
     queryKey: ["/api/admin/user"],
     queryFn: async () => {
@@ -67,116 +62,135 @@ export default function AdminConversationDetail() {
     retry: false,
   });
 
-  // Konuşma mesajlarını getir
-  const { data: messages = [], isLoading } = useQuery<Message[]>({
+  // Fetch conversation messages
+  const { data, isLoading } = useQuery<any>({
     queryKey: ["/api/admin/conversations", id, "messages"],
     queryFn: async () => {
-      console.log("Fetching messages for conversation:", id);
       const response = await fetch(`/api/admin/conversations/${id}/messages`);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || "Mesajlar alınamadı");
       }
       const data = await response.json();
-      console.log("Retrieved messages:", data);
-      return data.messages || [];
+      console.log(data);
+      return data || [];
     },
     enabled: Boolean(adminUser) && !isAdminError && Boolean(id),
   });
 
-  if (isLoading) {
+  // Loading state
+  if (isLoading || !data) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-primary"></div>
       </div>
     );
   }
 
-  if (!adminUser) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-destructive">Yetkisiz erişim</p>
-      </div>
-    );
-  }
-
+  console.log(data)
+  
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="max-w-4xl mx-auto px-4 py-10">
+      {/* Header */}
+      <header className="flex items-center justify-between mb-8">
         <Link
           href="/yonetim/tummesajlar"
-          className="flex items-center gap-2 text-blue-500 hover:text-blue-700"
+          className="inline-flex items-center gap-2 text-primary hover:text-primary-dark transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Geri Dön
+          <ArrowLeft className="h-5 w-5" />
+          <span className="font-medium">Tüm Mesajlara Geri Dön</span>
         </Link>
-      </div>
+      </header>
 
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold mb-4">Mesajlar</h3>
-        {messages && messages.length > 0 ? (
-          messages.map((message) => (
-            <Card key={message.id}>
-              <CardContent className="p-1">
-                <div className="flex items-start gap-3">
-                  <Avatar>
-                    <AvatarImage
-                      src={getProfileImageUrl(
-                        message.sender?.profileImage,
-                        message.sender?.gender || "unspecified",
-                        message.sender?.avatar,
-                      )}
-                      alt={message.sender?.username}
-                    />
-                    <AvatarFallback>
-                      {message.sender?.username?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                      <p className="font-medium">{message.sender?.username}</p>
-                      <span className="text-sm text-muted-foreground">
-                        {new Date(message.createdAt).toLocaleString("tr-TR")}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm whitespace-pre-wrap">
-                      {message.content}
-                    </p>
-                    {message.files && message.files.length > 0 && (
-                      <div className="mt-3 space-y-2 bg-muted p-1 rounded-md">
-                        {message.files.map((file, index) => {
-                          const fileName = file.split("/").pop() || file;
-                          const fileUrl = file.startsWith('http') ? file : getMessageFileUrClient(file);
-                          return (
-                            <div
-                              key={index}
-                              className="flex items-center gap-2"
-                            >
-                              {getFileIcon(fileName)}
-                              <a
-                                href={fileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-sm text-primary hover:underline"
-                              >
-                                {fileName}
-                              </a>
-                            </div>
-                          );
-                        })}
+      {/* Messages Section */}
+      <section className="space-y-6">
+        <h1 className="text-2xl font-semibold text-foreground">
+          Konuşma Detayları
+        </h1>
+        {data.messages.length > 0 ? (
+          <div className="space-y-4">
+            {data.messages.map((message: any) => {
+              const isSender = data.sender.id === message.senderId;
+              const profileImage = isSender ? data.receiver.profileImage : data.sender.profileImage;
+              const username = isSender ? data.receiver.username : data.sender.username;
+              const gender = isSender ? data.receiver.gender : data.sender.gender;
+              const avatar = isSender ? data.receiver.avatar : data.sender.avatar;
+              return (
+                <Card
+                  key={message.id}
+                  className="hover:shadow-md transition-shadow duration-200"
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-4">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage
+                          src={getProfileImageUrl(
+                            profileImage,
+                            gender || "unspecified",
+                            avatar
+                          )}
+                          alt={username}
+                        />
+                        <AvatarFallback>
+                          {username?.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="font-semibold text-foreground">
+                            {username}
+                          </p>
+                          <span className="text-sm text-muted-foreground">
+                            {new Date(message.createdAt).toLocaleString("tr-TR", {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-sm text-foreground leading-relaxed">
+                          {message.content}
+                        </p>
+                        {message.files && message.files.length > 0 && (
+                          <div className="mt-3 space-y-2 rounded-lg bg-muted p-3">
+                            {message.files.map((file: any, index: any) => {
+                              const fileName = file.split("/").pop() || file;
+                              const fileUrl = file.startsWith("http")
+                                ? file
+                                : getMessageFileUrClient(file);
+                              return (
+                                <div
+                                  key={index}
+                                  className="flex items-center gap-2 hover:bg-muted-foreground/10 p-1 rounded-md transition-colors"
+                                >
+                                  {getFileIcon(fileName)}
+                                  <a
+                                    href={fileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-primary hover:underline truncate max-w-xs"
+                                  >
+                                    {fileName}
+                                  </a>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
         ) : (
-          <p className="text-center text-muted-foreground">
-            Bu konuşmada henüz mesaj bulunmuyor.
-          </p>
+          <div className="text-center py-12 bg-muted rounded-lg">
+            <p className="text-muted-foreground text-lg">
+              Bu konuşmada henüz mesaj bulunmuyor.
+            </p>
+          </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }
