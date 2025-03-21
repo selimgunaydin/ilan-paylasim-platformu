@@ -25,7 +25,7 @@ export default function AdminView() {
       const result = await signIn("admin-credentials", {
         username,
         password,
-        redirect: false,
+        redirect: true,
         callbackUrl: "/yonetim/anasayfa"
       });
       
