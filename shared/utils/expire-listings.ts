@@ -1,8 +1,6 @@
 import { db } from "../../shared/db";
 import { eq, lt, and, gte, lte } from "drizzle-orm";
 import { listings } from "../../shared/schemas";
-
-import { Listing } from "../../shared/schema";
 import { sendExpirationEmail, sendExpirationWarningEmail } from "@shared/services/expiration-notification";
 
 // Helper to convert DB Listing to Email Listing interface
