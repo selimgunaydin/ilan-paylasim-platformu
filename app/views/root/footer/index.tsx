@@ -71,19 +71,19 @@ export function Footer({ settings }: FooterProps) {
           <div>
             <h3 className="text-lg font-semibold mb-4">İletişim</h3>
             <ul className="space-y-3">
-              {settings?.contact_phone && (
+              {settings?.contact_phone.length > 1 && (
                 <li className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-indigo-400" />
                   <span className="text-gray-400">{settings.contact_phone}</span>
                 </li>
               )}
-              {settings?.contact_email && (
+              {settings?.contact_email.length > 1 && (
                 <li className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-indigo-400" />
                   <span className="text-gray-400">{settings.contact_email}</span>
                 </li>
               )}
-              {settings?.contact_address && (
+              {settings?.contact_address.length > 1 && (
                 <li className="flex items-start gap-2">
                   <MapPin className="h-4 w-4 text-indigo-400 mt-1" />
                   <span className="text-gray-400">{settings.contact_address}</span>

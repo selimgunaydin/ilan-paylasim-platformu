@@ -111,6 +111,7 @@ export default function ContactPage({ settings }: ContactPageProps) {
               <CardDescription>Bizimle doğrudan iletişime geçebilirsiniz</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {settings?.contact_email.length > 1 && (
               <div className="flex items-start">
                 <Mail className="w-5 h-5 mt-1 mr-3 text-primary" />
                 <div>
@@ -118,6 +119,8 @@ export default function ContactPage({ settings }: ContactPageProps) {
                   <p className="text-muted-foreground">{settings?.contact_email || "info@example.com"}</p>
                 </div>
               </div>
+              )}
+              {settings?.contact_phone.length > 1 && (
               <div className="flex items-start">
                 <Phone className="w-5 h-5 mt-1 mr-3 text-primary" />
                 <div>
@@ -125,6 +128,8 @@ export default function ContactPage({ settings }: ContactPageProps) {
                   <p className="text-muted-foreground">{settings?.contact_phone || "+90 212 123 45 67"}</p>
                 </div>
               </div>
+              )}
+              {settings?.contact_address.length > 1 && (
               <div className="flex items-start">
                 <MapPin className="w-5 h-5 mt-1 mr-3 text-primary" />
                 <div>
@@ -132,6 +137,7 @@ export default function ContactPage({ settings }: ContactPageProps) {
                   <p className="text-muted-foreground">{settings?.contact_address || "Örnek Mahallesi, Örnek Caddesi No:1, İstanbul"}</p>
                 </div>
               </div>
+              )}
             </CardContent>
           </Card>
         </div>
