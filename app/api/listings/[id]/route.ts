@@ -1,18 +1,20 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { db } from "@shared/db";
-import { listings, conversations, messages } from '@shared/schemas';
-import { eq, sql } from 'drizzle-orm';
-import { getToken } from 'next-auth/jwt';
-import { imageService } from '@/lib/image-service';
-import { v4 as uuidv4 } from 'uuid';
-import { storage } from '@/lib/storage';
-import { r2Client } from '../../../lib/r2';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
-import sharp from 'sharp';
-import { getListingImageUrl, getListingImagesUrls } from '../../../lib/r2';
+import { listings, conversations, messages } from "@shared/schemas";
+import { eq, sql } from "drizzle-orm";
+import { getToken } from "next-auth/jwt";
+import { imageService } from "@/lib/image-service";
+import { v4 as uuidv4 } from "uuid";
+import { storage } from "@/lib/storage";
+import { r2Client } from "../../../lib/r2";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import sharp from "sharp";
+import { getListingImageUrl, getListingImagesUrls } from "../../../lib/r2";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/api/auth/auth-options";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 // R2 bucket tanımlaması
 const LISTING_BUCKET = "seriilan";
@@ -24,28 +26,32 @@ export async function GET(
 ) {
   try {
     const id = parseInt(params.id);
-    
+
     if (isNaN(id)) {
       return NextResponse.json(
-        { success: false, message: 'Geçersiz ilan ID' },
+        { success: false, message: "Geçersiz ilan ID" },
         { status: 400 }
       );
     }
 
+    const session = await getServerSession(authOptions);
+
+    console.log('DATDAT:',session);
+
     // Auth token'ı al (varsa)
-        const token = await getToken({ 
-      req: request, 
-      secret: process.env.NEXTAUTH_SECRET 
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
     });
 
-    if (!token) {
+    if (!token && session) {
       return NextResponse.json(
-        { success: false, message: 'Yetkilendirme gerekli' },
+        { success: false, message: "Yetkilendirme gerekli" },
         { status: 401 }
       );
     }
     // Token varsa kullanıcı ID'sini çıkar
-    let userId = Number(token.sub)
+    let userId = Number(token?.sub);
 
     // Önce ilanı bul
     const listing = await db.query.listings.findFirst({
@@ -54,15 +60,18 @@ export async function GET(
 
     if (!listing) {
       return NextResponse.json(
-        { success: false, message: 'İlan bulunamadı' },
+        { success: false, message: "İlan bulunamadı" },
         { status: 404 }
       );
     }
 
     // İlan sahibi veya onaylı ve aktif ilan kontrolü
-    if (!(userId && listing.userId === userId) && !(listing.approved && listing.active)) {
+    if (
+      !(userId && listing.userId === userId) &&
+      !(listing.approved && listing.active)
+    ) {
       return NextResponse.json(
-        { success: false, message: 'Bu ilana erişim izniniz yok' },
+        { success: false, message: "Bu ilana erişim izniniz yok" },
         { status: 403 }
       );
     }
@@ -81,7 +90,7 @@ export async function GET(
 
     if (!updatedListing) {
       return NextResponse.json(
-        { success: false, message: 'İlan güncellenirken bir hata oluştu' },
+        { success: false, message: "İlan güncellenirken bir hata oluştu" },
         { status: 500 }
       );
     }
@@ -89,14 +98,16 @@ export async function GET(
     // İlan resimlerini URL'lere dönüştür
     const listingWithImageUrls = {
       ...updatedListing,
-      images: updatedListing.images ? getListingImagesUrls(updatedListing.images) : []
+      images: updatedListing.images
+        ? getListingImagesUrls(updatedListing.images)
+        : [],
     };
 
     return NextResponse.json(listingWithImageUrls, { status: 200 });
   } catch (error) {
-    console.error('Listing detail fetch error:', error);
+    console.error("Listing detail fetch error:", error);
     return NextResponse.json(
-      { success: false, message: 'İlan detayı alınırken bir hata oluştu' },
+      { success: false, message: "İlan detayı alınırken bir hata oluştu" },
       { status: 500 }
     );
   }
@@ -112,43 +123,46 @@ export async function PUT(
     const listingId = parseInt(params.id);
     if (isNaN(listingId)) {
       return NextResponse.json(
-        { success: false, message: 'Geçersiz ilan ID' },
+        { success: false, message: "Geçersiz ilan ID" },
         { status: 400 }
       );
     }
 
     // Auth token'ı al
-        const token = await getToken({ 
-      req: request, 
-      secret: process.env.NEXTAUTH_SECRET 
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
     });
 
     // Token yoksa, kullanıcı giriş yapmamış demektir
     if (!token) {
       return NextResponse.json(
-        { success: false, message: 'Yetkilendirme gerekli' },
+        { success: false, message: "Yetkilendirme gerekli" },
         { status: 401 }
       );
     }
 
     // userId'yi al
-    const userId = Number(token.sub);;
+    const userId = Number(token.sub);
 
     // Request body'den ilan bilgilerini al
     const formData = await request.formData();
-    const title = formData.get('title') as string;
-    const description = formData.get('description') as string;
-    const city = formData.get('city') as string;
-    const categoryId = formData.get('categoryId') as string;
-    const contactPerson = formData.get('contactPerson') as string || '';
-    const phone = formData.get('phone') as string || '';
-    const listingType = formData.get('listingType') as string || 'standard';
-    const files = formData.getAll('images') as File[];
+    const title = formData.get("title") as string;
+    const description = formData.get("description") as string;
+    const city = formData.get("city") as string;
+    const categoryId = formData.get("categoryId") as string;
+    const contactPerson = (formData.get("contactPerson") as string) || "";
+    const phone = (formData.get("phone") as string) || "";
+    const listingType = (formData.get("listingType") as string) || "standard";
+    const files = formData.getAll("images") as File[];
 
     // Zorunlu alanları kontrol et
     if (!title || !description || !city || !categoryId) {
       return NextResponse.json(
-        { success: false, message: 'Başlık, açıklama, şehir ve kategori zorunludur' },
+        {
+          success: false,
+          message: "Başlık, açıklama, şehir ve kategori zorunludur",
+        },
         { status: 400 }
       );
     }
@@ -161,14 +175,14 @@ export async function PUT(
 
     if (!originalListing) {
       return NextResponse.json(
-        { success: false, message: 'İlan bulunamadı' },
+        { success: false, message: "İlan bulunamadı" },
         { status: 404 }
       );
     }
 
     if (originalListing.userId !== userId) {
       return NextResponse.json(
-        { success: false, message: 'Bu ilanı düzenleme yetkiniz yok' },
+        { success: false, message: "Bu ilanı düzenleme yetkiniz yok" },
         { status: 403 }
       );
     }
@@ -177,18 +191,18 @@ export async function PUT(
     if (files && files.length > 0) {
       const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
       const ALLOWED_FILE_TYPES = [
-        'image/jpeg',
-        'image/jpg',
-        'image/png',
-        'image/webp',
-        'image/gif'
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+        "image/gif",
       ];
 
       for (const file of files) {
         // Dosya boyutu kontrolü
         if (file.size > MAX_FILE_SIZE) {
           return NextResponse.json(
-            { success: false, message: 'Dosya boyutu en fazla 5MB olabilir' },
+            { success: false, message: "Dosya boyutu en fazla 5MB olabilir" },
             { status: 400 }
           );
         }
@@ -196,7 +210,10 @@ export async function PUT(
         // Dosya türü kontrolü
         if (!ALLOWED_FILE_TYPES.includes(file.type)) {
           return NextResponse.json(
-            { success: false, message: 'Sadece JPEG, PNG, WEBP ve GIF formatları desteklenir' },
+            {
+              success: false,
+              message: "Sadece JPEG, PNG, WEBP ve GIF formatları desteklenir",
+            },
             { status: 400 }
           );
         }
@@ -210,36 +227,36 @@ export async function PUT(
         for (const file of files) {
           // Dosyayı işle
           const fileBuffer = Buffer.from(await file.arrayBuffer());
-          
+
           // Resmi optimize et (WebP'ye dönüştür)
           const optimizedImage = await sharp(fileBuffer)
-            .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+            .resize(1200, 1200, { fit: "inside", withoutEnlargement: true })
             .webp({ quality: 80 })
             .toBuffer();
-          
+
           // Dosya adını oluştur
           const timestamp = Date.now();
           const random = uuidv4().slice(0, 8);
           const fileName = `listings/listing_${timestamp}_${random}.webp`;
-          
+
           // R2'ye yükle
           await r2Client.send(
             new PutObjectCommand({
               Bucket: LISTING_BUCKET,
               Key: fileName,
               Body: optimizedImage,
-              ContentType: 'image/webp',
+              ContentType: "image/webp",
               ACL: "public-read",
             })
           );
-          
+
           // Dosya yolunu kaydet
           imageUrls.push(fileName);
         }
       } catch (error) {
-        console.error('Dosya yükleme hatası:', error);
+        console.error("Dosya yükleme hatası:", error);
         return NextResponse.json(
-          { success: false, message: 'Resim yüklenirken bir hata oluştu' },
+          { success: false, message: "Resim yüklenirken bir hata oluştu" },
           { status: 500 }
         );
       }
@@ -249,7 +266,7 @@ export async function PUT(
     const user_ip = "0.0.0.0";
 
     // Güncellenecek verileri hazırla
-    const updates: { 
+    const updates: {
       title: string;
       description: string;
       city: string;
@@ -288,12 +305,12 @@ export async function PUT(
 
     // İlan güncellendi bilgisini logla
     console.log(`İlan güncellendi: ${updatedListing.id}, kullanıcı: ${userId}`);
-    
+
     return NextResponse.json(updatedListing, { status: 200 });
   } catch (error) {
     console.error("İlan güncelleme hatası:", error);
     return NextResponse.json(
-      { success: false, message: 'İlan güncellenemedi' },
+      { success: false, message: "İlan güncellenemedi" },
       { status: 500 }
     );
   }
@@ -306,9 +323,9 @@ export async function DELETE(
 ) {
   try {
     // Auth token'ı al
-    const token = await getToken({ 
-      req: request, 
-      secret: process.env.NEXTAUTH_SECRET 
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
     });
 
     // Token yoksa, kullanıcı giriş yapmamış demektir
@@ -321,10 +338,7 @@ export async function DELETE(
 
     const listingId = parseInt(params.id);
     if (isNaN(listingId)) {
-      return NextResponse.json(
-        { error: "Geçersiz ilan ID" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Geçersiz ilan ID" }, { status: 400 });
     }
 
     // İlanı bul
@@ -334,10 +348,7 @@ export async function DELETE(
       .where(eq(listings.id, listingId));
 
     if (!listing) {
-      return NextResponse.json(
-        { error: "İlan bulunamadı" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "İlan bulunamadı" }, { status: 404 });
     }
 
     // Kullanıcı sadece kendi ilanını silebilir
@@ -383,7 +394,7 @@ export async function DELETE(
         listing: deletedListing,
         conversationsCount: conversationsToDelete.length,
         imagesCount: listing.images?.length || 0,
-      }
+      },
     });
   } catch (error) {
     console.error("İlan silme hatası:", error);
@@ -392,4 +403,4 @@ export async function DELETE(
       { status: 500 }
     );
   }
-} 
+}
