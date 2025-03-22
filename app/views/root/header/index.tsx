@@ -56,6 +56,7 @@ export function Header({ settings }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null); // Ref for the dropdown
+  const buttonRef = useRef<HTMLDivElement>(null);
 
   const incomingUnreadMessages = useAppSelector(selectIncomingUnreadMessages);
   const outgoingUnreadMessages = useAppSelector(selectOutgoingUnreadMessages);
@@ -63,7 +64,7 @@ export function Header({ settings }: HeaderProps) {
   const { socket, isConnected } = useSocket();
 
   // Use the hook to close dropdown when clicking outside
-  useOnClickOutside(dropdownRef, () => {
+  useOnClickOutside([dropdownRef, buttonRef], () => {
     setIsProfileDropdownOpen(false);
   });
 
@@ -162,7 +163,7 @@ export function Header({ settings }: HeaderProps) {
   ];
 
   const handleMobileLinkClick = () => setIsMobileMenuOpen(false);
-  
+
   return (
     <header className="sticky top-0 left-0 right-0 z-50 bg-white shadow-md">
       <div className="container mx-auto px-4 py-4">
@@ -170,15 +171,15 @@ export function Header({ settings }: HeaderProps) {
           {/* Logo */}
           <Link href="/" className="flex items-center">
             {settings?.site_logo ? (
-              <Image 
-                src={settings.site_logo} 
-                alt={settings?.site_name || "İlan Platformu"} 
-                width={150} 
-                height={50} 
+              <Image
+                src={settings.site_logo}
+                alt={settings?.site_name || "İlan Platformu"}
+                width={150}
+                height={50}
                 className="h-8 sm:h-10 w-auto object-contain"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
+                  target.style.display = "none";
                 }}
               />
             ) : (
@@ -209,7 +210,7 @@ export function Header({ settings }: HeaderProps) {
                 className="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-colors duration-300"
               >
                 <Home className="h-5 w-5" />
-                <span className="font-medium">Ana Sayfa</span>
+                <span className="font-normal">Ana Sayfa</span>
               </Link>
               {generalMenuItems.map((item) => (
                 <Link
@@ -221,7 +222,7 @@ export function Header({ settings }: HeaderProps) {
                   )}
                 >
                   <item.icon className="h-5 w-5" />
-                  <span className="font-medium">{item.label}</span>
+                  <span className="font-normal">{item.label}</span>
                 </Link>
               ))}
             </div>
@@ -233,8 +234,9 @@ export function Header({ settings }: HeaderProps) {
                     onClick={() =>
                       setIsProfileDropdownOpen(!isProfileDropdownOpen)
                     }
+                    ref={buttonRef}
                     className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-all duration-300",
+                      "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-normal text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-all duration-300",
                       isProfileDropdownOpen && "bg-indigo-100 text-indigo-700"
                     )}
                   >
@@ -380,8 +382,9 @@ export function Header({ settings }: HeaderProps) {
                     ))}
                   </div>
                   <Link href="/ilan-ekle">
-                    <Button className="w-full bg-gradient-to-r from-indigo-600 to-blue-500 text-white font-semibold py-3 rounded-lg shadow-md hover:shadow-lg hover:from-indigo-700 hover:to-blue-600 transition-all duration-300"
-                    onClick={handleMobileLinkClick}
+                    <Button
+                      className="w-full bg-gradient-to-r from-indigo-600 to-blue-500 text-white font-semibold py-3 rounded-lg shadow-md hover:shadow-lg hover:from-indigo-700 hover:to-blue-600 transition-all duration-300"
+                      onClick={handleMobileLinkClick}
                     >
                       Ücretsiz İlan Ver
                     </Button>
