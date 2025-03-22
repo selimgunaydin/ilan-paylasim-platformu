@@ -109,7 +109,7 @@ export default function HomePage({ categories }: { categories: CategoryWithCount
           {mainCategories.map((mainCategory: CategoryWithCount) => {
             const totalSubcategoryListings = getSubcategoryListingCount(mainCategory);
             const totalListings = (mainCategory.listingCount || 0) + totalSubcategoryListings;
-
+            if(mainCategory.children.length === 0) return null;
             return (
               <div key={mainCategory.id} className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden">
                 <div className="p-6">
@@ -143,9 +143,9 @@ export default function HomePage({ categories }: { categories: CategoryWithCount
                           className="flex items-center justify-between text-gray-600 hover:text-blue-600 transition-colors"
                         >
                           <span>{subCategory.name}</span>
-                          {subCategory.listingCount && subCategory.listingCount > 0 && (
+                          {subCategory.listingCount > 0 && (
                             <span className="text-sm text-gray-500">
-                              {subCategory.listingCount} ilan
+                              {subCategory.listingCount}
                             </span>
                           )}
                         </Link>
