@@ -10,6 +10,12 @@ import { getListingImageUrlClient } from "@/utils/get-message-file-url";
 import AddFavorites from "@/views/root/ilan-detay/add-favorites";
 import { createSeoUrl } from "@/utils/create-seo-url";
 
+function stripHtml(html: string): string {
+  if (!html) return "";
+  // HTML etiketlerini kaldır ve düz metni döndür
+  return html.replace(/<[^>]+>/g, "").trim();
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -32,7 +38,7 @@ export async function generateMetadata({
 
     const title = `${listing.title} | ${listing.city} | Site Adı`;
     const description = listing.description
-      ? `${listing.description.substring(0, 160)}...`
+      ? stripHtml(listing.description)
       : `${listing.title} - ${listing.city} şehrinde bu ilanı keşfedin.`;
 
     // Create SEO-friendly canonical URL from slug
@@ -174,7 +180,7 @@ export default async function ListingDetailPage({
         {
           "@type": "Product",
           name: listing.title,
-          description: listing.description,
+          description: stripHtml(listing.description),
           image:
             listing.images?.length > 0
               ? getListingImageUrlClient(listing.images[0])
@@ -552,9 +558,8 @@ export default async function ListingDetailPage({
                             <h3 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors mb-1 sm:mb-2 line-clamp-1 text-sm sm:text-base">
                               {similarListing.title}
                             </h3>
-                            <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">
-                              {similarListing.description}
-                            </p>
+                            <div dangerouslySetInnerHTML={{ __html: similarListing.description }} className="text-xs sm:text-sm text-gray-600 line-clamp-2">
+                            </div>
                             <div className="mt-2 text-xs text-gray-500 flex items-center">
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
