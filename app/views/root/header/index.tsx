@@ -166,6 +166,7 @@ export function Header({ settings }: HeaderProps) {
     e.preventDefault();
     if (searchQuery.trim()) {
       router.push(`/arama?q=${encodeURIComponent(searchQuery.trim())}`);
+      setIsMobileMenuOpen(false);
     }
   };
 
@@ -371,7 +372,6 @@ export function Header({ settings }: HeaderProps) {
                   />
                   <button
                     type="submit"
-                    onClick={handleMobileLinkClick}
                     className="absolute inset-y-0 right-0 flex items-center pr-3 text-indigo-600"
                   >
                     <Search className="h-5 w-5" />
