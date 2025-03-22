@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from "../../../components/ui/button";
-import { Menu, X, ListPlus, Star, Send, MessageCircle, User, Home, Search } from "lucide-react";
+import { Menu, X, ListPlus, Star, Send, MessageCircle, User, Home, Search, Mail } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -92,6 +92,14 @@ export function Header() {
             >
               <Home className="h-5 w-5" />
               <span className="font-medium">Ana Sayfa</span>
+            </Link>
+
+            <Link
+              href="/iletisim"
+              className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors duration-200"
+            >
+              <Mail className="h-5 w-5" />
+              <span className="font-medium">İletişim</span>
             </Link>
 
             {user ? (
@@ -190,6 +198,11 @@ export function Header() {
               <Link href="/kategoriler" className="flex items-center gap-2 p-3 hover:bg-blue-50 rounded-lg transition-colors">
                 <Search className="h-5 w-5 text-blue-600" />
                 <span className="text-gray-700 font-medium">Kategoriler</span>
+              </Link>
+
+              <Link href="/iletisim" className="flex items-center gap-2 p-3 hover:bg-blue-50 rounded-lg transition-colors">
+                <Mail className="h-5 w-5 text-blue-600" />
+                <span className="text-gray-700 font-medium">İletişim</span>
               </Link>
 
               <div className="border-t border-gray-200 my-2" />

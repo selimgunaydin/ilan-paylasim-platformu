@@ -326,3 +326,18 @@ export const insertMessageSchema = createInsertSchema(messages, {
   fileTypes: z.array(z.string()).optional(),
 });
 export const insertFavoriteSchema = createInsertSchema(favorites);
+
+// Contact messages table
+export const contact_messages = pgTable("contact_messages", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  subject: text("subject").notNull(),
+  message: text("message").notNull(),
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  ip_address: text("ip_address"),
+});
+
+export type ContactMessage = typeof contact_messages.$inferSelect;
+export type InsertContactMessage = typeof contact_messages.$inferInsert;

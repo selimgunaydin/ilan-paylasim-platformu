@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Cog,
   FolderTree,
+  Mail,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@app/components/ui/sheet";
 import {
@@ -55,6 +56,11 @@ const menuItems = [
     label: "Mesajlar",
     path: "/yonetim/tummesajlar",
     icon: MessageSquare,
+  },
+  {
+    label: "İletişim Mesajları",
+    path: "/yonetim/iletisim-mesajlari",
+    icon: Mail,
   },
   {
     label: "Kategoriler",
