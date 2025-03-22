@@ -160,6 +160,8 @@ export function Header({ settings }: HeaderProps) {
       loggedIn: true,
     },
   ];
+
+  const handleMobileLinkClick = () => setIsMobileMenuOpen(false);
   
   return (
     <header className="sticky top-0 left-0 right-0 z-50 bg-white shadow-md">
@@ -332,22 +334,17 @@ export function Header({ settings }: HeaderProps) {
               <Link
                 href="/"
                 className="flex items-center gap-3 py-3 px-4 hover:bg-indigo-50 rounded-lg transition-colors duration-200"
+                onClick={handleMobileLinkClick}
               >
                 <Home className="h-5 w-5 text-indigo-600" />
                 <span className="text-gray-800 font-medium">Ana Sayfa</span>
-              </Link>
-              <Link
-                href="/kategoriler"
-                className="flex items-center gap-3 py-3 px-4 hover:bg-indigo-50 rounded-lg transition-colors duration-200"
-              >
-                <Search className="h-5 w-5 text-indigo-600" />
-                <span className="text-gray-800 font-medium">Kategoriler</span>
               </Link>
               {generalMenuItems.map((item) => (
                 <Link
                   key={item.path}
                   href={item.path}
                   className="flex items-center gap-3 py-3 px-4 hover:bg-indigo-50 rounded-lg transition-colors duration-200"
+                  onClick={handleMobileLinkClick}
                 >
                   <item.icon className="h-5 w-5 text-indigo-600" />
                   <span className="text-gray-800 font-medium">
@@ -366,6 +363,7 @@ export function Header({ settings }: HeaderProps) {
                         key={item.path}
                         href={item.path}
                         className="flex items-center justify-between py-3 px-4 hover:bg-indigo-50 rounded-lg transition-colors duration-200"
+                        onClick={handleMobileLinkClick}
                       >
                         <div className="flex items-center gap-3">
                           <item.icon className="h-5 w-5 text-indigo-600" />
@@ -382,7 +380,9 @@ export function Header({ settings }: HeaderProps) {
                     ))}
                   </div>
                   <Link href="/ilan-ekle">
-                    <Button className="w-full bg-gradient-to-r from-indigo-600 to-blue-500 text-white font-semibold py-3 rounded-lg shadow-md hover:shadow-lg hover:from-indigo-700 hover:to-blue-600 transition-all duration-300">
+                    <Button className="w-full bg-gradient-to-r from-indigo-600 to-blue-500 text-white font-semibold py-3 rounded-lg shadow-md hover:shadow-lg hover:from-indigo-700 hover:to-blue-600 transition-all duration-300"
+                    onClick={handleMobileLinkClick}
+                    >
                       Ücretsiz İlan Ver
                     </Button>
                   </Link>
@@ -392,6 +392,7 @@ export function Header({ settings }: HeaderProps) {
                     onClick={() => {
                       signOut({ redirect: false });
                       router.push("/");
+                      handleMobileLinkClick();
                     }}
                   >
                     Çıkış Yap
