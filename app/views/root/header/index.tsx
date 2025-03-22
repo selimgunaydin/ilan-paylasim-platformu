@@ -56,7 +56,7 @@ export function Header({ settings }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null); // Ref for the dropdown
-  const buttonRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef(null);
 
   const incomingUnreadMessages = useAppSelector(selectIncomingUnreadMessages);
   const outgoingUnreadMessages = useAppSelector(selectOutgoingUnreadMessages);
