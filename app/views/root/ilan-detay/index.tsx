@@ -106,7 +106,7 @@ export default function ListingDetailClient({
       )}
 
       {/* Message Form */}
-      <div className="mt-4 sm:mt-6">
+      <div className="mt-4 sm:mt-0">
         <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center">
           <svg
             xmlns="http://www.w3.org/2000/svg"

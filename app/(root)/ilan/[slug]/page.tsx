@@ -9,7 +9,6 @@ import { Metadata } from "next";
 import { getListingImageUrlClient } from "@/utils/get-message-file-url";
 import AddFavorites from "@/views/root/ilan-detay/add-favorites";
 import { createSeoUrl } from "@/utils/create-seo-url";
-import ListingDescription from "@/views/root/ilan-detay/detail";
 
 export async function generateMetadata({
   params,
@@ -471,7 +470,35 @@ export default async function ListingDetailPage({
 
 
               {/* Listing Description */}
-              <ListingDescription description={listing.description} />  
+              <div className="bg-white rounded-xl shadow-md overflow-hidden p-3 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2 text-blue-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  İlan Detayları
+                </h2>
+                <div className="prose max-w-none">
+                  {listing.description ? (
+                    <div dangerouslySetInnerHTML={{ __html: listing.description }} className="whitespace-pre-wrap text-sm sm:text-base text-gray-700 leading-relaxed">
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 italic text-sm sm:text-base">
+                      Bu ilan için detay bilgisi bulunmuyor.
+                    </p>
+                  )}
+                </div>
+              </div>
               {/* Image Gallery */}
               <div className="bg-white rounded-xl shadow-md overflow-hidden">
                 <ListingDetailClient
