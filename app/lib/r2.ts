@@ -53,7 +53,7 @@ const ALLOWED_MEDIA_TYPES = [
 ];
 
 // Dosya boyut limitleri (byte cinsinden)
-const IMAGE_SIZE_LIMIT = 5 * 1024 * 1024; // 5MB - Tüm resim yüklemeleri için yeni limit
+const IMAGE_SIZE_LIMIT = 20 * 1024 * 1024; // 20MB - Tüm resim yüklemeleri için yeni limit
 const FILE_SIZE_LIMIT = 20 * 1024 * 1024; // 20MB
 
 // Dosya tipini kontrol eden fonksiyon
