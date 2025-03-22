@@ -13,7 +13,7 @@ const ToastViewport = React.forwardRef<
   <ToastPrimitives.Viewport
     ref={ref}
     className={cn(
-      "fixed z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-8 sm:right-8 sm:top-auto sm:flex-col md:max-w-[420px]",
+      "fixed z-[100] flex max-h-screen w-full flex-col-reverse p-4 bottom-0 right-0 top-auto sm:bottom-8 sm:right-8 sm:top-auto sm:flex-col md:max-w-[420px]",
       className
     )}
     {...props}
@@ -28,7 +28,7 @@ const toastVariants = cva(
   "data-[state=open]:animate-in data-[state=closed]:animate-out " +
   "data-[swipe=end]:animate-out data-[state=closed]:opacity-0 " +
   "data-[state=closed]:translate-x-full data-[state=open]:translate-y-0 " +
-  "data-[state=open]:sm:slide-in-from-bottom-full",
+  "data-[state=open]:slide-in-from-bottom-full sm:data-[state=open]:slide-in-from-bottom-full",
   {
     variants: {
       variant: {
