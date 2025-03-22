@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import cityList from "../../../../public/city-list.json";
 import { Metadata } from "next";
 import { FaqAccordion, type FaqItem } from "@/components/FaqAccordion";
+import { notFound } from "next/navigation";
 
 // Helper to parse FAQs from string
 const parseFaqs = (faqsString?: string | null): FaqItem[] => {
@@ -65,7 +66,9 @@ async function getCategoryDetail(slug: string) {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/categories/${slug}`, {
     next: { revalidate: 60 },
   });
-  if (!res.ok) throw new Error("Kategori detayları yüklenemedi");
+  if (!res.ok) {
+    notFound();
+  }
   return res.json() as Promise<Category>;
 }
 
