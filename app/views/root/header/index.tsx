@@ -33,6 +33,7 @@ import { cn } from "@/utils";
 import { useOnClickOutside } from "../../../hooks/use-on-click-outside"; // Import the hook
 import Image from "next/image";
 import { SiteSettings } from "@shared/schemas";
+import { Input } from "@/components/ui/input";
 
 interface MenuItem {
   label: string;
@@ -55,6 +56,7 @@ export function Header({ settings }: HeaderProps) {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null); // Ref for the dropdown
   const buttonRef = useRef(null);
 
@@ -62,6 +64,18 @@ export function Header({ settings }: HeaderProps) {
   const outgoingUnreadMessages = useAppSelector(selectOutgoingUnreadMessages);
   const dispatch = useAppDispatch();
   const { socket, isConnected } = useSocket();
+
+  useEffect(() => {
+    if (window !== undefined) {
+      document.body.style.overflow = isMobileMenuOpen ? "hidden" : "auto";
+    }
+
+    return () => {
+      if (window !== undefined) {
+        document.body.style.overflow = "auto";
+      }
+    };
+  }, [isMobileMenuOpen]);
 
   // Use the hook to close dropdown when clicking outside
   useOnClickOutside([dropdownRef, buttonRef], () => {
@@ -148,6 +162,13 @@ export function Header({ settings }: HeaderProps) {
 
   const handleMobileLinkClick = () => setIsMobileMenuOpen(false);
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/arama?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
   return (
     <header className="sticky top-0 left-0 right-0 z-50 bg-white shadow-md">
       <div className="container mx-auto px-4 py-4">
@@ -172,6 +193,27 @@ export function Header({ settings }: HeaderProps) {
               </h1>
             )}
           </Link>
+
+          {/* Search Input - Desktop */}
+          <div className="hidden md:flex flex-1 mx-8">
+            <form onSubmit={handleSearch} className="w-full max-w-lg flex items-center">
+              <div className="relative w-full">
+                <Input
+                  type="text"
+                  placeholder="İlanlarda ara..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pr-10 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <button
+                  type="submit"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-indigo-600"
+                >
+                  <Search className="h-5 w-5" />
+                </button>
+              </div>
+            </form>
+          </div>
 
           {/* Mobile Menu Toggle */}
           <button
@@ -301,7 +343,7 @@ export function Header({ settings }: HeaderProps) {
         >
           <nav
             className={cn(
-              "absolute top-0 left-0 w-80 bg-white h-full shadow-2xl transform transition-transform duration-300 ease-in-out",
+              "absolute overflow-y-auto top-0 left-0 w-80 bg-white h-full shadow-2xl transform transition-transform duration-300 ease-in-out",
               isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
             )}
             onClick={(e) => e.stopPropagation()}
@@ -316,6 +358,26 @@ export function Header({ settings }: HeaderProps) {
                   <X className="h-5 w-5 text-gray-600" />
                 </button>
               </div>
+
+              {/* Mobile Search */}
+              <form onSubmit={handleSearch} className="w-full flex items-center">
+                <div className="relative w-full">
+                  <Input
+                    type="text"
+                    placeholder="İlanlarda ara..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pr-10 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  <button
+                    type="submit"
+                    onClick={handleMobileLinkClick}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-indigo-600"
+                  >
+                    <Search className="h-5 w-5" />
+                  </button>
+                </div>
+              </form>
 
               <Link
                 href="/"

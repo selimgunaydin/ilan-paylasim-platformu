@@ -143,7 +143,7 @@ export default function HomePage({ categories }: { categories: CategoryWithCount
                         >
                           <span>{subCategory.name}</span>
                           {subCategory.listingCount > 0 && (
-                            <span className="text-sm text-gray-500">
+                            <span className="text-sm text-gray-500 mr-2">
                               {subCategory.listingCount}
                             </span>
                           )}
