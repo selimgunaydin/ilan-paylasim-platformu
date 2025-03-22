@@ -27,12 +27,6 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
         types: ['textStyle'],
       }),
       TextStyle, // Add this
-      Color.configure({
-        types: ['textStyle'], // This connects Color to TextStyle
-      }),
-      Color.configure({
-        types: ['textStyle'], // This connects Color to TextStyle
-      }),
       StarterKit.configure({
         heading: {
           levels: [1, 2, 3], // Enable H1, H2, H3
@@ -58,6 +52,7 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
           'focus:outline-none min-h-[200px] max-w-none p-4 rounded-md border border-input bg-background ring-offset-background text-sm', // prose sınıfları kaldırıldı, text-sm eklendi
       },
     },
+    immediatelyRender: true,
   });
 
   // Formatting functions
