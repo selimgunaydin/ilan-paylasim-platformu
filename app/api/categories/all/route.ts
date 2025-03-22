@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { categories, listings } from '@shared/schemas';
-import { db } from '@shared/db';
-import { sql } from 'drizzle-orm';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { categories, listings } from "@shared/schemas";
+import { db } from "@shared/db";
+import { sql } from "drizzle-orm";
 
 // Kategori tipini tanımlıyoruz (TypeScript için)
 interface Category {
@@ -33,12 +33,11 @@ export async function GET() {
         metaDescription: categories.metaDescription,
         content: categories.content,
         faqs: categories.faqs,
-        listingCount: sql<number>`count(listings.id)::int`,
+        listingCount: sql<number>`count(case when ${listings.active} = true and ${listings.approved} = true then 1 else null end)::int`,
       })
       .from(categories)
       .leftJoin(listings, sql`${categories.id} = ${listings.categoryId}`)
       .groupBy(categories.id);
-
     // Hiyerarşik yapıyı oluştur
     const categoryMap: { [key: number]: Category } = {};
     const rootCategories: Category[] = [];
@@ -68,9 +67,9 @@ export async function GET() {
     // Başarılı yanıt
     return NextResponse.json(rootCategories, { status: 200 });
   } catch (error) {
-    console.error('Kategoriler getirme hatası:', error);
+    console.error("Kategoriler getirme hatası:", error);
     return NextResponse.json(
-      { success: false, message: 'Kategoriler getirilirken bir hata oluştu' },
+      { success: false, message: "Kategoriler getirilirken bir hata oluştu" },
       { status: 500 }
     );
   }
