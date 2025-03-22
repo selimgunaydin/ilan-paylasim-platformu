@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { DataTable } from "@app/components/ui/data-table";
 import { FaToggleOff, FaTrash, FaFlag } from "react-icons/fa";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { useRouter } from "next/navigation";
 import {
   Select,

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge, CheckCircle2 } from "lucide-react";
 import React from "react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 export default function AuthSuccessView() {
   return (
     <div className="text-center space-y-4 h-screen flex flex-col justify-center items-center">

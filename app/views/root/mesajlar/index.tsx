@@ -11,7 +11,7 @@ import { fetchUnreadMessages } from "@/redux/slices/messageSlice";
 import { useEffect, useState } from "react";
 import { useSocket } from "@/providers/socket-provider";
 import MessagesView from "../mesaj-detay";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 // Skeleton Loader Component
 function SkeletonWrapper() {
   return (

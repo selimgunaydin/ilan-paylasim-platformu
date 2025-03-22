@@ -29,7 +29,7 @@ import {
 } from "../../../redux/slices/messageSlice";
 import { Badge } from "../../../components/ui/badge";
 import { useSocket } from "@/providers/socket-provider";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { useOnClickOutside } from "../../../hooks/use-on-click-outside"; // Import the hook
 
 interface MenuItem {

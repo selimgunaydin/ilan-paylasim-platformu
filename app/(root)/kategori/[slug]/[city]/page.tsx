@@ -2,11 +2,11 @@ import React from "react";
 import Link from "next/link";
 import { Category, Listing } from "@shared/schemas";
 import CategoryDetailClient from "@/views/root/category";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import cityList from "../../../../../public/city-list.json";
 import { Metadata } from "next";
 import { FaqAccordion, type FaqItem } from "@/components/FaqAccordion";
-
+import { createSeoUrl } from "@/utils/create-seo-url";
 // Helper to parse FAQs from string
 const parseFaqs = (faqsString?: string | null): FaqItem[] => {
   if (!faqsString) return [];
@@ -379,6 +379,3 @@ export default async function CategoryPage({
     </div>
   );
 }
-
-const createSeoUrl = (title: string): string =>
-  title.toLowerCase().replace(/ /g, "-");

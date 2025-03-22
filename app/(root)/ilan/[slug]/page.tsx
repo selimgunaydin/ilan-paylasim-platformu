@@ -9,6 +9,7 @@ import NotFound from "@/not-found";
 import { Metadata } from "next";
 import { getListingImageUrlClient } from "@/utils/get-message-file-url";
 import AddFavorites from "@/views/root/ilan-detay/add-favorites";
+import { createSeoUrl } from "@/utils/create-seo-url";
 
 export async function generateMetadata({
   params,
@@ -973,6 +974,3 @@ export default async function ListingDetailPage({
     );
   }
 }
-
-const createSeoUrl = (title: string): string =>
-  title.toLowerCase().replace(/ /g, "-");

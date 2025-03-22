@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@app/components/ui/dropdown-menu";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { useRouter, usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useSession } from "next-auth/react";

@@ -5,7 +5,7 @@ import { format } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { tr } from "date-fns/locale"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/utils"
 import { Button } from "@app/components/ui/button"
 import { Calendar } from "@app/components/ui/calendar"
 import {
