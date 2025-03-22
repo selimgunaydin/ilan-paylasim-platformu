@@ -54,12 +54,6 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/kategoriler" className="text-gray-400 hover:text-white transition-colors flex items-center">
-                  <ArrowRight size={14} className="mr-2" />
-                  Kategoriler
-                </Link>
-              </li>
-              <li>
                 <Link href="/ilan-ekle" className="text-gray-400 hover:text-white transition-colors flex items-center">
                   <ArrowRight size={14} className="mr-2" />
                   İlan Ver
@@ -129,13 +123,13 @@ export function Footer() {
             &copy; {currentYear} İlan Platformu. Tüm hakları saklıdır.
           </p>
           <div className="flex space-x-4 mt-4 md:mt-0">
-            <Link href="/gizlilik-politikasi" className="text-sm text-gray-500 hover:text-white transition-colors">
+            <Link href="/sozlesmeler/gizlilik-politikasi" className="text-sm text-gray-500 hover:text-white transition-colors">
               Gizlilik Politikası
             </Link>
-            <Link href="/kullanim-kosullari" className="text-sm text-gray-500 hover:text-white transition-colors">
+            <Link href="/sozlesmeler/kullanim-kosullari" className="text-sm text-gray-500 hover:text-white transition-colors">
               Kullanım Koşulları
             </Link>
-            <Link href="/yardim" className="text-sm text-gray-500 hover:text-white transition-colors">
+            <Link href="/kurumsal/sss" className="text-sm text-gray-500 hover:text-white transition-colors">
               Yardım
             </Link>
           </div>
