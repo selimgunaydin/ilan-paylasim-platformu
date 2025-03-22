@@ -180,7 +180,7 @@ export function Header() {
           </button>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center">
+          <nav className="hidden md:flex items-center gap-4">
             <div className="flex items-center gap-6">
               <Link
                 href="/"
