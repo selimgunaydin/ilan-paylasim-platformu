@@ -83,10 +83,6 @@ export default function CreateListing({ isAdmin = false }: CreateListingProps) {
     queryFn: () => fetch("/api/categories/all").then((res) => res.json()),
   });
 
-  const categories = categoriesData?.filter(
-    (category) => category.parentId === null
-  );
-
   const onSubmit = async (values: any) => {
     try {
       if (

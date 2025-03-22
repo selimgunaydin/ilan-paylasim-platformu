@@ -30,6 +30,7 @@ import type { Category, Listing } from "@shared/schemas";
 import { turkishCities } from "@/lib/constants";
 import { queryClient } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
+
 export default function EditListing() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
