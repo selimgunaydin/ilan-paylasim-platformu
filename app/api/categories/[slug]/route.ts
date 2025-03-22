@@ -27,8 +27,6 @@ export async function GET(
         { status: 404 }
       );
     }
-
-    console.log(category);
     
     // Başarılı yanıt
     return NextResponse.json(category, { status: 200 });
