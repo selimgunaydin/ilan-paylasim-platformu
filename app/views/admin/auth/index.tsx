@@ -25,7 +25,7 @@ export default function AdminView() {
       const result = await signIn("admin-credentials", {
         username,
         password,
-        redirect: true,
+        redirect: false,
         callbackUrl: "/yonetim/anasayfa"
       });
       
@@ -36,7 +36,7 @@ export default function AdminView() {
           variant: "destructive",
         });
       } else if (result?.url) {
-        router.push(result.url);
+        window.location.href = result.url;
       }
     } catch (error) {
       toast({

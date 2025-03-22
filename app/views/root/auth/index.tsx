@@ -186,7 +186,7 @@ function LoginForm({
         username: data.username,
         password: data.password,
         ip_address,
-        redirect: true,
+        redirect: false,
         callbackUrl: "/"
       });
       
@@ -196,7 +196,7 @@ function LoginForm({
           message: result.error
         });
       } else if (result?.url) {
-        router.push(result.url);
+        window.location.href = result.url;
       }
     } catch (error) {
       form.setError("root", {
