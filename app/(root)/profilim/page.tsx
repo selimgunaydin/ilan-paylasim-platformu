@@ -4,7 +4,7 @@ import { users } from "@shared/schemas"
 import { eq } from "drizzle-orm"
 import Profile from '@/views/root/profile'
 import { redirect } from "next/navigation"
-import { authOptions } from "@/api/auth/[...nextauth]/route"
+import { authOptions } from "@/api/auth/auth-options"
 
 export async function generateMetadata() {
   return {

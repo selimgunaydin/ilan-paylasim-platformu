@@ -4,11 +4,30 @@ import Link from "next/link";
 import { Facebook, Instagram, Twitter, Mail, Phone, MapPin, ArrowRight } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export function Footer() {
   const [email, setEmail] = useState("");
-  
+  const [settings, setSettings] = useState<any>(null);
+  const currentYear = new Date().getFullYear();
+
+  // Fetch site settings
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch('/api/site-settings');
+        if (response.ok) {
+          const data = await response.json();
+          setSettings(data);
+        }
+      } catch (error) {
+        console.error('Failed to load site settings:', error);
+      }
+    };
+    
+    fetchSettings();
+  }, []);
+
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
     // Burada e-posta aboneliği işlemi yapılabilir
@@ -16,10 +35,8 @@ export function Footer() {
     setEmail("");
   };
 
-  const currentYear = new Date().getFullYear();
-
   return (
-    <footer className="bg-gray-900 text-gray-300">
+    <footer className="bg-gray-900 text-white pt-12 pb-6">
       {/* Üst Kısım */}
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -80,15 +97,15 @@ export function Footer() {
             <ul className="space-y-3">
               <li className="flex items-start">
                 <MapPin size={20} className="mr-2 mt-1 text-blue-500" />
-                <span>Atatürk Bulvarı No:123, Ankara, Türkiye</span>
+                <span>{settings?.contact_address || "Atatürk Bulvarı No:123, Ankara, Türkiye"}</span>
               </li>
               <li className="flex items-center">
                 <Phone size={20} className="mr-2 text-blue-500" />
-                <span>+90 (312) 123 45 67</span>
+                <span>{settings?.contact_phone || "+90 (312) 123 45 67"}</span>
               </li>
               <li className="flex items-center">
                 <Mail size={20} className="mr-2 text-blue-500" />
-                <span>info@ilanplatformu.com</span>
+                <span>{settings?.contact_email || "info@ilanplatformu.com"}</span>
               </li>
             </ul>
           </div>
@@ -120,7 +137,7 @@ export function Footer() {
       <div className="border-t border-gray-800 py-6">
         <div className="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-gray-500">
-            &copy; {currentYear} İlan Platformu. Tüm hakları saklıdır.
+            {settings?.footer_text || `© ${currentYear} İlan Platformu. Tüm hakları saklıdır.`}
           </p>
           <div className="flex space-x-4 mt-4 md:mt-0">
             <Link href="/sozlesmeler/gizlilik-politikasi" className="text-sm text-gray-500 hover:text-white transition-colors">

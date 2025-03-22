@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/api/auth/[...nextauth]/route"; // Adjust path as needed
+import { authOptions } from "@/api/auth/auth-options"; // Adjust path as needed
 import { headers } from "next/headers";
 import Link from "next/link";
 import type { Category } from "@shared/schemas";

@@ -207,7 +207,7 @@ export function ContactMessagesPage() {
   };
 
   return (
-    <div className="p-6">
+    <div>
       <Card>
         <CardHeader>
           <CardTitle>İletişim Mesajları</CardTitle>

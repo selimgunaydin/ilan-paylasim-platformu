@@ -130,9 +130,9 @@ export default function ManagementHome({ children }: { children?: React.ReactNod
   // Yükleme durumunda skeleton göster
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen">
         <main>
-          <div className="container mx-auto px-4 py-8">
+          <div>
             <div className="mb-8 space-y-4">
               <Skeleton className="h-10 w-1/3" />
               <Skeleton className="h-4 w-2/3" />
@@ -160,9 +160,9 @@ export default function ManagementHome({ children }: { children?: React.ReactNod
   // Hata durumunda hata mesajını göster
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-scree">
         <main>
-          <div className="container mx-auto px-4 py-8">
+          <div>
             <div className="rounded-md bg-red-50 p-4 mb-8">
               <div className="flex">
                 <div className="flex-shrink-0">
@@ -192,10 +192,10 @@ export default function ManagementHome({ children }: { children?: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {/* Ana İçerik */}
       <main>
-        <div className="container mx-auto px-4 py-8">
+        <div>
           {children ?? (
             <>
               <div className="mb-8">

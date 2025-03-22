@@ -256,8 +256,32 @@ export const payment_settings = pgTable("payment_settings", {
   updated_by: integer("updated_by").references(() => users.id),
 });
 
+// Site settings table definition
+export const site_settings = pgTable("site_settings", {
+  id: serial("id").primaryKey(),
+  site_name: text("site_name").notNull().default("İlan Platformu"),
+  site_logo: text("site_logo"),
+  site_favicon: text("site_favicon"),
+  home_title: text("home_title").notNull().default("İlan Platformu - İkinci El Alışveriş ve İlan Platformu"),
+  home_description: text("home_description").notNull().default("İkinci el eşya, araç ve daha fazlasını bulabileceğiniz güvenilir ilan platformu."),
+  contact_email: text("contact_email").notNull().default("info@example.com"),
+  contact_phone: text("contact_phone").notNull().default("+90 212 123 45 67"),
+  contact_address: text("contact_address").notNull().default("Örnek Mahallesi, Örnek Caddesi No:1, İstanbul"),
+  footer_text: text("footer_text").notNull().default("© 2024 İlan Platformu. Tüm hakları saklıdır."),
+  facebook_url: text("facebook_url"),
+  twitter_url: text("twitter_url"),
+  instagram_url: text("instagram_url"),
+  linkedin_url: text("linkedin_url"),
+  youtube_url: text("youtube_url"),
+  updated_at: timestamp("updated_at").defaultNow(),
+  updated_by: integer("updated_by").references(() => users.id),
+});
+
 export type PaymentSettings = typeof payment_settings.$inferSelect;
 export type InsertPaymentSettings = typeof payment_settings.$inferInsert;
+
+export type SiteSettings = typeof site_settings.$inferSelect;
+export type InsertSiteSettings = typeof site_settings.$inferInsert;
 
 export const insertPaymentSettingsSchema = createInsertSchema(
   payment_settings,
@@ -271,6 +295,23 @@ export const insertPaymentSettingsSchema = createInsertSchema(
     }),
   },
 );
+
+export const insertSiteSettingsSchema = createInsertSchema(site_settings, {
+  site_name: z.string().min(1, "Site adı girilmelidir"),
+  site_logo: z.string().optional(),
+  site_favicon: z.string().optional(),
+  home_title: z.string().min(1, "Ana sayfa başlığı girilmelidir"),
+  home_description: z.string().min(1, "Ana sayfa açıklaması girilmelidir"),
+  contact_email: z.string().email("Geçerli bir e-posta adresi girilmelidir"),
+  contact_phone: z.string().min(1, "İletişim telefonu girilmelidir"),
+  contact_address: z.string().min(1, "İletişim adresi girilmelidir"),
+  footer_text: z.string().min(1, "Alt bilgi metni girilmelidir"),
+  facebook_url: z.string().url("Geçerli bir URL girilmelidir").optional().or(z.literal('')),
+  twitter_url: z.string().url("Geçerli bir URL girilmelidir").optional().or(z.literal('')),
+  instagram_url: z.string().url("Geçerli bir URL girilmelidir").optional().or(z.literal('')),
+  linkedin_url: z.string().url("Geçerli bir URL girilmelidir").optional().or(z.literal('')),
+  youtube_url: z.string().url("Geçerli bir URL girilmelidir").optional().or(z.literal('')),
+});
 
 export const insertUserSchema = createInsertSchema(users, {
   username: z

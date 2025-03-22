@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import MyListings from '@/views/root/my-listings'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/api/auth/[...nextauth]/route'
+import { authOptions } from '@/api/auth/auth-options'
 import { headers } from 'next/headers'
 
 async function getListings() {

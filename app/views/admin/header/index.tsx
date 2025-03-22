@@ -76,6 +76,11 @@ const settingsMenuItems = [
     path: "/yonetim/ayarlar/ticari",
     icon: Cog,
   },
+  {
+    label: "Site Ayarları",
+    path: "/yonetim/ayarlar/site",
+    icon: Settings,
+  },
 ];
 
 // Server Component

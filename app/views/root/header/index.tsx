@@ -31,6 +31,8 @@ import { Badge } from "../../../components/ui/badge";
 import { useSocket } from "@/providers/socket-provider";
 import { cn } from "@/utils";
 import { useOnClickOutside } from "../../../hooks/use-on-click-outside"; // Import the hook
+import Image from "next/image";
+import { SiteSettings } from "@shared/schemas";
 
 interface MenuItem {
   label: string;
@@ -42,7 +44,11 @@ interface MenuItem {
   loggedIn: boolean | null;
 }
 
-export function Header() {
+interface HeaderProps {
+  settings: SiteSettings;
+}
+
+export function Header({ settings }: HeaderProps) {
   const { data: session } = useSession();
   const user = session?.user;
   const router = useRouter();
@@ -154,16 +160,30 @@ export function Header() {
       loggedIn: true,
     },
   ];
-
+  
   return (
     <header className="sticky top-0 left-0 right-0 z-50 bg-white shadow-md">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center">
-            <h1 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 to-blue-500 bg-clip-text text-transparent">
-              İlan Platformu
-            </h1>
+            {settings?.site_logo ? (
+              <Image 
+                src={settings.site_logo} 
+                alt={settings?.site_name || "İlan Platformu"} 
+                width={150} 
+                height={50} 
+                className="h-8 sm:h-10 w-auto object-contain"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
+              />
+            ) : (
+              <h1 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 to-blue-500 bg-clip-text text-transparent">
+                {settings?.site_name || "İlan Platformu"}
+              </h1>
+            )}
           </Link>
 
           {/* Mobile Menu Toggle */}

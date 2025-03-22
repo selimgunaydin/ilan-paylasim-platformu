@@ -305,7 +305,7 @@ export default function KategorilerPage() {
   if (!categories) return <div>Kategori bulunamadı</div>;
 
   return (
-    <div className="p-8">
+    <div>
       <h1 className="text-2xl font-bold mb-8">Kategoriler</h1>
 
       <div className="mb-6">

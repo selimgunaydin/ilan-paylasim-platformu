@@ -1,6 +1,7 @@
 import React from "react";
 import HomePage from "@/views/root/home";
 import { Metadata } from "next";
+import { getSiteSettings } from "@/lib/settings";
 
 interface Category {
   id: number;
@@ -24,27 +25,24 @@ interface CategoryWithCount extends Category {
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const siteName = "İlan Daddy";
+  const settings = await getSiteSettings();
   const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://example.com";
 
   return {
-    title: `${siteName} - İkinci El Alışveriş ve İlan Platformu`,
-    description:
-      "İkinci el eşya, araç ve daha fazlasını bulabileceğiniz güvenilir ilan platformu. Hemen keşfedin ve fırsatları yakalayın!",
-    keywords: "ikinci el, ilan, alışveriş, kategoriler, fırsatlar, İlan Daddy",
+    title: settings.home_title,
+    description: settings.home_description,
+    keywords: "ikinci el, ilan, alışveriş, kategoriler, fırsatlar",
     openGraph: {
-      title: `${siteName} - İkinci El Alışveriş ve İlan Platformu`,
-      description:
-        "İkinci el eşya, araç ve daha fazlasını bulabileceğiniz güvenilir ilan platformu.",
+      title: settings.home_title,
+      description: settings.home_description,
       url: siteUrl,
       type: "website",
       images: [`${siteUrl}/og-image.jpg`],
     },
     twitter: {
       card: "summary_large_image",
-      title: `${siteName} - İkinci El Alışveriş ve İlan Platformu`,
-      description:
-        "İkinci el eşya, araç ve daha fazlasını bulabileceğiniz güvenilir ilan platformu.",
+      title: settings.home_title,
+      description: settings.home_description,
       images: [`${siteUrl}/og-image.jpg`],
     },
     alternates: {
@@ -62,18 +60,18 @@ export default async function Home() {
   ).then(res => res.json());
 
   const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://example.com";
+  const settings = await getSiteSettings();
 
   // Schema.org yapısı
   const schemaData = {
     "@context": "https://schema.org",
     "@type": "CollectionPage", // Ana sayfa bir koleksiyon sayfası olarak tanımlanıyor
-    name: "İlan Daddy - İkinci El Alışveriş ve İlan Platformu",
-    description:
-      "İkinci el eşya, araç ve daha fazlasını bulabileceğiniz güvenilir ilan platformu.",
+    name: settings.home_title,
+    description: settings.home_description,
     url: siteUrl,
     publisher: {
       "@type": "Organization",
-      name: "İlan Daddy",
+      name: settings.site_name,
     },
     mainEntity: {
       "@type": "ItemList",

@@ -17,7 +17,7 @@ export default function AdminLayout({
       <QueryClientProvider client={queryClient}>
         <AdminAuthProvider>
           <AdminHeader />
-          {children}
+          <div className="container mx-auto pt-8">{children}</div>
           <Toaster />
         </AdminAuthProvider>
       </QueryClientProvider>

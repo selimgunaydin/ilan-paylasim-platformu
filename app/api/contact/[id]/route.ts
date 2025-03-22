@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, schema } from '@shared/db';
 import { eq } from 'drizzle-orm';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/api/auth/auth-options';
 
 // İletişim mesajını silmek için DELETE endpoint'i
 export async function DELETE(

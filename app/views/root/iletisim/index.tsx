@@ -8,7 +8,6 @@ import {
   Card, 
   CardContent, 
   CardDescription, 
-  CardFooter, 
   CardHeader, 
   CardTitle 
 } from '@app/components/ui/card';
@@ -25,6 +24,7 @@ import { Textarea } from '@app/components/ui/textarea';
 import { Button } from '@app/components/ui/button';
 import { useToast } from '@app/hooks/use-toast';
 import { Mail, Phone, MapPin, Send, Loader2 } from 'lucide-react';
+import { SiteSettings } from '@shared/schemas';
 
 // Form şeması
 const contactSchema = z.object({
@@ -36,7 +36,11 @@ const contactSchema = z.object({
 
 type ContactFormValues = z.infer<typeof contactSchema>;
 
-export default function ContactPage() {
+interface ContactPageProps {
+  settings: SiteSettings;
+}
+
+export default function ContactPage({ settings }: ContactPageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   
@@ -111,23 +115,21 @@ export default function ContactPage() {
                 <Mail className="w-5 h-5 mt-1 mr-3 text-primary" />
                 <div>
                   <h3 className="font-medium">E-posta</h3>
-                  <p className="text-muted-foreground">info@example.com</p>
+                  <p className="text-muted-foreground">{settings?.contact_email || "info@example.com"}</p>
                 </div>
               </div>
               <div className="flex items-start">
                 <Phone className="w-5 h-5 mt-1 mr-3 text-primary" />
                 <div>
                   <h3 className="font-medium">Telefon</h3>
-                  <p className="text-muted-foreground">+90 212 123 45 67</p>
+                  <p className="text-muted-foreground">{settings?.contact_phone || "+90 212 123 45 67"}</p>
                 </div>
               </div>
               <div className="flex items-start">
                 <MapPin className="w-5 h-5 mt-1 mr-3 text-primary" />
                 <div>
                   <h3 className="font-medium">Adres</h3>
-                  <p className="text-muted-foreground">
-                    Örnek Mahallesi, Örnek Caddesi No:1, İstanbul
-                  </p>
+                  <p className="text-muted-foreground">{settings?.contact_address || "Örnek Mahallesi, Örnek Caddesi No:1, İstanbul"}</p>
                 </div>
               </div>
             </CardContent>

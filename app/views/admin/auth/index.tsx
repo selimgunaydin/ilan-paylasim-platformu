@@ -50,7 +50,7 @@ export default function AdminView() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+    <div className="min-h-screen flex items-center justify-center">
       <Card className="w-[400px]">
         <CardHeader>
           <CardTitle>Yönetici Girişi</CardTitle>

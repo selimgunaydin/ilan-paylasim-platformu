@@ -75,7 +75,7 @@ export default function AllMessages() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-10 space-y-8">
+    <div className="space-y-8">
       {/* Header */}
       <header className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-foreground">Tüm Mesajlar</h1>

@@ -3,12 +3,20 @@ import type { NextRequest } from 'next/server';
 import { db } from "@shared/db";
 import { users } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
-import jwt from 'jsonwebtoken';
-import { hashPassword } from '@/api/auth/[...nextauth]/route';
 import { comparePasswords } from '@/utils/compare-passwords';
 import { getToken } from 'next-auth/jwt';
+import crypto, { randomBytes, scrypt } from 'crypto';
+import { promisify } from 'util';
 
 export const dynamic = 'force-dynamic';
+
+const scryptAsync = promisify(scrypt);
+
+async function hashPassword(password: string) {
+  const salt = randomBytes(32).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
+} 
 
 // Kullanıcı şifre değiştirme API'si
 export async function PUT(request: NextRequest) {

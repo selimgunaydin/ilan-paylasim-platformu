@@ -6,7 +6,7 @@ import { eq, or } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import { getToken } from 'next-auth/jwt';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { authOptions } from '@/api/auth/auth-options';
 
 export const dynamic = 'force-dynamic';
 

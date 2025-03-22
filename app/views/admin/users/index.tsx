@@ -185,7 +185,7 @@ export default function UsersPage() {
   });
 
   return (
-    <div className="p-8">
+    <div>
       <h1 className="text-2xl font-bold mb-6">Üye Yönetimi</h1>
 
       <div className="mb-6 flex gap-4">

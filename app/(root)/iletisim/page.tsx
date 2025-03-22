@@ -1,11 +1,19 @@
 import React from 'react';
 import ContactPage from '@app/views/root/iletisim';
+import { getSiteSettings } from '@/lib/settings';
+import { Metadata } from 'next';
 
-export const metadata = {
-  title: 'İletişim',
-  description: 'Bizimle iletişime geçin. Sorularınızı, önerilerinizi ve geri bildirimlerinizi bekliyoruz.',
-};
+// Dynamic metadata
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSiteSettings();
+  
+  return {
+    title: `İletişim - ${settings.site_name}`,
+    description: 'Bizimle iletişime geçin. Sorularınızı, önerilerinizi ve geri bildirimlerinizi bekliyoruz.',
+  };
+}
 
-export default function Page() {
-  return <ContactPage />;
+export default async function Page() {
+  const settings = await getSiteSettings();
+  return <ContactPage settings={settings} />;
 } 

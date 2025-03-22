@@ -274,7 +274,7 @@ export default function ActiveListings() {
   if (error) return <div>Hata oluştu: {(error as Error).message}</div>;
 
   return (
-    <div className="p-8">
+    <div>
       <h1 className="text-2xl font-bold mb-6">Aktif İlanlar</h1>
 
       <div className="mb-6 flex gap-4">

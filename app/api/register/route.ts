@@ -3,13 +3,20 @@ import type { NextRequest } from 'next/server';
 import { db } from '@shared/db';
 import { users } from '@shared/schemas';
 import { eq } from 'drizzle-orm';
-import { hashPassword } from '@/api/auth/[...nextauth]/route';
-import { v4 as uuidv4 } from 'uuid';
-import crypto from 'crypto';
+import crypto, { randomBytes, scrypt } from 'crypto';
 import { sendEmail } from '@shared/services/email';
 import { generateVerificationEmail } from '@shared/services/email-templates';
+import { promisify } from 'util';
 
 export const dynamic = 'force-dynamic';
+
+const scryptAsync = promisify(scrypt);
+
+async function hashPassword(password: string) {
+  const salt = randomBytes(32).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
+} 
 
 // Kayıt API'si
 export async function POST(request: NextRequest) {

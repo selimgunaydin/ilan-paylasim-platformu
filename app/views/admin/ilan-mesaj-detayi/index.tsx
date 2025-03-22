@@ -90,7 +90,7 @@ export default function AdminConversationDetail() {
   console.log(data)
   
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10">
+    <div>
       {/* Header */}
       <header className="flex items-center justify-between mb-8">
         <Link
