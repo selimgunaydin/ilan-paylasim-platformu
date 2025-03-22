@@ -126,7 +126,7 @@ export default function HomePage({ categories }: { categories: CategoryWithCount
                       </span>
                     )}
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                     {mainCategory.children
                       ?.sort((a, b) => {
                         // İlan sayısı büyükten küçüğe (ilan olanlar üstte)
@@ -135,7 +135,6 @@ export default function HomePage({ categories }: { categories: CategoryWithCount
                         // İlan sayıları eşitse order'a göre sırala
                         return a.order - b.order;
                       })
-                      .slice(0, 5) // İlk 5 alt kategoriyi göster
                       .map((subCategory: CategoryWithCount) => (
                         <Link
                           key={subCategory.id}
@@ -150,17 +149,6 @@ export default function HomePage({ categories }: { categories: CategoryWithCount
                           )}
                         </Link>
                       ))}
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <Link
-                      href={`/kategori/${mainCategory.slug}`}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
-                    >
-                      Tümünü Gör
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
                   </div>
                 </div>
               </div>
