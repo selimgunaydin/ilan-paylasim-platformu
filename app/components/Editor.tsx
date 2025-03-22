@@ -1,15 +1,19 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import TextAlign from '@tiptap/extension-text-align';
-import Placeholder from '@tiptap/extension-placeholder';
-import EmojiPicker from 'emoji-picker-react';
-import { Button } from '@app/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@app/components/ui/popover';
-import { Color } from '@tiptap/extension-color'
-import TextStyle from '@tiptap/extension-text-style';
+import React, { useState } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import TextAlign from "@tiptap/extension-text-align";
+import Placeholder from "@tiptap/extension-placeholder";
+import EmojiPicker from "emoji-picker-react";
+import { Button } from "@app/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@app/components/ui/popover";
+import { Color } from "@tiptap/extension-color";
+import TextStyle from "@tiptap/extension-text-style";
 
 interface RichTextEditorProps {
   value: string;
@@ -18,13 +22,19 @@ interface RichTextEditorProps {
   maxLength?: number;
 }
 
-export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 }: RichTextEditorProps) {
+export function RichTextEditor({
+  value,
+  onChange,
+  placeholder,
+  maxLength = 5000,
+}: RichTextEditorProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [currentColor, setCurrentColor] = useState("#000000");
 
   const editor = useEditor({
     extensions: [
       Color.configure({
-        types: ['textStyle'],
+        types: ["textStyle"],
       }),
       TextStyle, // Add this
       StarterKit.configure({
@@ -33,10 +43,10 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
         },
       }),
       TextAlign.configure({
-        types: ['heading', 'paragraph'], // Enable text alignment
+        types: ["heading", "paragraph"], // Enable text alignment
       }),
       Placeholder.configure({
-        placeholder: placeholder || 'İlan detaylarını yazınız...',
+        placeholder: placeholder || "İlan detaylarını yazınız...",
       }),
     ],
     content: value,
@@ -49,7 +59,7 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
     editorProps: {
       attributes: {
         class:
-          'focus:outline-none min-h-[200px] max-w-none p-4 rounded-md border border-input bg-background ring-offset-background text-sm', // prose sınıfları kaldırıldı, text-sm eklendi
+          "focus:outline-none min-h-[200px] max-w-none p-4 rounded-md border border-input bg-background ring-offset-background text-sm", // prose sınıfları kaldırıldı, text-sm eklendi
       },
     },
     immediatelyRender: true,
@@ -58,19 +68,37 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
   // Formatting functions
   const toggleBold = () => editor?.chain().focus().toggleBold().run();
   const toggleItalic = () => editor?.chain().focus().toggleItalic().run();
-  const toggleBulletList = () => editor?.chain().focus().toggleBulletList().run();
-  const toggleOrderedList = () => editor?.chain().focus().toggleOrderedList().run();
-  const toggleHeading = (level: 1 | 2 | 3) => editor?.chain().focus().toggleHeading({ level }).run();
-  const toggleBlockquote = () => editor?.chain().focus().toggleBlockquote().run();
+  const toggleBulletList = () =>
+    editor?.chain().focus().toggleBulletList().run();
+  const toggleOrderedList = () =>
+    editor?.chain().focus().toggleOrderedList().run();
+  const toggleHeading = (level: 1 | 2 | 3) =>
+    editor?.chain().focus().toggleHeading({ level }).run();
+  const toggleBlockquote = () =>
+    editor?.chain().focus().toggleBlockquote().run();
   const toggleCodeBlock = () => editor?.chain().focus().toggleCodeBlock().run();
-  const setTextAlign = (align: 'left' | 'center' | 'right' | 'justify') =>
+  const setTextAlign = (align: "left" | "center" | "right" | "justify") =>
     editor?.chain().focus().setTextAlign(align).run();
-  const setColor = (color: string) => editor?.chain().focus().setColor(color).run();
+  const setColor = (color: string) =>
+    editor?.chain().focus().setColor(color).run();
 
   const insertEmoji = (emoji: any) => {
     editor?.chain().focus().insertContent(emoji.emoji).run();
     setShowEmojiPicker(false);
   };
+
+  const handleColorChange = (color: string) => {
+    setCurrentColor(color);
+    editor?.chain().focus().setColor(color).run();
+  };
+
+  // Sync color state with editor selection
+  editor?.on("selectionUpdate", () => {
+    const color = editor.getAttributes("textStyle").color;
+    if (color) {
+      setCurrentColor(color);
+    }
+  });
 
   const characterCount = editor?.getText().length || 0;
 
@@ -78,18 +106,26 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
     <div className="rich-text-editor">
       <div className="flex flex-wrap items-center gap-1 p-1 mb-2 border border-input bg-muted/30 rounded-md">
         {/* Bold, Italic */}
+
         <input
-            type="color"
-            onInput={event => setColor((event.target as HTMLInputElement).value)}
-            value={editor?.getAttributes('textStyle').color}
-            data-testid="setColor"
-          />
-        <Button size="sm" variant={editor?.isActive('bold') ? 'default' : 'outline'} onClick={toggleBold} type="button">
+          type="color"
+          onInput={(event) =>
+            handleColorChange((event.target as HTMLInputElement).value)
+          }
+          value={currentColor}
+          data-testid="setColor"
+        />
+        <Button
+          size="sm"
+          variant={editor?.isActive("bold") ? "default" : "outline"}
+          onClick={toggleBold}
+          type="button"
+        >
           <span className="font-bold">B</span>
         </Button>
         <Button
           size="sm"
-          variant={editor?.isActive('italic') ? 'default' : 'outline'}
+          variant={editor?.isActive("italic") ? "default" : "outline"}
           onClick={toggleItalic}
           type="button"
         >
@@ -99,7 +135,9 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
         {/* Headings */}
         <Button
           size="sm"
-          variant={editor?.isActive('heading', { level: 1 }) ? 'default' : 'outline'}
+          variant={
+            editor?.isActive("heading", { level: 1 }) ? "default" : "outline"
+          }
           onClick={() => toggleHeading(1)}
           type="button"
         >
@@ -107,7 +145,9 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
         </Button>
         <Button
           size="sm"
-          variant={editor?.isActive('heading', { level: 2 }) ? 'default' : 'outline'}
+          variant={
+            editor?.isActive("heading", { level: 2 }) ? "default" : "outline"
+          }
           onClick={() => toggleHeading(2)}
           type="button"
         >
@@ -115,7 +155,9 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
         </Button>
         <Button
           size="sm"
-          variant={editor?.isActive('heading', { level: 3 }) ? 'default' : 'outline'}
+          variant={
+            editor?.isActive("heading", { level: 3 }) ? "default" : "outline"
+          }
           onClick={() => toggleHeading(3)}
           type="button"
         >
@@ -125,7 +167,7 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
         {/* Lists */}
         <Button
           size="sm"
-          variant={editor?.isActive('bulletList') ? 'default' : 'outline'}
+          variant={editor?.isActive("bulletList") ? "default" : "outline"}
           onClick={toggleBulletList}
           type="button"
         >
@@ -133,7 +175,7 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
         </Button>
         <Button
           size="sm"
-          variant={editor?.isActive('orderedList') ? 'default' : 'outline'}
+          variant={editor?.isActive("orderedList") ? "default" : "outline"}
           onClick={toggleOrderedList}
           type="button"
         >
@@ -143,7 +185,7 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
         {/* Blockquote and Code */}
         <Button
           size="sm"
-          variant={editor?.isActive('blockquote') ? 'default' : 'outline'}
+          variant={editor?.isActive("blockquote") ? "default" : "outline"}
           onClick={toggleBlockquote}
           type="button"
         >
@@ -151,7 +193,7 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
         </Button>
         <Button
           size="sm"
-          variant={editor?.isActive('codeBlock') ? 'default' : 'outline'}
+          variant={editor?.isActive("codeBlock") ? "default" : "outline"}
           onClick={toggleCodeBlock}
           type="button"
         >
@@ -161,24 +203,30 @@ export function RichTextEditor({ value, onChange, placeholder, maxLength = 5000 
         {/* Text Alignment */}
         <Button
           size="sm"
-          variant={editor?.isActive({ textAlign: 'left' }) ? 'default' : 'outline'}
-          onClick={() => setTextAlign('left')}
+          variant={
+            editor?.isActive({ textAlign: "left" }) ? "default" : "outline"
+          }
+          onClick={() => setTextAlign("left")}
           type="button"
         >
           ←
         </Button>
         <Button
           size="sm"
-          variant={editor?.isActive({ textAlign: 'center' }) ? 'default' : 'outline'}
-          onClick={() => setTextAlign('center')}
+          variant={
+            editor?.isActive({ textAlign: "center" }) ? "default" : "outline"
+          }
+          onClick={() => setTextAlign("center")}
           type="button"
         >
           ↔
         </Button>
         <Button
           size="sm"
-          variant={editor?.isActive({ textAlign: 'right' }) ? 'default' : 'outline'}
-          onClick={() => setTextAlign('right')}
+          variant={
+            editor?.isActive({ textAlign: "right" }) ? "default" : "outline"
+          }
+          onClick={() => setTextAlign("right")}
           type="button"
         >
           →
