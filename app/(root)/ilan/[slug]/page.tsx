@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/api/auth/auth-options"; // Adjust path as needed
 import { headers } from "next/headers";
@@ -469,18 +468,6 @@ export default async function ListingDetailPage({
                 </div>
               </div>
 
-              {/* Image Gallery */}
-              <div className="bg-white rounded-xl shadow-md overflow-hidden">
-                <ListingDetailClient
-                  listing={{
-                    ...listing,
-                    categoryName: category?.name || "",
-                  }}
-                  user={session?.user || null}
-                  initialFavoriteStatus={favoriteStatus.isFavorite}
-                  slug={params.slug}
-                />
-              </div>
 
               {/* Listing Description */}
               <div className="bg-white rounded-xl shadow-md overflow-hidden p-3 sm:p-6">
@@ -511,6 +498,18 @@ export default async function ListingDetailPage({
                     </p>
                   )}
                 </div>
+              </div>
+              {/* Image Gallery */}
+              <div className="bg-white rounded-xl shadow-md overflow-hidden">
+                <ListingDetailClient
+                  listing={{
+                    ...listing,
+                    categoryName: category?.name || "",
+                  }}
+                  user={session?.user || null}
+                  initialFavoriteStatus={favoriteStatus.isFavorite}
+                  slug={params.slug}
+                />
               </div>
 
               {/* Similar Listings */}

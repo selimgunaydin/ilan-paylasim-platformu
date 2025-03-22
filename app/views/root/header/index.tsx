@@ -92,22 +92,6 @@ export function Header({ settings }: HeaderProps) {
 
   const generalMenuItems: MenuItem[] = [
     {
-      label: "Kurumsal",
-      icon: Users,
-      path: "/kurumsal",
-      name: "Kurumsal",
-      href: "/kurumsal",
-      loggedIn: null,
-    },
-    {
-      label: "Sözleşmeler",
-      icon: FileText,
-      path: "/sozlesmeler",
-      name: "Sözleşmeler",
-      href: "/sozlesmeler",
-      loggedIn: null,
-    },
-    {
       label: "İletişim",
       icon: MessageSquare,
       path: "/iletisim",

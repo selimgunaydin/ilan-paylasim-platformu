@@ -292,38 +292,31 @@ export default function CreateListing({ isAdmin = false }: CreateListingProps) {
                   )}
                 />
 
-<FormField
-  control={form.control}
-  name="phone"
-  rules={{
-    required: "Telefon numarası zorunludur",
-    pattern: {
-      value: /^[0-9]*$/,
-      message: "Sadece rakam kullanabilirsiniz"
-    }
-  }}
-  render={({ field }) => (
-    <FormItem>
-      <FormLabel>Telefon</FormLabel>
-      <FormControl>
-        <Input
-          {...field}
-          type="tel"
-          placeholder="Telefon numarasını yazın"
-          pattern="[0-9]*"
-          onKeyPress={(e) => {
-            const charCode = e.charCode;
-            if (charCode < 48 || charCode > 57) {
-              e.preventDefault();
-            }
-          }}
-          inputMode="numeric" // Mobil cihazlarda sayısal klavye açılır
-        />
-      </FormControl>
-      <FormMessage />
-    </FormItem>
-  )}
-/>
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Telefon Numarası (Opsiyonel)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="tel"
+                          placeholder="Telefon numarasını yazın"
+                          pattern="[0-9]*"
+                          onKeyPress={(e) => {
+                            const charCode = e.charCode;
+                            if (charCode < 48 || charCode > 57) {
+                              e.preventDefault();
+                            }
+                          }}
+                          inputMode="numeric" // Mobil cihazlarda sayısal klavye açılır
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}

@@ -55,6 +55,11 @@ export function Footer({ settings }: FooterProps) {
                 </Link>
               </li>
               <li>
+                <Link href="/sozlesmeler" className="text-gray-400 hover:text-white transition-colors">
+                  Sözleşmeler
+                </Link>
+              </li>
+              <li>
                 <Link href="/iletisim" className="text-gray-400 hover:text-white transition-colors">
                   İletişim
                 </Link>

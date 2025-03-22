@@ -84,6 +84,10 @@ export default function ListingDetailClient({
         createdAt: new Date().toISOString(),
         isRead: false,
       };
+      toast({
+        title: "Mesaj gönderildi",
+        description: "İlan sahibine mesaj gönderildi",
+      });
     },
     [user, listing]
   );
