@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@app/components/ui/card";
 import { MessageSquare } from "lucide-react";
-import { Conversation } from "@/types";
+import { Conversation, Listing } from "@/types";
 import ConversationCard from "@app/components/root/conversation-card";
 import { useAppDispatch } from "@/redux/hooks";
 import { fetchUnreadMessages } from "@/redux/slices/messageSlice";
@@ -197,7 +197,7 @@ export default function Messages({ type }: MessagesProps) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
             {/* Conversation List */}
-            <div className="col-span-1 h-full overflow-y-auto border-gray-200 md:pr-4 pt-4 mx-4 md:mx-0">
+            <div className="col-span-1 h-full overflow-y-auto border-gray-200 md:pr-4 pt-4 mx-4 md:mx-0 space-y-2">
               {isLoadingConversations ? (
                 <SkeletonWrapper />
               ) : conversations && conversations.length > 0 ? (

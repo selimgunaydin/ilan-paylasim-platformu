@@ -613,7 +613,7 @@ export default function MessagesView({
           </Avatar>
           <div>
             <p className="font-medium">
-              {otherUser?.username || "Yükleniyor..."}
+              {listing?.contactPerson || otherUser?.username || "Yükleniyor..."}
             </p>
             {listing && (
               <a

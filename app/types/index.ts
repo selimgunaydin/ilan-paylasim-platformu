@@ -39,6 +39,7 @@ export interface Conversation {
   receiverId: number;
   createdAt: string;
   listingTitle: string;
+  contactPerson?: string;
   sender?: {
     id: number;
     username: string;
@@ -72,6 +73,8 @@ export interface Listing {
   active?: boolean;
   listingType?: string;
   expiresAt?: string;
+  contactPerson?: string;
+  phone?: string;
 }
 
 export interface FileGroup {

@@ -65,6 +65,8 @@ export default function ConversationCard({
     }
   };
 
+  console.log(conversation);
+
   return (
     <Card
       key={conversation.id}
@@ -112,6 +114,7 @@ export default function ConversationCard({
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">
                   {
+                    conversation?.contactPerson ||
                     conversation[type === "sent" ? "receiver" : "sender"]
                       ?.username
                   }

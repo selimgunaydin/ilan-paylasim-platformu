@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
         receiverId: conversations.receiverId,
         createdAt: conversations.createdAt,
         listingTitle: listings.title,
+        contactPerson: listings.contactPerson,
         sender: {
           id: users.id,
           username: users.username,
@@ -68,6 +69,7 @@ export async function GET(request: NextRequest) {
       .groupBy(
         conversations.id,
         listings.title,
+        listings.contactPerson,
         users.id,
         users.username,
         users.profileImage,
