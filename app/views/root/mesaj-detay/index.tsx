@@ -45,6 +45,7 @@ import { getMessageFileUrClient } from "@/utils/get-message-file-url";
 import { useSession } from "next-auth/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
+import { getDummyUser } from "@/utils/get-dummy-user";
 // File type helpers
 const getFileIcon = (fileName: string) => {
   const extension = fileName.split(".").pop()?.toLowerCase();
@@ -588,6 +589,16 @@ export default function MessagesView({
     }
   };
 
+  const [dummyUser, setDummyUser] = React.useState<string | null>(null);
+
+  useEffect(() => {
+    if (otherUserId && otherUserId == 74 && allMessages[0].conversationId) {
+      setDummyUser(getDummyUser(allMessages[0].conversationId.toString()));
+    } else {
+      setDummyUser(null);
+    }
+  }, [otherUserId, allMessages]);
+
   if (!session?.user) return null;
 
   return (
@@ -601,23 +612,32 @@ export default function MessagesView({
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <Avatar className="h-10 w-10">
-            <AvatarImage
-              src={getProfileImageUrl(
-                otherUser?.profileImage,
-                otherUser?.gender || "unspecified",
-                otherUser?.avatar
-              )}
-              alt="Profil"
-            />
-            <AvatarFallback>{otherUser?.username?.charAt(0)}</AvatarFallback>
+            {dummyUser ? (
+              <AvatarImage
+                src={dummyUser.charAt(0).toUpperCase()}
+                alt="Profil"
+              />
+            ) : (
+              <AvatarImage
+                src={getProfileImageUrl(
+                  otherUser?.profileImage,
+                  otherUser?.gender || "unspecified",
+                  otherUser?.avatar
+                )}
+                alt="Profil"
+              />
+            )}
+            <AvatarFallback>
+              {dummyUser ? dummyUser.charAt(0).toUpperCase() : otherUser?.username?.charAt(0)}
+            </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-medium">
+            <div className="font-medium">
               {!isLoading && listing ? (
                 listing && type === "sent" ? (
                   listing?.contactPerson
                 ) : (
-                  otherUser?.username
+                  dummyUser ? dummyUser : otherUser?.username
                 )
               ) : (
                 <>
@@ -625,7 +645,7 @@ export default function MessagesView({
                   <Skeleton className="h-4 w-48" />
                 </>
               )}
-            </p>
+            </div>
             {listing && (
               <Link
                 href={`/ilan/${listing.id}`}
@@ -643,7 +663,7 @@ export default function MessagesView({
 
       <div
         ref={scrollContainerRef}
-        className="flex-1 mb-16 md:mb-0 px-4 overflow-y-auto overflow-x-hidden space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+        className="flex-1 mb-16 md:mb-0 px-4 overflow-y-auto overflow-x-hidden space-y-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 pt-4"
         onScroll={handleScroll}
       >
         {isFetchingNextPage && (

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { CardContent } from "../ui/card";
 import { Card } from "../ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -21,6 +21,7 @@ import { Conversation } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { getProfileImageUrl } from "@/lib/avatar";
+import { getDummyUser } from "@/utils/get-dummy-user";
 
 interface ConversationCardProps {
   conversation: Conversation;
@@ -65,6 +66,16 @@ export default function ConversationCard({
     }
   };
 
+  const [dummyUser, setDummyUser] = React.useState<string | null>(null);
+
+  useEffect(() => {
+    if (conversation.id && conversation.senderId == 74) {
+      setDummyUser(getDummyUser(conversation.id.toString()));
+    } else {
+      setDummyUser(null);
+    }
+  }, [conversation.id]);
+
   return (
     <Card
       key={conversation.id}
@@ -72,7 +83,6 @@ export default function ConversationCard({
         isSelected ? "bg-accent/50" : ""
       } ${className}`}
     >
-      {/* Tüm kart tıklanabilir yapıldı */}
 
       {conversation?.unreadCount > 0 && (
         <div className="absolute -top-2 right-0 lg:-right-4 bg-red-500 text-white px-2 py-1 rounded-full text-xs">
@@ -89,8 +99,17 @@ export default function ConversationCard({
               onClick={handleClick}
             >
               <Avatar className="h-12 w-12">
-                <AvatarImage
-                  src={getProfileImageUrl(
+                {dummyUser ? (
+                  <>
+                    <AvatarImage src={dummyUser} />
+                    <AvatarFallback>
+                      {dummyUser.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </>
+                ) : (
+                  <>
+                    <AvatarImage
+                      src={getProfileImageUrl(
                     conversation[type === "sent" ? "receiver" : "sender"]
                       ?.profileImage,
                     conversation[type === "sent" ? "receiver" : "sender"]
@@ -104,18 +123,19 @@ export default function ConversationCard({
                   }
                 />
                 <AvatarFallback>
-                  {conversation[
-                    type === "sent" ? "receiver" : "sender"
-                  ]?.username?.[0]?.toUpperCase()}
+                  {conversation[type === "sent" ? "receiver" : "sender"]
+                    ?.username?.[0]?.toUpperCase()}
                 </AvatarFallback>
+                  </>
+                )}
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">
                   {
                     type === "sent" &&
                     conversation?.contactPerson ||
-                    conversation[type === "sent" ? "receiver" : "sender"]
-                      ?.username
+                    (dummyUser ? dummyUser : conversation[type === "sent" ? "receiver" : "sender"]
+                      ?.username)
                   }
                 </p>
                 <p className="text-sm text-muted-foreground truncate mt-1">
