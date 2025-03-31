@@ -592,7 +592,11 @@ export default function MessagesView({
   const [dummyUser, setDummyUser] = React.useState<string | null>(null);
 
   useEffect(() => {
-    if (otherUserId && otherUserId == 74 && allMessages[0].conversationId) {
+    if (
+      otherUserId &&
+      (otherUserId == 74 || currentUserId == 74) &&
+      allMessages[0].conversationId
+    ) {
       setDummyUser(getDummyUser(allMessages[0].conversationId.toString()));
     } else {
       setDummyUser(null);
@@ -612,33 +616,53 @@ export default function MessagesView({
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <Avatar className="h-10 w-10">
-            {dummyUser ? (
-              <AvatarImage
-                src={dummyUser.charAt(0).toUpperCase()}
-                alt="Profil"
-              />
+            {dummyUser && type === "sent" ? (
+              <>
+                <AvatarImage src={listing?.contactPerson} alt="Profil" />
+                <AvatarFallback>
+                  {listing?.contactPerson?.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </>
+            ) : dummyUser && type === "received" ? (
+              <>
+                <AvatarImage
+                  src={getProfileImageUrl(
+                    otherUser?.profileImage,
+                    otherUser?.gender || "unspecified",
+                    otherUser?.avatar
+                  )}
+                  alt="Profil"
+                />
+                <AvatarFallback>
+                  {dummyUser?.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </>
             ) : (
-              <AvatarImage
-                src={getProfileImageUrl(
-                  otherUser?.profileImage,
-                  otherUser?.gender || "unspecified",
-                  otherUser?.avatar
-                )}
-                alt="Profil"
-              />
+              <>
+                <AvatarImage
+                  src={getProfileImageUrl(
+                    otherUser?.profileImage,
+                    otherUser?.gender || "unspecified",
+                    otherUser?.avatar
+                  )}
+                  alt="Profil"
+                />
+                <AvatarFallback>
+                  {otherUser?.username?.charAt(0)}
+                </AvatarFallback>
+              </>
             )}
-            <AvatarFallback>
-              {dummyUser ? dummyUser.charAt(0).toUpperCase() : otherUser?.username?.charAt(0)}
-            </AvatarFallback>
           </Avatar>
           <div>
             <div className="font-medium">
               {!isLoading && listing ? (
-                listing && type === "sent" ? (
-                  listing?.contactPerson
-                ) : (
-                  dummyUser ? dummyUser : otherUser?.username
-                )
+                <>
+                  {dummyUser && type === "sent" ? (
+                    listing?.contactPerson
+                  ) : dummyUser && type === "received" ? (
+                    otherUser?.username
+                  ) : otherUser?.username}
+                </>
               ) : (
                 <>
                   <Skeleton className="h-4 w-24 mb-2" />

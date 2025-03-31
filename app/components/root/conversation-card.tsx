@@ -69,7 +69,7 @@ export default function ConversationCard({
   const [dummyUser, setDummyUser] = React.useState<string | null>(null);
 
   useEffect(() => {
-    if (conversation.id && conversation.senderId == 74) {
+    if (conversation.id && (conversation.senderId == 74 || conversation.receiverId == 74)) {
       setDummyUser(getDummyUser(conversation.id.toString()));
     } else {
       setDummyUser(null);
@@ -99,17 +99,23 @@ export default function ConversationCard({
               onClick={handleClick}
             >
               <Avatar className="h-12 w-12">
-                {dummyUser ? (
-                  <>
-                    <AvatarImage src={dummyUser} />
-                    <AvatarFallback>
-                      {dummyUser.charAt(0).toUpperCase()}
-                    </AvatarFallback>
+              {dummyUser && type === "sent" ? (
+                <>
+                  <AvatarImage src={dummyUser} />
+                  <AvatarFallback>
+                    {conversation.contactPerson?.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </>
+              ) : dummyUser && type === "received" ? (
+                <>
+                  <AvatarImage src={dummyUser} />
+                  <AvatarFallback>
+                    {dummyUser.charAt(0).toUpperCase()}
+                  </AvatarFallback>
                   </>
-                ) : (
-                  <>
-                    <AvatarImage
-                      src={getProfileImageUrl(
+              ) : (
+                <AvatarImage
+                  src={getProfileImageUrl(
                     conversation[type === "sent" ? "receiver" : "sender"]
                       ?.profileImage,
                     conversation[type === "sent" ? "receiver" : "sender"]
@@ -122,12 +128,7 @@ export default function ConversationCard({
                       ?.username
                   }
                 />
-                <AvatarFallback>
-                  {conversation[type === "sent" ? "receiver" : "sender"]
-                    ?.username?.[0]?.toUpperCase()}
-                </AvatarFallback>
-                  </>
-                )}
+              )}
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">
