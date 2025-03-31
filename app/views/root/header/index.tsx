@@ -196,7 +196,7 @@ export function Header({ settings }: HeaderProps) {
           </Link>
 
           {/* Search Input - Desktop */}
-          <div className="hidden md:flex flex-1 ms-24 mx-24">
+          <div className="hidden lg:flex flex-1 ms-24 mx-24">
             <form onSubmit={handleSearch} className="w-full flex items-center">
               <div className="relative w-full">
                 <Input
