@@ -44,6 +44,7 @@ import {
 import { getMessageFileUrClient } from "@/utils/get-message-file-url";
 import { useSession } from "next-auth/react";
 import { Skeleton } from "@/components/ui/skeleton";
+import Link from "next/link";
 // File type helpers
 const getFileIcon = (fileName: string) => {
   const extension = fileName.split(".").pop()?.toLowerCase();
@@ -612,25 +613,29 @@ export default function MessagesView({
           </Avatar>
           <div>
             <p className="font-medium">
-              {!isLoading && listing ? (listing && type === "sent"
-                ? listing?.contactPerson
-                : otherUser?.username) : (
-                  <>
+              {!isLoading && listing ? (
+                listing && type === "sent" ? (
+                  listing?.contactPerson
+                ) : (
+                  otherUser?.username
+                )
+              ) : (
+                <>
                   <Skeleton className="h-4 w-24 mb-2" />
                   <Skeleton className="h-4 w-48" />
-                  </>
-                )}
+                </>
+              )}
             </p>
             {listing && (
-              <a
+              <Link
                 href={`/ilan/${listing.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-blue-500 hover:underline flex items-center gap-1"
+                className="text-sm text-blue-500 hover:underline flex items-center gap-1 whitespace-nowrap overflow-hidden text-ellipsis"
               >
                 <ExternalLink className="h-4 w-4" />
                 {listing?.title}
-              </a>
+              </Link>
             )}
           </div>
         </div>

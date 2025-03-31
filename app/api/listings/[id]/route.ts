@@ -36,8 +36,6 @@ export async function GET(
 
     const session = await getServerSession(authOptions);
 
-    console.log('DATDAT:',session);
-
     // Auth token'ı al (varsa)
     const token = await getToken({
       req: request,
