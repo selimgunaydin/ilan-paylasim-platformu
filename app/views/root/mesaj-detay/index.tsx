@@ -613,7 +613,9 @@ export default function MessagesView({
           </Avatar>
           <div>
             <p className="font-medium">
-              {listing?.contactPerson || otherUser?.username || "Yükleniyor..."}
+              {listing && type === "sent"
+                ? listing?.contactPerson || otherUser?.username || "Yükleniyor..."
+                : otherUser?.username || "Yükleniyor..."}
             </p>
             {listing && (
               <a
