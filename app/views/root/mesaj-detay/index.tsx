@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { getMessageFileUrClient } from "@/utils/get-message-file-url";
 import { useSession } from "next-auth/react";
-
+import { Skeleton } from "@/components/ui/skeleton";
 // File type helpers
 const getFileIcon = (fileName: string) => {
   const extension = fileName.split(".").pop()?.toLowerCase();
@@ -452,19 +452,18 @@ export default function MessagesView({
       socket.emit("leaveConversation", id);
     };
   }, [socket, id]);
-  
+
   useEffect(() => {
-    const footer = document.querySelector('footer')
+    const footer = document.querySelector("footer");
     if (footer && window?.innerWidth < 768) {
-      footer.style.display = 'none'
+      footer.style.display = "none";
     }
     return () => {
       if (footer && window?.innerWidth < 768) {
-        footer.style.display = 'block'
+        footer.style.display = "block";
       }
-    }
-  }, [])
-
+    };
+  }, []);
 
   useEffect(() => {
     if (!socket || !id) return;
@@ -613,9 +612,14 @@ export default function MessagesView({
           </Avatar>
           <div>
             <p className="font-medium">
-              {listing && type === "sent"
-                ? listing?.contactPerson || otherUser?.username || "Yükleniyor..."
-                : otherUser?.username || "Yükleniyor..."}
+              {!isLoading && listing ? (listing && type === "sent"
+                ? listing?.contactPerson
+                : otherUser?.username) : (
+                  <>
+                  <Skeleton className="h-4 w-24 mb-2" />
+                  <Skeleton className="h-4 w-48" />
+                  </>
+                )}
             </p>
             {listing && (
               <a
