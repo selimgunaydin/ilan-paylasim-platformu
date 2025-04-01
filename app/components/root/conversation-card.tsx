@@ -69,7 +69,7 @@ export default function ConversationCard({
   const [dummyUser, setDummyUser] = React.useState<string | null>(null);
 
   useEffect(() => {
-    if (conversation.id && (conversation.senderId == 74 || conversation.receiverId == 74)) {
+    if (conversation.id && (conversation.senderId == 16 || conversation.receiverId == 16)) {
       setDummyUser(getDummyUser(conversation.id.toString()));
     } else {
       setDummyUser(null);

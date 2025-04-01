@@ -594,7 +594,7 @@ export default function MessagesView({
   useEffect(() => {
     if (
       otherUserId &&
-      (otherUserId == 74 || currentUserId == 74) &&
+      (otherUserId == 16 || currentUserId == 16) &&
       allMessages[0].conversationId
     ) {
       setDummyUser(getDummyUser(allMessages[0].conversationId.toString()));
@@ -626,11 +626,7 @@ export default function MessagesView({
             ) : dummyUser && type === "received" ? (
               <>
                 <AvatarImage
-                  src={getProfileImageUrl(
-                    otherUser?.profileImage,
-                    otherUser?.gender || "unspecified",
-                    otherUser?.avatar
-                  )}
+                  src={dummyUser}
                   alt="Profil"
                 />
                 <AvatarFallback>
@@ -660,7 +656,7 @@ export default function MessagesView({
                   {dummyUser && type === "sent" ? (
                     listing?.contactPerson
                   ) : dummyUser && type === "received" ? (
-                    otherUser?.username
+                    dummyUser
                   ) : otherUser?.username}
                 </>
               ) : (

@@ -26,8 +26,6 @@ const fetchUserStatus = async () => {
 export default async function CreateListingPage() {
   const userStatus = await fetchUserStatus();
 
-  console.log(userStatus);
-
   if (
     userStatus.user.used_free_ad === 1 &&
     userStatus.user.yuksekUye === false

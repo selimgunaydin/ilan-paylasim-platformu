@@ -72,7 +72,6 @@ export default function AdminConversationDetail() {
         throw new Error(errorData.error || "Mesajlar alınamadı");
       }
       const data = await response.json();
-      console.log(data);
       return data || [];
     },
     enabled: Boolean(adminUser) && !isAdminError && Boolean(id),
@@ -86,8 +85,6 @@ export default function AdminConversationDetail() {
       </div>
     );
   }
-
-  console.log(data)
   
   return (
     <div>
