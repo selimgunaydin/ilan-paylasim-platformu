@@ -8,7 +8,7 @@ import { Input } from "@app/components/ui/input";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { DataTable } from "@app/components/ui/data-table";
-import { FaToggleOff, FaTrash, FaFlag } from "react-icons/fa";
+import { FaToggleOff, FaTrash, FaFlag, FaPowerOff, FaTimes, FaTimesCircle } from "react-icons/fa";
 import { cn } from "@/utils";
 import { useRouter } from "next/navigation";
 import {
@@ -21,7 +21,7 @@ import {
 } from "@app/components/ui/select";
 import type { Row } from "@tanstack/react-table";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Loader2, PowerOff } from "lucide-react";
 interface Listing {
   id: number;
   title: string;
@@ -239,7 +239,8 @@ export default function ActiveListings() {
             onClick={() => handleDeactivate(row.original.id)}
             disabled={deactivateMutation.isPending}
           >
-            <FaToggleOff className="h-4 w-4" />
+            {/* Pasif İlan */}
+            <PowerOff className="h-4 w-4" />
           </Button>
           <Button
             size="sm"
@@ -248,7 +249,8 @@ export default function ActiveListings() {
             onClick={() => handleReject(row.original.id)}
             disabled={rejectMutation.isPending}
           >
-            <FaFlag className="h-4 w-4" />
+            {/* Reddet Iconu */}
+            <FaTimesCircle className="h-4 w-4" />
           </Button>
           <Button
             size="sm"

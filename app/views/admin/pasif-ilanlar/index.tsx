@@ -247,6 +247,7 @@ export default function InactiveListings() {
             onClick={() => handleReject(row.original.id)}
             disabled={rejectMutation.isPending}
           >
+            {/* reddet iconu düzelt. */}
             <FaFlag className="h-4 w-4" />
           </Button>
           <Button

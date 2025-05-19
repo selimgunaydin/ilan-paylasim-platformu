@@ -6,7 +6,7 @@ import { tr } from "date-fns/locale";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Power, PowerOff } from "lucide-react";
-import { FaEdit, FaToggleOff, FaTrash } from "react-icons/fa";
+import { FaEdit, FaPowerOff, FaToggleOff, FaTrash } from "react-icons/fa";
 
 interface ListingWithCategory extends Listing {
   categoryName: string;
@@ -151,7 +151,7 @@ export default function ListingCard({
           </p>
         </div>
         <div className="flex justify-end space-x-2 mt-4">
-          {onEdit && (
+          {!listing.active && onEdit && (  // aktif olmayan ilanlar için düzenleme butonu
             <Button
               variant="outline"
               size="sm"
@@ -166,9 +166,12 @@ export default function ListingCard({
               variant="outline"
               size="sm"
               onClick={onDeactivate}
-              className="text-yellow-600 hover:text-yellow-700"
+              // className="text-yellow-600 hover:text-yellow-700"
+              className="text-gray-600 hover:text-gray-700"
             >
-              <FaToggleOff className="h-4 w-4" />
+              {/* <FaToggleOff className="h-4 w-4" />  */}
+              <PowerOff className="h-4 w-4" /> 
+              {/* pasife alma iconu düzeltildi */}
             </Button>
           )}
           {onDelete && (

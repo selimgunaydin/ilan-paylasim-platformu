@@ -34,7 +34,7 @@ export default function ListingDetailAdmin() {
       }
       const data = await res.json();
       console.log("Received listing data:", data); // Add response logging
-      if (!data) throw new Error("İlan bulunamaqwedı");
+      if (!data) throw new Error("İlan bulunamadı");
       return data;
     },
     enabled: !!id,

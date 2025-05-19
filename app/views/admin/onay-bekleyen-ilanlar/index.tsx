@@ -8,7 +8,7 @@ import { Input } from "@app/components/ui/input";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { DataTable } from "@app/components/ui/data-table";
-import { FaCheck, FaTrash, FaFlag } from "react-icons/fa";
+import { FaCheck, FaTrash, FaFlag, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
 import { cn } from "@/utils";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -188,7 +188,7 @@ export default function PendingListings() {
             onClick={() => handleReject(row.original.id)}
             disabled={rejectMutation.isPending}
           >
-            <FaFlag className="h-4 w-4" />
+            <FaTimesCircle className="h-4 w-4" />
           </Button>
           <Button
             size="sm"

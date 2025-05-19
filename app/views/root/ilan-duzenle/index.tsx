@@ -30,6 +30,8 @@ import type { Category, Listing } from "@shared/schemas";
 import { turkishCities } from "@/lib/constants";
 import { queryClient } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
+import { RichTextEditor } from "@/components/Editor";
+import { EmojiInput } from "@/components/EmojiInput";
 
 export default function EditListing() {
   const { id } = useParams<{ id: string }>();
@@ -241,7 +243,14 @@ export default function EditListing() {
                     <FormItem>
                       <FormLabel>İlan Başlığı</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        {/* <Input {...field} /> */}
+                        <EmojiInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="İlan başlığını yazın"
+                          id={field.name}
+                          name={field.name}
+                        />  
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -256,7 +265,12 @@ export default function EditListing() {
                     <FormItem>
                       <FormLabel>İlan Detayı</FormLabel>
                       <FormControl>
-                        <Textarea {...field} className="min-h-[200px]" />
+                        {/* <Textarea {...field} className="min-h-[200px]" /> */}
+                        <RichTextEditor
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="İlan detaylarını yazınız..."
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
@@ -10,6 +10,8 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  UniqueIdentifier,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -17,13 +19,18 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Category } from "@shared/schemas";
 import { Button } from "@app/components/ui/button";
 import { Input } from "@app/components/ui/input";
 import { Card } from "@app/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { SortableCategory } from "@app/components/admin/sortable-category";
-import { Dialog, DialogContent } from "@app/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@app/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -42,6 +49,33 @@ import {
   SelectValue,
 } from "@app/components/ui/select";
 import { Loader2 } from "lucide-react";
+
+// Refined Type Definitions
+export interface Category { // Base Category type
+  id: number;
+  name: string;
+  parentId: number | null;
+  slug: string;
+  order: number;
+  customTitle?: string | null;
+  metaDescription?: string | null;
+  content?: string | null;
+  faqs?: any | null; 
+}
+
+export interface CategoryWithChildren extends Category { // Category with children property
+  children: CategoryWithChildren[];
+}
+
+// Define the strictly typed structure SortableCategory expects
+interface NormalizedCategoryForSortable extends Omit<CategoryWithChildren, 'customTitle' | 'metaDescription' | 'content' | 'faqs' | 'children'> {
+  customTitle: string | null;
+  metaDescription: string | null;
+  content: string | null;
+  faqs: string | null;
+  children: NormalizedCategoryForSortable[];
+}
+
 export default function KategorilerPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -62,9 +96,10 @@ export default function KategorilerPage() {
   });
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   // Silme onayı için state ekle
-  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(
+  const [categoryToDelete, setCategoryToDelete] = useState<CategoryWithChildren | null>( // Changed type to CategoryWithChildren for consistency
     null
   );
+  const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -75,30 +110,67 @@ export default function KategorilerPage() {
 
   // Ana kategorileri getir
   const {
-    data: categories = [],
+    data: fetchedCategories = [],
     isLoading,
     error,
-  } = useQuery<Category[]>({
+  } = useQuery<CategoryWithChildren[]>({ 
     queryKey: ["categories"],
     queryFn: () => fetch("/api/admin/categories").then((res) => res.json()),
   });
 
-  // Sadece ana kategorileri filtrele (parent_id null olanlar)
-  const mainCategories = categories.filter((cat) => cat.parentId === null);
+  // categoryTree is the primary state for our categories, sorted.
+  const categoryTree: CategoryWithChildren[] = fetchedCategories.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  // For UI <Select> elements that only need top-level categories
+  const mainCategoriesForSelect = categoryTree.filter((cat) => cat.parentId === null);
+
+  // Debugging useEffect for categoryTree structure (can be removed once stable)
+  useEffect(() => {
+    if (!isLoading && categoryTree && categoryTree.length > 0) { 
+      console.log("--- useEffect: categoryTree (derived from fetchedCategories) updated ---");
+      categoryTree.forEach(cat => {
+        let childInfo = "NO children reported by API or children array is empty.";
+        if (cat.children && cat.children.length > 0) {
+          childInfo = `has ${cat.children.length} children (from API): [${cat.children.map(c => c.name).join(', ')}]`;
+        }
+        console.log(`Category ${cat.name} (ID: ${cat.id}, parentId: ${cat.parentId}, order: ${cat.order}) ${childInfo}`);
+      });
+      console.log("-------------------------------------");
+    }
+  }, [categoryTree, isLoading]); // Only depends on categoryTree and isLoading
 
   // Tüm kategorilerin ilan sayılarını tek seferde getir
   const { data: listingCounts = {} } = useQuery({
-    queryKey: ["category-listing-counts"],
+    queryKey: [
+      "listingCounts",
+      categoryTree.reduce(
+        (acc, cat) => acc + cat.id + (cat.children?.map((c: CategoryWithChildren) => c.id).join(",") || ""),
+        ""
+      ),
+    ],
     queryFn: async () => {
-      const promises = categories.map((category) =>
-        fetch(`/api/admin/categories/${category.id}/listing-count`)
+      const allCategoryIds: number[] = [];
+      const collectIds = (categoriesToScan: CategoryWithChildren[]) => {
+        for (const category of categoriesToScan) {
+          allCategoryIds.push(category.id);
+          if (category.children && category.children.length > 0) {
+            collectIds(category.children);
+          }
+        }
+      };
+      collectIds(categoryTree); 
+
+      if (allCategoryIds.length === 0) return {};
+
+      const promises = allCategoryIds.map((id) =>
+        fetch(`/api/admin/categories/${id}/listing-count`)
           .then((res) => res.json())
-          .then((data) => ({ [category.id]: data.count }))
+          .then((data) => ({ [id]: data.count }))
       );
       const results = await Promise.all(promises);
       return Object.assign({}, ...results);
     },
-    enabled: categories.length > 0,
+    enabled: !isLoading && categoryTree.length > 0, // Ensure it runs after categoryTree is populated and not loading
   });
 
   const reorderMutation = useMutation({
@@ -110,11 +182,12 @@ export default function KategorilerPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
       }).then((res) => res.json()),
-    onSuccess: (data) => {
-      queryClient.setQueryData(["categories"], data);
+    onSuccess: () => { // Gelen 'data' (düz liste) doğrudan kullanılmayacak
+      // 'categories' sorgusunu geçersiz kılarak hiyerarşik verinin yeniden çekilmesini sağla
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
       toast({
         title: "Başarılı",
-        description: "Kategoriler yeniden sıralandı",
+        description: "Kategoriler yeniden sıralandı ve güncel liste getiriliyor.",
       });
     },
     onError: (error: Error) => {
@@ -126,27 +199,139 @@ export default function KategorilerPage() {
     },
   });
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
-    if (!over || active.id === over.id || !categories) return;
+    if (!over || active.id === over.id || !categoryTree || categoryTree.length === 0) return;
 
-    const oldIndex = categories.findIndex((cat) => cat.id === active.id);
-    const newIndex = categories.findIndex((cat) => cat.id === over.id);
+    // Find the items in the current rendering (which is categoryTree for top-level)
+    // This logic needs to be more sophisticated if we are dragging sub-categories
+    // For now, assuming top-level drag or that SortableCategory handles sub-drags internally.
+    const activeItem = categoryTree.find(cat => cat.id === active.id);
+    const overItem = categoryTree.find(cat => cat.id === over.id);
 
-    if (oldIndex === -1 || newIndex === -1) return;
+    if (!activeItem || !overItem) {
+        // This might happen if dragging a sub-category and our flat finders don't catch it.
+        // The original logic from dnd-kit for finding items in nested structures might be needed here
+        // or ensure SortableCategory correctly passes up child drag events.
+        console.warn("Could not find active or over item in top-level categoryTree. Drag might be for a sub-category.");
+        // Attempt to find in children if not found at top level - this is a quick fix, might need robust deep find
+        // This part will be complex if we handle all drag scenarios here.
+        // For now, let's assume SortableCategory provides necessary context or handles its children.
+        // The key is that `reorderMutation.mutate` needs a list of sibling categories to reorder.
+        // setActiveId(null); // Do this at the end
+        // return; // Let's proceed with caution.
+    }
 
-    const reorderedCategories = arrayMove(categories, oldIndex, newIndex);
+    // Logic for determining siblings and parentId
+    let parentIdToReorder: number | null = null;
+    let itemsToReorder: CategoryWithChildren[] = [];
 
-    const updates = reorderedCategories.map((cat, index) => ({
+    // Try to find the actual active and over categories in the tree, potentially nested
+    let actualActiveCategory: CategoryWithChildren | undefined;
+    let actualOverCategory: CategoryWithChildren | undefined;
+    let actualActiveParent: CategoryWithChildren | undefined;
+
+    const findNestedCategoryAndParent = (items: CategoryWithChildren[], id: number, parent?: CategoryWithChildren): { cat?: CategoryWithChildren, parent?: CategoryWithChildren } => {
+        for (const item of items) {
+            if (item.id === id) return { cat: item, parent };
+            if (item.children) {
+                const found = findNestedCategoryAndParent(item.children, id, item);
+                if (found.cat) return found;
+            }
+        }
+        return {};
+    };
+
+    const activeSearchResult = findNestedCategoryAndParent(categoryTree, Number(active.id));
+    actualActiveCategory = activeSearchResult.cat;
+    actualActiveParent = activeSearchResult.parent;
+
+    const overSearchResult = findNestedCategoryAndParent(categoryTree, Number(over.id));
+    actualOverCategory = overSearchResult.cat;
+
+    if (!actualActiveCategory || !actualOverCategory) {
+        toast({ 
+            title: "Hata", 
+            description: "Sıralama için aktif veya hedef kategori bulunamadı.", 
+            variant: "destructive" 
+        });
+        setActiveId(null);
+        return;
+    }
+
+    // Check if they are siblings (same parent)
+    const activeParentId = actualActiveParent ? actualActiveParent.id : null;
+    const overParentId = (findNestedCategoryAndParent(categoryTree, Number(over.id))).parent?.id ?? null;
+
+    if (activeParentId === overParentId) {
+        parentIdToReorder = activeParentId;
+        itemsToReorder = actualActiveParent ? actualActiveParent.children : categoryTree.filter(c => c.parentId === null);
+    } else {
+        toast({ 
+            title: "Uyarı", 
+            description: "Kategoriler sadece kendi seviyeleri içinde sıralanabilir.", 
+            variant: "default" // Using default variant for warning, adjust if a specific 'warning' variant exists
+        });
+        setActiveId(null);
+        return;
+    }
+
+    const oldIndex = itemsToReorder.findIndex((cat) => cat.id === Number(active.id));
+    const newIndex = itemsToReorder.findIndex((cat) => cat.id === Number(over.id));
+
+    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) {
+        setActiveId(null);
+        return; // Item not found in the list or no change in position
+    }
+
+    const reorderedSiblings = arrayMove(itemsToReorder, oldIndex, newIndex);
+
+    const updates = reorderedSiblings.map((cat, index) => ({
       id: Number(cat.id),
-      order: index,
-      parentId: cat.parentId ? Number(cat.parentId) : null,
+      order: index, // Order within siblings is now 0-based index
+      parentId: parentIdToReorder,
     }));
 
     if (updates.length > 0) {
-      reorderMutation.mutate(updates);
+        reorderMutation.mutate(updates);
     }
+
+    setActiveId(null);
+  };
+
+  // Helper function to normalize category data for SortableCategory component
+  const normalizeCategoryForSortable = (
+    cat: CategoryWithChildren
+  ): NormalizedCategoryForSortable => {
+    return {
+      // Spread all properties from Category that are not being overridden or are compatible
+      id: cat.id,
+      name: cat.name,
+      parentId: cat.parentId,
+      slug: cat.slug,
+      order: cat.order,
+      // Ensure these specific fields are string | null
+      customTitle: cat.customTitle || null,
+      metaDescription: cat.metaDescription || null,
+      content: cat.content || null,
+      faqs: typeof cat.faqs === 'string' ? cat.faqs : null, 
+      children: cat.children
+        ? cat.children.map(normalizeCategoryForSortable) // Recursively normalize children
+        : [],
+    };
+  };
+
+  // New handler to request deletion for ANY category (main or sub)
+  // SortableCategory will call this with the specific category instance
+  const requestCategoryDeletion = (categoryToRequest: CategoryWithChildren) => {
+    // Pre-checks can be done here if necessary, but SortableCategory will also check listings and children
+    // The main role of this function is to set the state for the confirmation dialog
+    setCategoryToDelete(categoryToRequest);
   };
 
   const addMutation = useMutation({
@@ -302,7 +487,7 @@ export default function KategorilerPage() {
         Hata: {error instanceof Error ? error.message : "Bir hata oluştu"}
       </div>
     );
-  if (!categories) return <div>Kategori bulunamadı</div>;
+  if (!categoryTree) return <div>Kategori bulunamadı</div>;
 
   return (
     <div>
@@ -340,7 +525,7 @@ export default function KategorilerPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="root">Ana Kategori</SelectItem>
-              {mainCategories.map((category) => (
+              {mainCategoriesForSelect.map((category) => (
                 <SelectItem key={category.id} value={category.id.toString()}>
                   {category.name}
                 </SelectItem>
@@ -354,158 +539,170 @@ export default function KategorilerPage() {
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={categories.map((cat) => cat.id)}
+          items={categoryTree.map((cat) => cat.id)} // Use categoryTree for top-level sortable context
           strategy={verticalListSortingStrategy}
         >
-          {categories.map((category) => {
+          {categoryTree.map((category) => { // Iterate over categoryTree for rendering
             // Her kategori için ilan sayısını kontrol et
             const hasListings = listingCounts[category.id] > 0;
 
+            const normalizedCategory = normalizeCategoryForSortable(category);
+
             return (
               <SortableCategory
-                key={category.id}
-                category={category}
-                onEdit={() => handleEdit(category)}
-                // Sadece ilan sayısı kontrolü yap, alt kategori kontrolü SortableCategory içinde yapılıyor
-                onDelete={
-                  listingCounts[category.id] > 0
-                    ? undefined
-                    : () => setCategoryToDelete(category)
-                }
+                key={normalizedCategory.id}
+                category={normalizedCategory} // Pass the fully normalized category
+                listingCounts={listingCounts} // Pass all listing counts
+                onEdit={() => handleEdit(category)} // handleEdit might need the original category or a differently normalized one
+                onDelete={requestCategoryDeletion} // Pass the generic delete request handler
               />
             );
           })}
         </SortableContext>
       </DndContext>
 
-      {/* Kategori düzenleme modalı */}
+      {/* Kategori Düzenleme Modalı */}
       <Dialog
         open={showEditModal}
-        onOpenChange={(open) => setShowEditModal(open)}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setShowEditModal(false);
+            setEditingCategory(null); // Modalı kapatırken düzenlenmekte olan kategoriyi temizle
+          }
+        }}
       >
-        <DialogContent>
-          <div className="p-4">
-            <h2 className="text-lg font-semibold mb-4">Kategori Düzenle</h2>
-            <div className="space-y-4">
-              <Input
-                value={editForm.name}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, name: e.target.value })
-                }
-                placeholder="Kategori Adı"
-              />
-              <Input
-                value={editForm.slug}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, slug: e.target.value })
-                }
-                placeholder="Slug"
-              />
-              {/* Üst kategori seçme alanı */}
-              <Select
-                value={editForm.parentId?.toString() || "root"}
-                onValueChange={(value) =>
-                  setEditForm({
-                    ...editForm,
-                    parentId: value === "root" ? null : parseInt(value),
-                  })
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Üst kategori seçin" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="root">Ana Kategori</SelectItem>
-                  {/* Sadece ana kategorileri listele */}
-                  {mainCategories.map((category) =>
-                    // Kendisini üst kategori olarak seçememesi için kontrol ekle
-                    editingCategory && category.id !== editingCategory.id ? (
-                      <SelectItem
-                        key={category.id}
-                        value={category.id.toString()}
-                      >
-                        {category.name}
-                      </SelectItem>
-                    ) : null
-                  )}
-                </SelectContent>
-              </Select>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-6">
+          <DialogHeader>
+            <DialogTitle>Kategoriyi Düzenle</DialogTitle>
+            <DialogDescription>
+              Buradan "{editingCategory?.name}" kategorisinin bilgilerini güncelleyebilirsiniz.
+            </DialogDescription>
+          </DialogHeader>
+          {editingCategory && (
+            <div className="space-y-6 pt-4"> {/* pt-4 eklendi başlık ile form arasına boşluk için*/}
+              {/* Form Alanları... */}
+              <div className="space-y-4"> 
+                <Input
+                  value={editForm.name}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, name: e.target.value })
+                  }
+                  placeholder="Kategori Adı"
+                />
+                <Input
+                  value={editForm.slug}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, slug: e.target.value })
+                  }
+                  placeholder="Slug"
+                />
+                {/* Üst kategori seçme alanı */}
+                <Select
+                  value={editForm.parentId?.toString() || "root"}
+                  onValueChange={(value) =>
+                    setEditForm({
+                      ...editForm,
+                      parentId: value === "root" ? null : parseInt(value),
+                    })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Üst kategori seçin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="root">Ana Kategori</SelectItem>
+                    {/* Sadece ana kategorileri listele */}
+                    {mainCategoriesForSelect.map((category) =>
+                      // Kendisini üst kategori olarak seçememesi için kontrol ekle
+                      editingCategory && category.id !== editingCategory.id ? (
+                        <SelectItem
+                          key={category.id}
+                          value={category.id.toString()}
+                        >
+                          {category.name}
+                        </SelectItem>
+                      ) : null
+                    )}
+                  </SelectContent>
+                </Select>
 
-              {/* SEO Fields */}
-              <div className="pt-4 border-t">
-                <h3 className="text-md font-semibold mb-2">SEO Ayarları</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm mb-1">
-                      Özel Başlık (Title)
-                    </label>
-                    <Input
-                      value={editForm.customTitle}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          customTitle: e.target.value,
-                        })
-                      }
-                      placeholder="SEO Başlık (Boş bırakılırsa kategori adı kullanılır)"
-                    />
-                  </div>
+                {/* SEO Fields */}
+                <div className="pt-4 border-t">
+                  <h3 className="text-md font-semibold mb-2">SEO Ayarları</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm mb-1">
+                        Özel Başlık (Title)
+                      </label>
+                      <Input
+                        value={editForm.customTitle}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            customTitle: e.target.value,
+                          })
+                        }
+                        placeholder="SEO Başlık (Boş bırakılırsa kategori adı kullanılır)"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-sm mb-1">Meta Açıklama</label>
-                    <textarea
-                      value={editForm.metaDescription}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          metaDescription: e.target.value,
-                        })
-                      }
-                      placeholder="Meta açıklama"
-                      className="w-full px-3 py-2 border rounded-md"
-                      rows={3}
-                    />
-                  </div>
+                    <div>
+                      <label className="block text-sm mb-1">Meta Açıklama</label>
+                      <textarea
+                        value={editForm.metaDescription}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            metaDescription: e.target.value,
+                          })
+                        }
+                        placeholder="Meta açıklama"
+                        className="w-full px-3 py-2 border rounded-md"
+                        rows={3}
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-sm mb-1">
-                      Kategori İçeriği (Makale)
-                    </label>
-                    <textarea
-                      value={editForm.content}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, content: e.target.value })
-                      }
-                      placeholder="Kategori sayfasında gösterilecek içerik"
-                      className="w-full px-3 py-2 border rounded-md"
-                      rows={5}
-                    />
-                  </div>
+                    <div>
+                      <label className="block text-sm mb-1">
+                        Kategori İçeriği (Makale)
+                      </label>
+                      <textarea
+                        value={editForm.content}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, content: e.target.value })
+                        }
+                        placeholder="Kategori sayfasında gösterilecek içerik"
+                        className="w-full px-3 py-2 border rounded-md"
+                        rows={5}
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-sm mb-1">S.S.S (JSON)</label>
-                    <textarea
-                      value={editForm.faqs}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, faqs: e.target.value })
-                      }
-                      placeholder='[{"question":"Soru 1?","answer":"Cevap 1"},{"question":"Soru 2?","answer":"Cevap 2"}]'
-                      className="w-full px-3 py-2 border rounded-md font-mono text-sm"
-                      rows={5}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      JSON formatında S.S.S. sorularını girin
-                    </p>
+                    <div>
+                      <label className="block text-sm mb-1">S.S.S (JSON)</label>
+                      <textarea
+                        value={editForm.faqs}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, faqs: e.target.value })
+                        }
+                        placeholder='[{"question":"Soru 1?","answer":"Cevap 1"},{"question":"Soru 2?","answer":"Cevap 2"}]'
+                        className="w-full px-3 py-2 border rounded-md font-mono text-sm"
+                        rows={5}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        JSON formatında S.S.S. sorularını girin
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <Button onClick={handleUpdate}>Güncelle</Button>
+                <Button onClick={handleUpdate}>Güncelle</Button>
+              </div>
             </div>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
 
