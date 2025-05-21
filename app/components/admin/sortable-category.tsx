@@ -90,7 +90,10 @@ export function SortableCategory({
           <span className={`flex-1 ${depth === 0 ? 'font-bold' : ''}`}>{category.name}</span>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => onEdit(category)}>
+            <Button variant="outline" size="sm" onClick={() => {
+              console.log(`SortableCategory: 'Düzenle' butonuna tıklandı. Kategori ID=${category.id}, Adı='${category.name}'. Bu onEdit'e gönderiliyor.`);
+              onEdit(category);
+            }}>
               Düzenle
             </Button>
             {showDeleteButton && (

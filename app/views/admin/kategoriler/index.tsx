@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
@@ -439,7 +439,8 @@ export default function KategorilerPage() {
     },
   });
 
-  const handleEdit = (category: Category) => {
+  const handleEdit = useCallback((category: Category) => {
+    console.log("handleEdit (useCallback) çağrıldı, düzenlenmek istenen kategori:", JSON.stringify(category, null, 2));
     setEditingCategory(category);
     setEditForm({
       name: category.name,
@@ -448,10 +449,10 @@ export default function KategorilerPage() {
       customTitle: category.customTitle || "",
       metaDescription: category.metaDescription || "",
       content: category.content || "",
-      faqs: category.faqs || "",
+      faqs: typeof category.faqs === 'string' ? category.faqs : (category.faqs ? JSON.stringify(category.faqs, null, 2) : ""),
     });
     setShowEditModal(true);
-  };
+  }, [setEditingCategory, setEditForm, setShowEditModal]);
 
   const handleUpdate = () => {
     if (!editingCategory) return;
@@ -548,17 +549,17 @@ export default function KategorilerPage() {
         >
           {categoryTree.map((category) => { // Iterate over categoryTree for rendering
             // Her kategori için ilan sayısını kontrol et
-            const hasListings = listingCounts[category.id] > 0;
-
-            const normalizedCategory = normalizeCategoryForSortable(category);
-
+            const normalizedCat = normalizeCategoryForSortable(category);
             return (
               <SortableCategory
-                key={normalizedCategory.id}
-                category={normalizedCategory} // Pass the fully normalized category
-                listingCounts={listingCounts} // Pass all listing counts
-                onEdit={() => handleEdit(category)} // handleEdit might need the original category or a differently normalized one
-                onDelete={requestCategoryDeletion} // Pass the generic delete request handler
+                key={normalizedCat.id}
+                category={normalizedCat}
+                onEdit={(categoryFromSortable) => {
+                  console.log("KategorilerPage (inline onEdit): SortableCategory'den onEdit çağrıldı. Gelen kategori:", JSON.stringify(categoryFromSortable, null, 2));
+                  handleEdit(categoryFromSortable); // handleEdit'i gelen kategoriyle çağır
+                }}
+                onDelete={requestCategoryDeletion} // onDelete'i de benzer şekilde sarmalamak gerekebilir, şimdilik kalsın
+                listingCounts={listingCounts}
               />
             );
           })}
