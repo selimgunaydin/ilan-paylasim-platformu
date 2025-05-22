@@ -440,7 +440,7 @@ export default function KategorilerPage() {
   });
 
   const handleEdit = useCallback((category: Category) => {
-    console.log("handleEdit (useCallback) çağrıldı, düzenlenmek istenen kategori:", JSON.stringify(category, null, 2));
+    // console.log("handleEdit (useCallback) çağrıldı, düzenlenmek istenen kategori:", JSON.stringify(category, null, 2));
     setEditingCategory(category);
     setEditForm({
       name: category.name,
@@ -555,7 +555,7 @@ export default function KategorilerPage() {
                 key={normalizedCat.id}
                 category={normalizedCat}
                 onEdit={(categoryFromSortable) => {
-                  console.log("KategorilerPage (inline onEdit): SortableCategory'den onEdit çağrıldı. Gelen kategori:", JSON.stringify(categoryFromSortable, null, 2));
+                  // console.log("KategorilerPage (inline onEdit): SortableCategory'den onEdit çağrıldı. Gelen kategori:", JSON.stringify(categoryFromSortable, null, 2));
                   handleEdit(categoryFromSortable); // handleEdit'i gelen kategoriyle çağır
                 }}
                 onDelete={requestCategoryDeletion} // onDelete'i de benzer şekilde sarmalamak gerekebilir, şimdilik kalsın

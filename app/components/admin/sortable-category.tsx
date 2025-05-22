@@ -91,7 +91,7 @@ export function SortableCategory({
 
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => {
-              console.log(`SortableCategory: 'Düzenle' butonuna tıklandı. Kategori ID=${category.id}, Adı='${category.name}'. Bu onEdit'e gönderiliyor.`);
+              // console.log(`SortableCategory: 'Düzenle' butonuna tıklandı. Kategori ID=${category.id}, Adı='${category.name}'. Bu onEdit'e gönderiliyor.`);
               onEdit(category);
             }}>
               Düzenle

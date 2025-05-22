@@ -350,10 +350,24 @@ export default function EditListing() {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Telefon</FormLabel>
+                      <FormLabel>Telefon Numarası</FormLabel>
                       <FormControl>
-                        <Input {...field} type="tel" />
+                        <Input
+                          {...field}
+                          type="tel"
+                          placeholder="Telefon numarasını yazın"
+                          pattern="[0-9]*"
+                          onKeyPress={(e) => {
+                            const charCode = e.charCode; // Alınan karakterin ASCII değeri
+                            // Sadece 0-9 arası rakamlara izin ver
+                            if (charCode < 48 || charCode > 57) {
+                              e.preventDefault(); // Rakam değilse girişi engelle
+                            }
+                          }}
+                          inputMode="numeric" // Mobil cihazlarda sayısal klavye açılır
+                        />
                       </FormControl>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
