@@ -22,13 +22,22 @@ export default function AdminView() {
     setIsLoading(true);
     
     try {
-      const result = await signIn("admin-credentials", {
+      // ESKİ YÖNTEM: Ayrı admin provider'ı ile giriş (Yorumda kalmalı)
+      // const result = await signIn("admin-credentials", {
+      //   username,
+      //   password,
+      //   redirect: false,
+      //   callbackUrl: "/yonetim/anasayfa"
+      // });
+      
+      // YENİ YÖNTEM: Tek user provider'ı ile giriş (isAdmin kontrolü authOptions'da)
+      const result = await signIn("user-credentials", {
         username,
         password,
         redirect: false,
-        callbackUrl: "/yonetim/anasayfa"
+        callbackUrl: "/yonetim/anasayfa" // Admin paneline yönlendirme
       });
-      
+        
       if (result?.error) {
         toast({
           title: "Giriş başarısız",
@@ -36,12 +45,16 @@ export default function AdminView() {
           variant: "destructive",
         });
       } else if (result?.url) {
+        // Başarılı giriş sonrası yönlendirme
+        // router.push(result.url) yerine window.location.href kullanılmış,
+        // Next.js 13+ App Router'da router.push daha iyi olabilir.
+        // Ancak mevcut çalışan yapı buysa şimdilik dokunmayalım.
         window.location.href = result.url;
       }
     } catch (error) {
       toast({
         title: "Giriş başarısız",
-        description: "Bir hata oluştu",
+        description: "Bir hata oluştu", // Daha spesifik hata mesajı verilebilir
         variant: "destructive",
       });
     } finally {

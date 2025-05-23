@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { db } from "@shared/db";
 import { users } from '@shared/schemas';
-import { eq, SQL } from 'drizzle-orm';
+import { eq, SQL, desc } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +43,9 @@ export async function GET(request: NextRequest) {
     for (const condition of whereConditions) {
       query = query.where(condition) as any;
     }
+
+    // Kayıt tarihine göre sırala (en yeni en üstte)
+    query = query.orderBy(desc(users.createdAt)) as any;
 
     const userList = await query;
 

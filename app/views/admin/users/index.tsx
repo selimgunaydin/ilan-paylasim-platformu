@@ -15,6 +15,7 @@ import { queryClient } from "@/lib/queryClient";
 import { DataTable } from "@app/components/ui/data-table";
 import type { Row } from "@tanstack/react-table";
 import { Loader2 } from "lucide-react";
+
 interface User {
   id: number;
   username: string;
@@ -24,6 +25,7 @@ interface User {
   gender: string;
   status: boolean;
   yuksekUye: boolean;
+  createdAt: string;
 }
 
 interface Filters {
@@ -110,7 +112,13 @@ export default function UsersPage() {
       header: "E-posta",
       accessorKey: "email",
     },
-    
+    {
+      header: "Kayıt Tarihi",
+      accessorKey: "createdAt",
+      cell: ({ row }: { row: Row<User> }) => {
+        return new Date(row.original.createdAt).toLocaleDateString();
+      },
+    },
     {
       header: "İlan Durumu",
       accessorKey: "used_free_ad",
@@ -166,23 +174,27 @@ export default function UsersPage() {
   );
   if (error) return <div>Hata oluştu: {error.message}</div>;
 
-  const filteredUsers = users?.filter((user) => {
-    if (filters.gender !== "hepsi" && user.gender !== filters.gender)
-      return false;
-    if (
-      filters.used_free_ad !== "hepsi" &&
-      ((filters.used_free_ad === "yes" && user.used_free_ad !== 1) ||
-        (filters.used_free_ad === "no" && user.used_free_ad === 1))
-    )
-      return false;
-    if (
-      filters.yuksekUye !== "hepsi" &&
-      ((filters.yuksekUye === "yes" && !user.yuksekUye) ||
-        (filters.yuksekUye === "no" && user.yuksekUye))
-    )
-      return false;
-    return true;
-  });
+  // filteredUsers tanımı güncellendi: users tanımsızsa boş dizi, değilse filtrelenmiş dizi.
+  // Bu sayede filteredUsers her zaman User[] tipinde olur.
+  const filteredUsers: User[] = users
+    ? users.filter((user) => {
+        if (filters.gender !== "hepsi" && user.gender !== filters.gender)
+          return false;
+        if (
+          filters.used_free_ad !== "hepsi" &&
+          ((filters.used_free_ad === "yes" && user.used_free_ad !== 1) ||
+            (filters.used_free_ad === "no" && user.used_free_ad === 1))
+        )
+          return false;
+        if (
+          filters.yuksekUye !== "hepsi" &&
+          ((filters.yuksekUye === "yes" && !user.yuksekUye) ||
+            (filters.yuksekUye === "no" && user.yuksekUye))
+        )
+          return false;
+        return true;
+      })
+    : [];
 
   return (
     <div>
@@ -238,7 +250,20 @@ export default function UsersPage() {
         </Select>
       </div>
 
-      <DataTable columns={columns} data={filteredUsers || []} />
+      {/* API'den hiç kullanıcı gelmediyse genel mesaj göster */}
+      {(!users || users.length === 0) && !isLoading && (
+        <div className="text-center py-10 text-gray-500">
+          Sistemde kayıtlı kullanıcı bulunmamaktadır.
+        </div>
+      )}
+
+      {/* Kullanıcı varsa (filtrelenmiş veya filtrelenmemiş) DataTable'ı göster */}
+      {/* DataTable kendi içinde filteredUsers boşsa mesaj gösterecek */}
+      {users && users.length > 0 && (
+        <DataTable columns={columns} data={filteredUsers} />
+        // İsteğe bağlı: noResultsMessage="Filtrelerinize uygun üye bulunamadı." gibi özel bir mesaj da geçilebilir.
+        // <DataTable columns={columns} data={filteredUsers} noResultsMessage="Filtrelerinize uygun üye bulunamadı." />
+      )}
     </div>
   );
 }

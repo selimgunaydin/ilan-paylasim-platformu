@@ -83,6 +83,7 @@ export const favorites = pgTable("favorites", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+//kullanımdan kaldırılacak. users is_admin kullanımda. 
 export const admin_users = pgTable("admin_users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),

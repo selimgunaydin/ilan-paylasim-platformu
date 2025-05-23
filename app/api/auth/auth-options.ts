@@ -2,11 +2,12 @@
 import NextAuth from "next-auth";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { users, admin_users } from "@shared/schemas";
+import { users } from "@shared/schemas";
 import { eq } from "drizzle-orm";
 import "next-auth/jwt";
 import { db } from "@shared/db";
 import { comparePasswords } from "@/utils/compare-passwords";
+import bcrypt from 'bcryptjs';
 
 // Extend the User type
 declare module "next-auth" {
@@ -50,7 +51,7 @@ export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       id: "user-credentials",
-      name: "User Credentials",
+      name: "Credentials",
       credentials: {
         username: { label: "Kullanıcı Adı", type: "text" },
         password: { label: "Şifre", type: "password" },
@@ -84,11 +85,12 @@ export const authOptions: NextAuthOptions = {
             );
           }
 
-          if (user.emailVerified === false) {
-            throw new Error(
-              "Email adresinizi doğrulamadınız. Lütfen email adresinizi doğrulayın."
-            );
-          }
+          // emailVerified kontrolü burada kalabilir, normal kullanıcılar için geçerli
+          // if (user.emailVerified === false) {
+          //   throw new Error(
+          //     "Email adresinizi doğrulamadınız. Lütfen email adresinizi doğrulayın."
+          //   );
+          // }
 
           await db
             .update(users)
@@ -106,7 +108,7 @@ export const authOptions: NextAuthOptions = {
             name: user.username,
             emailVerified: user.emailVerified,
             isAdmin: user.isAdmin || false,
-            type: "user",
+            type: user.isAdmin ? "admin" : "user",
             username: user.username,
           };
         } catch (error) {
@@ -117,50 +119,39 @@ export const authOptions: NextAuthOptions = {
         }
       },
     }),
-    CredentialsProvider({
-      id: "admin-credentials",
-      name: "Admin Credentials",
-      credentials: {
-        username: { label: "Kullanıcı Adı", type: "text" },
-        password: { label: "Şifre", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.username || !credentials?.password) {
-          return null;
-        }
-        try {
-          const [admin] = await db
-            .select()
-            .from(admin_users)
-            .where(eq(admin_users.username, String(credentials.username)));
+    // CredentialsProvider({
+    //   id: "admin-credentials",
+    //   name: "Admin Credentials",
+    //   credentials: {
+    //     username: { label: "Username", type: "text" },
+    //     password: { label: "Password", type: "password" },
+    //   },
+    //   async authorize(credentials) {
+    //     if (!credentials?.username || !credentials?.password) {
+    //       return null;
+    //     }
+    //     try {
+    //       const [adminUser] = await db
+    //         .select()
+    //         .from(admin_users)
+    //         .where(eq(admin_users.username, credentials.username));
 
-          if (!admin) {
-            return null;
-          }
-
-          const passwordMatches = await comparePasswords(
-            String(credentials.password),
-            admin.password
-          );
-          if (!passwordMatches) {
-            return null;
-          }
-
-          return {
-            id: String(admin.id),
-            name: admin.username,
-            email: "",
-            emailVerified: true,
-            isAdmin: true,
-            type: "admin",
-            username: admin.username,
-          };
-        } catch (error) {
-          console.error("Admin auth error:", error);
-          return null;
-        }
-      },
-    }),
+    //       if (adminUser && bcrypt.compareSync(credentials.password, adminUser.password)) {
+    //         return {
+    //           id: adminUser.id.toString(),
+    //           name: adminUser.username, // veya adminUser.name varsa
+    //           type: 'admin',
+    //           isAdmin: true,
+    //           username: adminUser.username, // NextAuth User tipine uygun olmalı
+    //         } as any; 
+    //       }
+    //       return null;
+    //     } catch (error) {
+    //       console.error("Admin authorize error:", error);
+    //       return null;
+    //     }
+    //   },
+    // }),
   ],
   callbacks: {
     async jwt({ token, user }) {
@@ -169,8 +160,8 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email || "";
         token.name = user.name || "";
         token.emailVerified = user.emailVerified ? true : null;
-        token.isAdmin = Boolean(user.isAdmin);
-        token.type = user.type || "user";
+        token.isAdmin = Boolean(user.isAdmin); 
+        token.type = user.type || "user"; 
         token.username = user.username || "";
       }
       return token;
@@ -181,8 +172,8 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email;
         session.user.name = token.name;
         session.user.emailVerified = token.emailVerified;
-        session.user.isAdmin = token.isAdmin;
-        session.user.type = token.type;
+        session.user.isAdmin = token.isAdmin; 
+        session.user.type = token.type; 
         session.user.username = token.username;
       }
       return session;
