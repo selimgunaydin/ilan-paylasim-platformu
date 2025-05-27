@@ -121,12 +121,12 @@ export default function ListingDetailAdmin() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">İlan İnceleme</h1>
-        <Link
-          href="/yonetim/onaybekleyenilanlar"
-          className="text-blue-500 hover:text-blue-700"
+        <Button
+          onClick={() => router.back()}
+          className=""
         >
-          Listeye Dön
-        </Link>
+          Kullanıcı Detayına Dön
+        </Button>
       </div>
 
       <Card>

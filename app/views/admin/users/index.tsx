@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@app/components/ui/button";
+import { Badge } from "@app/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -14,18 +16,21 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { DataTable } from "@app/components/ui/data-table";
 import type { Row } from "@tanstack/react-table";
-import { Loader2 } from "lucide-react";
+import { Loader2, MessageCircle } from "lucide-react";
 
 interface User {
   id: number;
   username: string;
   email: string;
   phone: string | null;
-  used_free_ad: number;
+  city: string | null;
   gender: string;
   status: boolean;
   yuksekUye: boolean;
+  isAdmin: boolean;
+  used_free_ad: number;
   createdAt: string;
+  lastLogin?: string | null;
 }
 
 interface Filters {
@@ -36,6 +41,8 @@ interface Filters {
 
 export default function UsersPage() {
   const { toast } = useToast();
+  const router = useRouter();
+
   const [filters, setFilters] = useState<Filters>({
     gender: "hepsi",
     used_free_ad: "hepsi",
@@ -103,10 +110,30 @@ export default function UsersPage() {
     }
   };
 
+  const handleSendMessage = (userId: number, username: string) => {
+    if (confirm(`${username} kullanıcısına mesaj göndermek istediğinize emin misiniz?`)) {
+      // Mesaj gönderme işlemi buraya eklenecek
+      // Örnek: router.push(`/mesaj/yeni?userId=${userId}`);
+      toast({
+        title: "Bilgi",
+        description: `Mesaj gönderme işlemi henüz aktif değil. Kullanıcı ID: ${userId}`
+      });
+    }
+  };
+
   const columns = [
     {
       header: "Kullanıcı Adı",
       accessorKey: "username",
+      cell: ({ row }: { row: Row<User> }) => (
+        <Button
+          variant="link"
+          className="p-0 h-auto"
+          onClick={() => window.open(`/yonetim/users/${row.original.id}`, "_blank")}
+        >
+          {row.original.username}
+        </Button>
+      ),
     },
     {
       header: "E-posta",
@@ -137,14 +164,42 @@ export default function UsersPage() {
     },
     {
       header: "Üyelik Tipi",
-      accessorKey: "yuksekUye",
-      cell: ({ row }: { row: Row<User> }) =>
-        row.original.yuksekUye ? "YÜKSEK" : "Stn.",
+      accessorKey: "membership",
+      cell: ({ row }: { row: Row<User> }) => {
+        const user = row.original;
+        if (user.isAdmin) return <span className="font-semibold text-amber-500">ADMİN</span>;
+        return user.yuksekUye ? "Yüksek" : "Standart";
+      },
+    },
+    {
+      id: "status",
+      header: "Durum",
+      cell: ({ row }: { row: Row<User> }) => {
+        const user = row.original as any;
+        return (
+          <Badge variant={user.status ? "default" : "destructive"}>
+            {user.status ? "Aktif" : "Pasif"}
+          </Badge>
+        );
+      },
     },
     {
       header: "İşlemler",
       cell: ({ row }: { row: Row<User> }) => (
         <div className="flex gap-2">
+          {/* <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSendMessage(row.original.id, row.original.username);
+            }}
+            title="Mesaj Gönder"
+            className="h-8 w-8 p-0"
+          >
+            <MessageCircle className="h-4 w-4" />
+            <span className="sr-only">Mesaj Gönder</span>
+          </Button> */}
           <Button
             variant={row.original.status ? "destructive" : "default"}
             size="sm"

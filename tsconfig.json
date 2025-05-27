@@ -47,6 +47,9 @@
       ],
       "@app/*": [
         "./app/*"
+      ],
+      "@/views/*": [
+        "./app/views/*"
       ]
     },
     "allowJs": true,

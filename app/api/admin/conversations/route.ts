@@ -6,6 +6,55 @@ import { eq, sql, desc, inArray } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
+export async function POST(request: NextRequest) {
+  try {
+    const { receiverId } = await request.json();
+
+    if (!receiverId) {
+      return NextResponse.json(
+        { error: "Alıcı ID'si gerekli" },
+        { status: 400 }
+      );
+    }
+
+    // Mevcut konuşmayı kontrol et
+    const existingConversation = await db.query.conversations.findFirst({
+      where: (conversation, { and, eq }) => 
+        and(
+          eq(conversation.senderId, 0), // Sistem kullanıcısı
+          eq(conversation.receiverId, Number(receiverId))
+        )
+    });
+
+    if (existingConversation) {
+      return NextResponse.json({
+        conversationId: existingConversation.id
+      });
+    }
+
+    // Yeni konuşma oluştur
+    const [newConversation] = await db.insert(conversations)
+      .values({
+        senderId: 0, // Sistem kullanıcısı
+        receiverId: Number(receiverId),
+        listingId: 0, // Sistem mesajları için
+        createdAt: new Date(),
+      })
+      .returning({ id: conversations.id });
+
+    return NextResponse.json({
+      conversationId: newConversation.id
+    });
+
+  } catch (error) {
+    console.error("Konuşma oluşturma hatası:", error);
+    return NextResponse.json(
+      { error: "Konuşma oluşturulurken bir hata oluştu" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Sayfalama parametrelerini al
