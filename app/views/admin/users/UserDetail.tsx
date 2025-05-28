@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AdminMessageForm } from "@/components/admin-message-form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +16,7 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useState } from "react";
 import { useSocket } from "@/providers/socket-provider";
+import { AdminMessageForm } from "@app/components/admin-message-form";
 
 interface UserDetailResponse {
   user: UserType;
@@ -95,9 +95,7 @@ export default function UserDetailView({ userId }: { userId: number }) {
                 <DialogTitle>{user.username} kullanıcısına mesaj gönder</DialogTitle>
               </DialogHeader>
               <div className="py-4">
-
-                <AdminMessageForm
-                  socket={socket}
+                {/* <AdminMessageForm
                   receiverId={user.id}
                   onSuccess={() => {
                     setIsMessageOpen(false);
@@ -105,8 +103,10 @@ export default function UserDetailView({ userId }: { userId: number }) {
                       title: "Başarılı",
                       description: "Mesaj başarıyla gönderildi"
                     });
+                    // Mesajların güncellenmesi için sayfayı yenile
+                    queryClient.invalidateQueries({ queryKey: ['user', userId] });
                   }}
-                />
+                /> */}
               </div>
             </DialogContent>
           </Dialog>
