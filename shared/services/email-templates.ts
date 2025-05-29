@@ -256,6 +256,49 @@ export function generateVerificationEmail(
   return { to: email, subject, text, html };
 }
 
+// Email template for RESEND verification email
+export function generateResendVerificationEmail(
+  email: string,
+  token: string
+): EmailOptions {
+  const baseUrl =
+    process.env.NODE_ENV === "production"
+      ? process.env.APP_URL : "http://localhost:3000";
+
+  const verificationLink = `${baseUrl}/verify-email?token=${token}`;
+  const subject = "Tekrar: Email Adresinizi Doğrulayın";
+  const text = `
+    Merhaba,
+
+    Daha önce talep ettiğiniz doğrulama e-postasının tekrar gönderimidir.
+    Hesabınızı doğrulamak için aşağıdaki bağlantıya tıklayın:
+    ${verificationLink}
+
+    Bu bağlantı 24 saat boyunca geçerlidir. Doğrulama işlemini tamamlamazsanız, hesabınıza tam erişim sağlayamayabilirsiniz.
+
+    Eğer bu hesabı siz oluşturmadıysanız, bu e-postayı dikkate almayın.
+
+    Saygılarımızla,
+    İlan Yönetim Ekibi
+  `;
+  const htmlContent = `
+    <p>Merhaba,</p>
+    <p><strong>Bu, daha önce talep ettiğiniz doğrulama e-postasının tekrar gönderimidir.</strong></p>
+    <p>Hesabınızı doğrulamak için lütfen aşağıdaki düğmeye tıklayın:</p>
+    <p style="margin: 20px 0;">
+      <a href="${verificationLink}" class="button">Email Adresimi Doğrula</a>
+    </p>
+    <p>Veya bu bağlantıyı tarayıcınızda açabilirsiniz:</p>
+    <p style="word-break: break-all;">${verificationLink}</p>
+    <p>Bu bağlantı 24 saat boyunca geçerlidir. Doğrulama işlemini tamamlamazsanız, hesabınıza tam erişim sağlayamayabilirsiniz.</p>
+    <p>Eğer bu hesabı siz oluşturmadıysanız, bu e-postayı dikkate almayın.</p>
+    <p>Saygılarımızla,<br>İlan Yönetim Ekibi</p>
+  `;
+  const html = emailWrapper(htmlContent);
+
+  return { to: email, subject, text, html };
+}
+
 // Email template for password reset
 export function generatePasswordResetEmail(
   email: string,

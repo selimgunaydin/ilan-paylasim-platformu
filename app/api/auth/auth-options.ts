@@ -85,12 +85,12 @@ export const authOptions: NextAuthOptions = {
             );
           }
 
-          // emailVerified kontrolü burada kalabilir, normal kullanıcılar için geçerli
-          // if (user.emailVerified === false) {
-          //   throw new Error(
-          //     "Email adresinizi doğrulamadınız. Lütfen email adresinizi doğrulayın."
-          //   );
-          // }
+          // emailVerified kontrolü
+          if (user.emailVerified === false) {
+            throw new Error(
+              "E-posta adresinizi henüz doğrulamadınız. Lütfen e-postanıza gönderilen doğrulama bağlantısını kullanın."
+            );
+          }
 
           await db
             .update(users)

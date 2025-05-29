@@ -4,6 +4,10 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAppDispatch, useAppSelector } from '@/redux/hooks';
+import type { RootState } from '@/redux/store'; 
+import { clearAuthMessages, setAuthError } from '@/redux/slices/authSlice'; 
+import { resendVerificationEmail as resendVerificationEmailThunk } from '@/redux/thunks/authThunks';
 import { insertUserSchema, type InsertUser } from "@shared/schemas";
 import { Card, CardContent, CardHeader, CardTitle } from "@app/components/ui/card";
 import { Button } from "@app/components/ui/button";
@@ -25,7 +29,7 @@ import {
 } from "@app/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@app/components/ui/tabs";
 import { CheckCircle2, Loader2 } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+// import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import * as z from "zod";
 import { Checkbox } from "@app/components/ui/checkbox";
@@ -157,30 +161,89 @@ function LoginForm({
 }: {
   onForgotPassword: () => void;
 }) {
-  const [isLoading, setIsLoading] = React.useState(false);
+  // Lokal state sadece ana giriş işlemi için
+  const [isLoading, setIsLoading] = React.useState(false); 
   const { toast } = useToast();
   const router = useRouter();
+
+  // Redux hook'ları
+  const dispatch = useAppDispatch();
+  const {
+    loading: authLoading, // auth slice'ın yüklenme durumu (e-posta yeniden gönderme için)
+    successMessage: authSuccessMessage,
+    errorMessage: authErrorMessage,
+  } = useAppSelector((state: RootState) => state.auth);
+
+  // E-posta doğrulaması UI kontrolü için lokal state'ler
+  const [showResendLink, setShowResendLink] = React.useState(false);
+  const [emailForResend, setEmailForResend] = React.useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = React.useState(0); // Geri sayım için state
+  const resendTimerRef = React.useRef<NodeJS.Timeout | null>(null); // Timer referansı
   
-  const form = useForm({
-    resolver: zodResolver(
-      z.object({
-        username: z
-          .string()
-          .min(1, "Kullanıcı adı veya email gereklidir")
-          .transform((val) => val.toLowerCase()),
-        password: z.string().min(1, "Şifre gereklidir"),
-      }),
-    ),
+  // Form şeması
+  const formSchema = z.object({
+    username: z
+      .string()
+      .min(1, "Kullanıcı adı veya email gereklidir")
+      .transform((val) => val.toLowerCase()),
+    password: z.string().min(1, "Şifre gereklidir"),
+  });
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
       username: "",
       password: "",
     },
   });
 
-  const handleSubmit = async (data: any) => {
+  // Geri sayım için useEffect
+  React.useEffect(() => {
+    if (resendCooldown > 0) {
+      resendTimerRef.current = setTimeout(() => {
+        setResendCooldown(prev => prev - 1);
+      }, 1000);
+    } else if (resendTimerRef.current) {
+      clearTimeout(resendTimerRef.current);
+    }
+    
+    return () => {
+      if (resendTimerRef.current) {
+        clearTimeout(resendTimerRef.current);
+      }
+    };
+  }, [resendCooldown]);
+
+  // Redux mesajlarını izlemek ve toast göstermek için useEffect
+  React.useEffect(() => {
+    if (authSuccessMessage) {
+      toast({
+        title: "Başarılı",
+        description: authSuccessMessage,
+      });
+      dispatch(clearAuthMessages()); // Mesajı temizle
+      setShowResendLink(false); // Başarılı gönderim sonrası linki gizle
+      setEmailForResend(null);
+      form.clearErrors("root"); // Genel form hatasını da temizle
+    }
+    if (authErrorMessage) {
+      toast({
+        title: "Hata",
+        description: authErrorMessage,
+        variant: "destructive",
+      });
+      dispatch(clearAuthMessages()); // Mesajı temizle
+    }
+  }, [authSuccessMessage, authErrorMessage, dispatch, toast, form]);
+
+  const handleSubmit = async (data: z.infer<typeof formSchema>) => {
     setIsLoading(true);
+    dispatch(clearAuthMessages()); // Önceki auth mesajlarını temizle
+    setShowResendLink(false); // Her yeni girişte yeniden gönderme linkini gizle
+    setEmailForResend(null);
+
     try {
-      const ip_address = await getClientIp();
+      const ip_address = await getClientIp(); // Bu fonksiyonun tanımlı olduğunu varsayıyorum
       
       const result = await signIn("user-credentials", {
         username: data.username,
@@ -191,21 +254,47 @@ function LoginForm({
       });
       
       if (result?.error) {
-        form.setError("root", { 
-          type: "manual",
-          message: result.error
-        });
+        const errorMsg = result.error;
+        form.setError("root", { type: "manual", message: errorMsg });
+
+        // E-posta doğrulama hatası mı kontrol et (tek bir yerden)
+        if (errorMsg.toLowerCase().includes("doğrula") || 
+            errorMsg.toLowerCase().includes("verify") ||
+            errorMsg.toLowerCase().includes("email not verified") ||
+            errorMsg.toLowerCase().includes("e-postanızı doğrulayın")) {
+          setShowResendLink(true);
+          setEmailForResend(data.username); // Kullanıcı adı alanı e-posta içerebilir
+        }
       } else if (result?.url) {
-        window.location.href = result.url;
+        window.location.href = result.url; // veya router.push(result.url)
+      } else {
+        // Başarılı giriş ama URL yoksa (genellikle olmaz ama önlem)
+        router.push("/");
       }
     } catch (error) {
-      form.setError("root", {
-        type: "manual",
-        message: "Giriş sırasında bir hata oluştu"
-      });
+      const generalError = "Giriş sırasında beklenmedik bir hata oluştu.";
+      form.setError("root", { type: "manual", message: generalError });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleResendVerification = () => { // async olmasına gerek yok, thunk zaten async
+    if (!emailForResend || resendCooldown > 0) return; // Geri sayım aktifse gönderme
+    
+    dispatch(resendVerificationEmailThunk({ email: emailForResend }))
+      .unwrap()
+      .then(() => {
+        // Başarılı API yanıtı sonrası geri sayımı başlat
+        setResendCooldown(60); // 60 saniye geri sayım
+        toast({
+          title: "Bilgi",
+          description: "Doğrulama e-postası için 1 dakika beklemelisiniz.",
+        });
+      })
+      .catch(() => {
+        // Hata durumu - toast zaten Redux useEffect'inde gösteriliyor
+      });
   };
 
   return (
@@ -218,7 +307,7 @@ function LoginForm({
             <FormItem>
               <FormLabel>Email veya Kullanıcı Adı</FormLabel>
               <FormControl>
-                <Input {...field} disabled={isLoading} />
+                <Input {...field} disabled={isLoading || authLoading} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -232,25 +321,50 @@ function LoginForm({
             <FormItem>
               <FormLabel>Şifre</FormLabel>
               <FormControl>
-                <Input type="password" {...field} disabled={isLoading} />
+                <Input type="password" {...field} disabled={isLoading || authLoading} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        {form.formState.errors.root && (
+        {/* Giriş formu genel hatası (e-posta doğrulama linki gösterilmiyorsa) */}
+        {form.formState.errors.root && !showResendLink && (
           <div className="text-sm font-medium text-destructive">
             {form.formState.errors.root.message}
           </div>
         )}
 
+        {/* E-posta Yeniden Gönderme Bölümü (tek bir tane olmalı) */}
+        {showResendLink && emailForResend && (
+          <div className="space-y-2 my-4">
+            <p className="text-sm text-destructive">
+              E-postanızı henüz doğrulamadınız.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleResendVerification} // Redux thunk'ını çağıran fonksiyon
+              disabled={authLoading || isLoading || resendCooldown > 0} // Geri sayım da ekle
+            >
+              {authLoading ? ( 
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Gönderiliyor...</>
+              ) : resendCooldown > 0 ? (
+                `Tekrar Gönder (${resendCooldown}s)`
+              ) : (
+                "Doğrulama E-postasını Tekrar Gönder"
+              )}
+            </Button>
+          </div>
+        )}
+        
         <div className="flex flex-col space-y-2">
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? (
+          <Button type="submit" className="w-full" disabled={isLoading || authLoading}>
+            {(isLoading || authLoading) ? ( // Basitleştirilmiş yüklenme durumu
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Giriş Yapılıyor...
+                {isLoading ? "Giriş Yapılıyor..." : "İşleniyor..."} 
               </>
             ) : (
               "Giriş Yap"
@@ -261,7 +375,7 @@ function LoginForm({
             variant="link"
             className="text-sm text-muted-foreground"
             onClick={onForgotPassword}
-            disabled={isLoading}
+            disabled={isLoading || authLoading}
           >
             Şifremi Unuttum
           </Button>

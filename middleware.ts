@@ -55,6 +55,7 @@ export async function middleware(request: NextRequest) {
       '/api/reset-password',
       '/api/forgot-password',
       '/api/reset-password-verify',
+      '/api/resend-verification-email',
     ]
     
     const isPublicApi = publicApiRoutes.some(route => 
