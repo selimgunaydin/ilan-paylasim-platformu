@@ -19,24 +19,28 @@ interface ClientLayoutProps {
   settings: SiteSettings;
 }
 
+import { ReCaptchaProvider } from "./ReCaptcha";
+
 export function ClientLayout({ children, settings }: ClientLayoutProps) {
   return (
-    <QueryClientProvider client={queryClient}>
-      <SessionProvider>
-        <AuthProvider>
-          <SocketProvider>
-            <MessageNotificationProvider>
-              <SidebarProvider>
-                <Header settings={settings} />
-                <div className="mx-auto">{children}</div>
-                <MobileNav />
-                <Toaster />
-                <Footer settings={settings} />
-              </SidebarProvider>
-            </MessageNotificationProvider>
-          </SocketProvider>
-        </AuthProvider>
-      </SessionProvider>
-    </QueryClientProvider>
+    <ReCaptchaProvider>
+      <QueryClientProvider client={queryClient}>
+        <SessionProvider>
+          <AuthProvider>
+            <SocketProvider>
+              <MessageNotificationProvider>
+                <SidebarProvider>
+                  <Header settings={settings} />
+                  <div className="mx-auto">{children}</div>
+                  <MobileNav />
+                  <Toaster />
+                  <Footer settings={settings} />
+                </SidebarProvider>
+              </MessageNotificationProvider>
+            </SocketProvider>
+          </AuthProvider>
+        </SessionProvider>
+      </QueryClientProvider>
+    </ReCaptchaProvider>
   );
 }

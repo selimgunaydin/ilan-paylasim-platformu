@@ -58,40 +58,96 @@ export const authOptions: NextAuthOptions = {
         ip_address: { label: "IP Adresi", type: "text" },
       },
       async authorize(credentials) {
-        if (!credentials?.username || !credentials?.password) {
+        if (!credentials) {
           throw new Error("Kullanıcı adı ve şifre gereklidir");
         }
+        
+        // reCAPTCHA sunucu doğrulaması
+        console.log('Authorize fonksiyonu çağrıldı, credentials:', {
+          username: credentials.username,
+          recaptchaToken: credentials.hasOwnProperty('recaptchaToken') ? 'var' : 'yok',
+          ip_address: credentials.ip_address
+        });
+        
+        const recaptchaToken = (credentials as any).recaptchaToken;
+        console.log('reCAPTCHA token:', recaptchaToken ? 'Alındı' : 'Alınamadı');
+        
+        if (!recaptchaToken) {
+          console.log('reCAPTCHA token bulunamadı, hata fırlatılıyor');
+          throw new Error("reCAPTCHA doğrulaması başarısız oldu. Lütfen tekrar deneyin.");
+        }
+        
         try {
-          const [user] = await db
+          // reCAPTCHA doğrulama
+          console.log('reCAPTCHA doğrulama isteği gönderiliyor...');
+          console.log('Kullanılan site key (env):', process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ? 'Tanımlı' : 'Tanımlı değil');
+          console.log('Kullanılan secret key (env):', process.env.RECAPTCHA_SECRET_KEY ? 'Tanımlı' : 'Tanımlı değil');
+          
+          // Secret key'i direkt olarak belirtelim
+          const secretKey = '6LdesFArAAAAAOyHVPW8HOF7iQGyq8_b8lihjxR6';
+          console.log('Kullanılan secret key (sabit):', secretKey.substring(0, 5) + '...');
+          
+          const verifyRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `secret=${secretKey}&response=${recaptchaToken}`,
+          });
+          
+          const verifyData = await verifyRes.json();
+          console.log('reCAPTCHA doğrulama sonucu:', verifyData);
+          
+          if (!verifyData.success || (verifyData.score !== undefined && verifyData.score < 0.5)) {
+            console.log('reCAPTCHA doğrulama başarısız oldu');
+            throw new Error("reCAPTCHA doğrulaması başarısız oldu. Lütfen tekrar deneyin.");
+          }
+          
+          console.log('reCAPTCHA doğrulama başarılı')
+          
+          // Kullanıcı bilgileri kontrolü
+          if (!credentials.username || !credentials.password) {
+            throw new Error("Kullanıcı adı ve şifre gereklidir");
+          }
+          
+          // Kullanıcı adı ile giriş dene, yoksa e-posta ile
+          let [user] = await db
             .select()
             .from(users)
             .where(eq(users.username, String(credentials.username)));
-
+            
+          if (!user) {
+            [user] = await db
+              .select()
+              .from(users)
+              .where(eq(users.email, String(credentials.username)));
+          }
+          
           if (!user) {
             throw new Error("Kullanıcı adı veya şifre hatalı");
           }
-
+          
+          // Şifre kontrolü
           const passwordMatches = await comparePasswords(
             String(credentials.password),
             user.password
           );
+          
           if (!passwordMatches) {
             throw new Error("Kullanıcı adı veya şifre hatalı");
           }
-
+          
           if (user.status === false) {
             throw new Error(
               "Hesabınız devre dışı bırakılmıştır. Lütfen yönetici ile iletişime geçin."
             );
           }
-
-          // emailVerified kontrolü
+          
           if (user.emailVerified === false) {
             throw new Error(
               "E-posta adresinizi henüz doğrulamadınız. Lütfen e-postanıza gönderilen doğrulama bağlantısını kullanın."
             );
           }
-
+          
+          // Son giriş bilgilerini güncelle
           await db
             .update(users)
             .set({
@@ -101,7 +157,7 @@ export const authOptions: NextAuthOptions = {
                 : null,
             })
             .where(eq(users.id, user.id));
-
+            
           return {
             id: String(user.id),
             email: user.email,

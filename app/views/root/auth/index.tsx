@@ -35,6 +35,7 @@ import * as z from "zod";
 import { Checkbox } from "@app/components/ui/checkbox";
 import Link from "next/link";
 import { getClientIp } from "@/utils/getIpAddress";
+import { useRecaptchaToken } from '@/components/ReCaptcha';
 import { signIn, useSession } from "next-auth/react";
 import { useState } from "react";
 import { TermsModal } from "@/components/TermsModal";
@@ -236,25 +237,39 @@ function LoginForm({
     }
   }, [authSuccessMessage, authErrorMessage, dispatch, toast, form]);
 
-  const handleSubmit = async (data: z.infer<typeof formSchema>) => {
+  const getRecaptchaToken = useRecaptchaToken('login');
+
+const handleSubmit = async (data: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     dispatch(clearAuthMessages()); // Önceki auth mesajlarını temizle
     setShowResendLink(false); // Her yeni girişte yeniden gönderme linkini gizle
     setEmailForResend(null);
 
     try {
-      const ip_address = await getClientIp(); // Bu fonksiyonun tanımlı olduğunu varsayıyorum
+      const ip_address = await getClientIp();
+      // reCAPTCHA token al
+      console.log('reCAPTCHA token alınıyor...');
+      const recaptchaToken = await getRecaptchaToken();
+      
+      if (!recaptchaToken) {
+        console.log('reCAPTCHA token alınamadı!');
+        form.setError("root", { type: "manual", message: "Lütfen reCAPTCHA doğrulamasını tamamlayın." });
+        setIsLoading(false);
+        return;
+      }
       
       const result = await signIn("user-credentials", {
         username: data.username,
         password: data.password,
         ip_address,
+        recaptchaToken,
         redirect: false,
         callbackUrl: "/"
       });
       
       if (result?.error) {
         const errorMsg = result.error;
+        console.log('Giriş hatası:', errorMsg);
         form.setError("root", { type: "manual", message: errorMsg });
 
         // E-posta doğrulama hatası mı kontrol et (tek bir yerden)
@@ -346,7 +361,7 @@ function LoginForm({
               variant="outline"
               className="w-full"
               onClick={handleResendVerification} // Redux thunk'ını çağıran fonksiyon
-              disabled={authLoading || isLoading || resendCooldown > 0} // Geri sayım da ekle
+              disabled={authLoading || isLoading || resendCooldown > 0} // Geri sayım
             >
               {authLoading ? ( 
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Gönderiliyor...</>

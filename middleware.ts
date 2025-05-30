@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
+// Giriş yapıldığında erişilmesi engellenecek rotalar
+const authRoutes = [
+  '/auth',
+]
+
 // Korumalı rotalar
 const protectedRoutes = [
   '/dashboard',
@@ -40,6 +45,11 @@ export async function middleware(request: NextRequest) {
     req: request, 
     secret: process.env.NEXTAUTH_SECRET 
   })
+
+  // Eğer kullanıcı giriş yapmışsa ve auth rotalarından birine erişmeye çalışıyorsa ana sayfaya yönlendir
+  if (token && authRoutes.some(route => pathname.startsWith(route))) {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
 
   // API istekleri için kontrol
   if (pathname.startsWith('/api/')) {
@@ -118,6 +128,7 @@ export const config = {
     '/profilim/:path*',
     '/yonetim',
     '/yonetim/:path*',
-    '/api/:path*'
+    '/api/:path*',
+    '/auth/:path*',
   ]
 }
