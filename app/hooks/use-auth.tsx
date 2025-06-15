@@ -12,6 +12,7 @@ import {
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getClientIp } from "@/utils/getIpAddress";
+import { Loader2 } from "lucide-react";
 
 type AuthContextType = {
   user: SelectUser | null;
@@ -158,7 +159,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         registerMutation,
       }}
     >
-      {children}
+      {isLoading ? (
+        <div className="h-screen w-full flex items-center justify-center">
+          <span className="text-muted-foreground">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </span>
+        </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 }

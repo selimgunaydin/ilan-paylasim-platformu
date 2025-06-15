@@ -2,7 +2,6 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@app/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@app/components/ui/badge";
 import { Separator } from "@app/components/ui/separator";
 import { format } from "date-fns";
@@ -11,6 +10,75 @@ import { Card, CardContent } from "@app/components/ui/card";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+// İlan durumuna göre butonları dinamik gösteren fonksiyon
+function renderListingActionButtons(
+  // Debug: status'u konsola yazdır
+  status: string,
+  {
+    handleApprove,
+    handleReject,
+    handleDelete,
+    handleActivate,
+    approvePending,
+    rejectPending,
+    deletePending,
+    activatePending,
+  }: {
+    handleApprove: () => void;
+    handleReject: () => void;
+    handleDelete: () => void;
+    handleActivate: () => void;
+    approvePending: boolean;
+    rejectPending: boolean;
+    deletePending: boolean;
+    activatePending: boolean;
+  }
+) {
+  // Debug: status'u konsola yazdır
+  console.log("[DEBUG] renderListingActionButtons status:", status);
+  switch (status) {
+    case "active":
+      return (
+        <Button variant="destructive" onClick={handleDelete} disabled={deletePending}>
+          İlanı Sil
+        </Button>
+      );
+    case "pending":
+      return (
+        <>
+          <Button variant="destructive" onClick={handleReject} disabled={rejectPending}>
+            Reddet
+          </Button>
+          <Button onClick={handleApprove} disabled={approvePending}>
+            Onayla
+          </Button>
+        </>
+      );
+    case "inactive":
+      return (
+        <>
+          <Button onClick={handleActivate} disabled={activatePending}>
+            Yayına Al
+          </Button>
+          <Button variant="destructive" onClick={handleDelete} disabled={deletePending}>
+            Sil
+          </Button>
+        </>
+      );
+    case "rejected":
+      return (
+        <Button variant="destructive" onClick={handleDelete} disabled={deletePending}>
+          İlanı Sil
+        </Button>
+      );
+    default:
+      return (
+        <span className="text-xs text-red-500">Durum: {String(status) || "(boş)"}</span>
+      );
+  }
+}
 
 export default function ListingDetailAdmin() {
   const { id } = useParams<{ id: string }>();
@@ -94,6 +162,55 @@ export default function ListingDetailAdmin() {
     },
   });
 
+  const activateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/admin/listings/${id}/activate`, {
+        method: "PUT",
+      });
+      if (!res.ok) throw new Error("İlan aktifleştirilemedi");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "listing", id] });
+      toast({
+        title: "Başarılı",
+        description: "İlan yayına alındı",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Hata",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/admin/listings/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("İlan silinemedi");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-listings"] });
+      toast({
+        title: "Başarılı",
+        description: "İlan silindi",
+      });
+      router.push("/yonetim/ilanlar");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Hata",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleApprove = async () => {
     if (window.confirm("Bu ilanı onaylamak istediğinize emin misiniz?")) {
       await approveMutation.mutateAsync();
@@ -103,6 +220,18 @@ export default function ListingDetailAdmin() {
   const handleReject = async () => {
     if (window.confirm("Bu ilanı reddetmek istediğinize emin misiniz?")) {
       await rejectMutation.mutateAsync();
+    }
+  };
+
+  const handleActivate = async () => {
+    if (window.confirm("Bu ilanı yayına almak istediğinize emin misiniz?")) {
+      await activateMutation.mutateAsync();
+    }
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm("Bu ilanı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.")) {
+      await deleteMutation.mutateAsync();
     }
   };
 
@@ -125,7 +254,7 @@ export default function ListingDetailAdmin() {
           onClick={() => router.back()}
           className=""
         >
-          Kullanıcı Detayına Dön
+          Geri Dön
         </Button>
       </div>
 
@@ -134,13 +263,42 @@ export default function ListingDetailAdmin() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-semibold">{listing.title}</h2>
-              <Badge
-                variant={
-                  listing.listingType === "premium" ? "default" : "secondary"
-                }
-              >
-                {listing.listingType === "premium" ? "Premium" : "Standart"}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge
+                  className={
+                    (listing.status === "active"
+                      ? "bg-green-100 text-green-800"
+                      : listing.status === "pending"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : listing.status === "inactive"
+                          ? "bg-gray-100 text-gray-800"
+                          : listing.status === "rejected"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-gray-100 text-gray-800") +
+                    " hover:bg-none hover:bg-transparent hover:text-inherit"
+                  }
+                  style={{
+                    pointerEvents: "none"
+                  }}
+                >
+                  {listing.status === "active"
+                    ? "Aktif"
+                    : listing.status === "pending"
+                      ? "Onay Bekliyor"
+                      : listing.status === "inactive"
+                        ? "Pasif"
+                        : listing.status === "rejected"
+                          ? "Reddedildi"
+                          : "-"}
+                </Badge>
+                <Badge
+                  variant={
+                    listing.listingType === "premium" ? "default" : "secondary"
+                  }
+                >
+                  {listing.listingType === "premium" ? "Premium" : "Standart"}
+                </Badge>
+              </div>
             </div>
 
             <Separator />
@@ -236,15 +394,18 @@ export default function ListingDetailAdmin() {
             </div>
 
             <div className="flex justify-end gap-4 mt-8">
-              <Button variant="destructive" onClick={handleReject}>
-                Reddet
-              </Button>
-              <Button
-                onClick={handleApprove}
-                disabled={approveMutation.isPending}
-              >
-                Onayla
-              </Button>
+
+              {renderListingActionButtons(listing.status, {
+                handleApprove,
+                handleReject,
+                handleDelete,
+                handleActivate,
+                approvePending: approveMutation?.isPending || false,
+                rejectPending: rejectMutation?.isPending || false,
+                deletePending: deleteMutation?.isPending || false,
+                activatePending: activateMutation?.isPending || false,
+              })}
+
             </div>
           </div>
         </CardContent>

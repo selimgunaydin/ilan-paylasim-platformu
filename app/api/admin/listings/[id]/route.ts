@@ -57,10 +57,22 @@ export async function GET(
 
 
     // İlan resimlerini URL'lere dönüştür
+
+
+    // İlan durumunu belirle
+    const status = (listing: any) => {
+  if (listing.rejected) return "rejected";
+  if (listing.approved && listing.active) return "active";
+  if (listing.approved && !listing.active) return "inactive";
+  if (!listing.approved && !listing.rejected) return "pending";
+  return "pending";
+};
+
     const listingWithImageUrls = {
       ...listing,
       images: listing.images ? getListingImagesUrls(listing.images) : [],
-      user: listingWithUser
+      user: listingWithUser,
+      status: status(listing) // İlan durumunu ekle
     };
 
     return NextResponse.json(listingWithImageUrls, { status: 200 });

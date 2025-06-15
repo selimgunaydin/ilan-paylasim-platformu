@@ -14,7 +14,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { LogOut, Menu, Settings } from "lucide-react";
+import { LogOut, Menu, Settings, KeyRound } from "lucide-react";
 
 type MenuItem = {
   label: string;
@@ -34,14 +34,14 @@ export function AdminHeaderClient({
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
-  const session = useSession();
+  const { data: session, status } = useSession(); //session a data ve status bilgilerini al
 
   const handleLogout = async () => {
     await signOut({ redirect: false });
     router.push("/yonetim");
   };
 
-  if (session.status === "unauthenticated" || session.status === "loading") {
+  if (status === "unauthenticated" || status === "loading") {
     return null;
   }
 
@@ -50,13 +50,8 @@ export function AdminHeaderClient({
       {menuItems.map((item) => (
         <Link key={item.path} href={item.path}>
           <Button
-            variant={
-              pathname === item.path ? "default" : "ghost"
-            }
-            className={cn(
-              "flex items-center gap-2",
-              pathname === item.path ? "bg-primary text-white" : ""
-            )}
+            variant={pathname === item.path ? "default" : "ghost"}
+            className={cn("flex items-center gap-2")}
           >
             <item.icon className="w-4 h-4" />
             <span className="hidden md:inline">{item.label}</span>
@@ -73,13 +68,20 @@ export function AdminHeaderClient({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {settingsMenuItems.map((item) => (
-            <DropdownMenuItem key={item.path}>
-              <Link href={item.path} className="flex items-center">
+            <DropdownMenuItem key={item.path} asChild> 
+            {/* asChild eklendi w-full eklendi.  */}
+              <Link href={item.path} className="flex items-center w-full">
                 <item.icon className="w-4 h-4 mr-2" />
                 {item.label}
               </Link>
             </DropdownMenuItem>
           ))}
+          <DropdownMenuItem asChild>
+            <Link href="/yonetim/admin-pin-degistir" className="flex items-center w-full">
+              <KeyRound className="w-4 h-4 mr-2" />
+              Admin PIN Değiştir
+            </Link>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -95,57 +97,45 @@ export function AdminHeaderClient({
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-72">
-            <div className="flex flex-col gap-2 mt-4">
-              {menuItems.map((item) => (
-                <Link key={item.path} href={item.path}>
-                  <Button
-                    variant={
-                      pathname === item.path
-                        ? "default"
-                        : "ghost"
-                    }
-                    className={cn(
-                      "justify-start",
-                      pathname === item.path
-                        ? "bg-primary text-white"
-                        : ""
-                    )}
-                  >
-                    <item.icon className="w-4 h-4 mr-2" />
-                    {item.label}
-                  </Button>
-                </Link>
-              ))}
-              {/* Mobil Ayarlar Menüsü */}
-              {settingsMenuItems.map((item) => (
-                <Link key={item.path} href={item.path}>
-                  <Button
-                    variant={
-                      pathname === item.path
-                        ? "default"
-                        : "ghost"
-                    }
-                    className={cn(
-                      "justify-start",
-                      pathname === item.path
-                        ? "bg-primary text-white"
-                        : ""
-                    )}
-                  >
-                    <item.icon className="w-4 h-4 mr-2" />
-                    {item.label}
-                  </Button>
-                </Link>
-              ))}
-              <Button
-                variant="destructive"
-                onClick={handleLogout}
-                className="justify-start mt-4"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Çıkış Yap
-              </Button>
+          <SheetContent side="right" className="w-full max-w-xs sm:max-w-sm">
+            <div className="flex flex-col h-full">
+              <div className="flex-grow overflow-y-auto">
+                <nav className="flex flex-col gap-2 mt-4">
+                  {menuItems.map((item) => (
+                    <Link key={item.path} href={item.path} onClick={() => setIsMobileMenuOpen(false)}>
+                      <Button
+                        variant={pathname === item.path ? "default" : "ghost"}
+                        className={cn("w-full justify-start")}
+                      >
+                        <item.icon className="w-4 h-4 mr-2" />
+                        {item.label}
+                      </Button>
+                    </Link>
+                  ))}
+                  {/* Mobil Ayarlar Menüsü */}
+                  {settingsMenuItems.map((item) => (
+                    <Link key={item.path} href={item.path} onClick={() => setIsMobileMenuOpen(false)}>
+                      <Button
+                        variant={pathname === item.path ? "default" : "ghost"}
+                        className={cn("w-full justify-start")}
+                      >
+                        <item.icon className="w-4 h-4 mr-2" />
+                        {item.label}
+                      </Button>
+                    </Link>
+                  ))}
+                </nav>
+              </div>
+              <div className="mt-auto">
+                <Button
+                  variant="destructive"
+                  onClick={handleLogout}
+                  className="w-full justify-start"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Çıkış Yap
+                </Button>
+              </div>
             </div>
           </SheetContent>
         </Sheet>

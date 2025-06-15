@@ -17,6 +17,7 @@ import { queryClient } from "@/lib/queryClient";
 import { DataTable } from "@app/components/ui/data-table";
 import type { Row } from "@tanstack/react-table";
 import { Loader2, MessageCircle } from "lucide-react";
+import { ProtectedActionButton } from "../../../components/admin/verification-pin/protected-action-button";
 
 interface User {
   id: number;
@@ -209,13 +210,14 @@ export default function UsersPage() {
           >
             {row.original.status ? "Banla" : "Aktif Et"}
           </Button>
-          <Button
+          <ProtectedActionButton
             variant="ghost"
             size="sm"
-            onClick={() => handleDelete(row.original.id)}
+            onVerified={() => handleDelete(row.original.id)}
           >
             Sil
-          </Button>
+          </ProtectedActionButton>
+          {/* sil ile banla aynı şey olacak tamamen silme durumumuz kalkacak? banlayacağız ve 12 aydan sonra ilanları ve mesajları otomatik temizlenecek. */}
         </div>
       ),
     },

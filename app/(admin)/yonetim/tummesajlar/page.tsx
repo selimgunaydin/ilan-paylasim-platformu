@@ -1,14 +1,17 @@
-import AllMessages from '@/views/admin/tum-mesajlar'
+import AllMessages from '@/views/admin/tum-mesajlar';
+import ProtectedPageWrapper from '../../../components/admin/verification-pin/protected-page-wrapper';
 
 export async function generateMetadata() {
   return {
-    title: "Tüm Mesajlar",
-    description: "Tüm mesajlar sayfası",
+    title: "Tüm Mesajlar - Admin PIN Gerekli",
+    description: "Mesajları görüntülemek için lütfen yönetici PIN'inizi girin.",
   };
 }
 
 export default function AllMessagesPage() {
   return (
-    <AllMessages />
+    <ProtectedPageWrapper>
+      <AllMessages />
+    </ProtectedPageWrapper>
   )
 }

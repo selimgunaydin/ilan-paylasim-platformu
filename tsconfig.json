@@ -1,6 +1,7 @@
 {
   "include": [
     "app/**/*",
+    "components/**/*",
     "client/src/**/*",
     "shared/**/*",
     "server/**/*",

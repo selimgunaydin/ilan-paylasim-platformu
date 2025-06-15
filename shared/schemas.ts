@@ -274,6 +274,7 @@ export const site_settings = pgTable("site_settings", {
   instagram_url: text("instagram_url"),
   linkedin_url: text("linkedin_url"),
   youtube_url: text("youtube_url"),
+  admin_verification_pin: integer("admin_verification_pin").notNull().default(1234),
   updated_at: timestamp("updated_at").defaultNow(),
   updated_by: integer("updated_by").references(() => users.id),
 });
