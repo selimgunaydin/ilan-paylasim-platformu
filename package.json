@@ -7,7 +7,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "db:push": "drizzle-kit push",
+    "db:push": "dotenv -e .env.local -- drizzle-kit push",
+    "db:generate": "dotenv -e .env.local -- drizzle-kit generate",
+    "db:migrate": "dotenv -e .env.local -- drizzle-kit migrate",
     "check": "tsc"
   },
   "dependencies": {
@@ -130,6 +132,7 @@
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8.18.0",
     "autoprefixer": "^10.4.20",
+    "dotenv-cli": "^8.0.0",
     "drizzle-kit": "^0.30.4",
     "esbuild": "^0.24.0",
     "postcss": "^8.4.47",

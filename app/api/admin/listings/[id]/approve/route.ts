@@ -40,11 +40,11 @@ export async function PUT(
       .where(eq(listings.id, listingId))
       .returning();
 
-    // Eğer standart ilan onaylandıysa used_free_ad değerini 1 yap
+    // Eğer standart ilan onaylandıysa has_used_free_ad değerini true yap
     if (listing.listingType === "standard") {
       await db
         .update(users)
-        .set({ used_free_ad: 1 })
+        .set({ has_used_free_ad: true })
         .where(eq(users.id, Number(listing.userId)));
 
       console.log(

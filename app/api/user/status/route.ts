@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
         emailVerified: true,
         isAdmin: true,
         lastSeen: true,
-        used_free_ad: true,
+        has_used_free_ad: true,
         profileImage: true,
         profileVisibility: true,
         gender: true,

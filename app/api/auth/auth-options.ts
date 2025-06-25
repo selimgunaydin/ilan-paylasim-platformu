@@ -3,7 +3,7 @@ import NextAuth from "next-auth";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { users } from "@shared/schemas";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import "next-auth/jwt";
 import { db } from "@shared/db";
 import { comparePasswords } from "@/utils/compare-passwords";
@@ -109,18 +109,16 @@ export const authOptions: NextAuthOptions = {
           }
           
           // Kullanıcı adı ile giriş dene, yoksa e-posta ile
-          let [user] = await db
+          const [user] = await db
             .select()
             .from(users)
-            .where(eq(users.username, String(credentials.username)));
+            .where(
+              or(
+                eq(users.username, String(credentials.username)),
+                eq(users.email, String(credentials.username))
+              )
+            )
             
-          if (!user) {
-            [user] = await db
-              .select()
-              .from(users)
-              .where(eq(users.email, String(credentials.username)));
-          }
-          
           if (!user) {
             throw new Error("Kullanıcı adı veya şifre hatalı");
           }
@@ -137,7 +135,7 @@ export const authOptions: NextAuthOptions = {
           
           if (user.status === false) {
             throw new Error(
-              "Hesabınız devre dışı bırakılmıştır. Lütfen yönetici ile iletişime geçin."
+              "Hesabınız devre dışı bırakılmıştır. Lütfen destek ekibi ile iletişime geçin."
             );
           }
           

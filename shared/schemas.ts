@@ -25,7 +25,8 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
   isAdmin: boolean("is_admin").default(false),
   lastSeen: timestamp("last_seen"),
-  used_free_ad: integer("used_free_ad").default(0),
+  // used_free_ad: integer("used_free_ad").default(0),
+  has_used_free_ad: boolean("has_used_free_ad").default(false),
   profileImage: text("profile_image"),
   profileVisibility: boolean("profile_visibility").default(true),
   gender: text("gender").default("unspecified"),
@@ -274,7 +275,8 @@ export const site_settings = pgTable("site_settings", {
   instagram_url: text("instagram_url"),
   linkedin_url: text("linkedin_url"),
   youtube_url: text("youtube_url"),
-  admin_verification_pin: integer("admin_verification_pin").notNull().default(1234),
+  user_cleanup_months: integer("user_cleanup_months").notNull().default(12),
+  admin_verification_pin: integer("admin_verification_pin").notNull().default(123456),
   updated_at: timestamp("updated_at").defaultNow(),
   updated_by: integer("updated_by").references(() => users.id),
 });
@@ -312,7 +314,8 @@ export const insertSiteSettingsSchema = createInsertSchema(site_settings, {
   twitter_url: z.string().url("Geçerli bir URL girilmelidir").optional().or(z.literal('')),
   instagram_url: z.string().url("Geçerli bir URL girilmelidir").optional().or(z.literal('')),
   linkedin_url: z.string().url("Geçerli bir URL girilmelidir").optional().or(z.literal('')),
-  youtube_url: z.string().url("Geçerli bir URL girilmelidir").optional().or(z.literal('')),
+  youtube_url: z.string().url("Geçerli bir URL girilmelidir").optional().or(z.literal('')),  
+  user_cleanup_months: z.number().min(1, "Süre en az 1 ay olmalıdır"),
 });
 
 export const insertUserSchema = createInsertSchema(users, {

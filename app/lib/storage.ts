@@ -508,7 +508,7 @@ export class DatabaseStorage implements IStorage {
     if (listing && approved && listing.listingType === "standard") {
       await db
         .update(users)
-        .set({ used_free_ad: 1 })
+        .set({ has_used_free_ad: true })
         .where(eq(users.id, listing.userId!));
     }
 

@@ -299,6 +299,37 @@ export function generateResendVerificationEmail(
   return { to: email, subject, text, html };
 }
 
+
+// Email template for inactivity warning
+export function generateInactivityWarningEmail(
+  username: string,
+  // cleanupMonths: number
+): EmailOptions {
+  const subject = "Hesabınız ve Verileriniz Silinmek Üzere";
+  const text = `
+    Sayın ${username},
+
+    Platformumuzu uzun süredir kullanmadığınızı fark ettik. 1 ay içinde giriş yapmadığınız takdirde hesabınızla ilişkili tüm veriler otomatik olarak silinecektir.
+
+    Verilerinizi korumak için lütfen hesabınıza giriş yaparak hesabınızı aktif tutun.
+
+    Anlayışınız için teşekkür ederiz.
+
+    Saygılarımızla,
+    İlan Yönetim Ekibi
+  `;
+  const htmlContent = `
+    <p>Sayın ${username},</p>
+    <p>Platformumuzu uzun süredir kullanmadığınızı fark ettik. <strong>1 ay içinde</strong> giriş yapmadığınız takdirde hesabınızla ilişkili tüm veriler otomatik olarak silinecektir.</p>
+    <p>Verilerinizi korumak için lütfen hesabınıza giriş yaparak hesabınızı aktif tutun.</p>
+    <p>Anlayışınız için teşekkür ederiz.</p>
+    <p>Saygılarımızla,<br>İlan Yönetim Ekibi</p>
+  `;
+  const html = emailWrapper(htmlContent);
+
+  return { to: "", subject, text, html };
+}
+
 // Email template for password reset
 export function generatePasswordResetEmail(
   email: string,

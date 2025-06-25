@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { db } from '@shared/db';
-import { listings, categories } from '@shared/schemas'
+import { listings, categories, users } from '@shared/schemas'
 import { eq, and, inArray, or, ilike, sql, SQL } from 'drizzle-orm'
 import jwt from 'jsonwebtoken'
 import { v4 as uuidv4 } from 'uuid'
@@ -295,6 +295,20 @@ export async function POST(request: NextRequest) {
     const listingType = formData.get('listingType') as string || 'standard';
     const files = formData.getAll('images') as File[];
 
+    // Ücretsiz ilan hakkı kontrolü
+    if (listingType === 'standard') {
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+      });
+
+      if (user?.has_used_free_ad) {
+        return NextResponse.json(
+          { success: false, message: 'Ücretsiz ilan hakkınızı zaten kullandınız. Sadece premium ilan verebilirsiniz.' },
+          { status: 403 }
+        );
+      }
+    }
+
     // Zorunlu alanları kontrol et
     if (!title || !description || !city || !categoryId) {
       return NextResponse.json(
@@ -397,6 +411,11 @@ export async function POST(request: NextRequest) {
       user_ip,
       updated_at: new Date(),
     });
+
+    // Ücretsiz ilan kullanıldıysa kullanıcıyı güncelle
+    if (listingType === 'standard') {
+      await db.update(users).set({ has_used_free_ad: true }).where(eq(users.id, userId));
+    }
 
     // İlan oluşturuldu bilgisini logla
     console.log(`Yeni ilan oluşturuldu: ${listing.id}, kullanıcı: ${userId} (Tip: ${listingType})`);

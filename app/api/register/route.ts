@@ -59,8 +59,19 @@ export async function POST(request: NextRequest) {
       .where(eq(users.email, email));
 
     if (existingEmail) {
+      // Eğer e-posta mevcut ve hesap pasif durumdaysa, özel bir mesaj döndür
+      if (existingEmail.status === false) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            message: 'Bu hesap aktif değildir. Hesabınızı aktif etmek için lütfen destek ekibiyle iletişime geçin.' 
+          },
+          { status: 409 } // 409 Conflict, kaynağın mevcut durumuyla çakışma olduğunu belirtir
+        );
+      }
+      // Eğer hesap aktifse, standart 'zaten kullanımda' mesajını döndür
       return NextResponse.json(
-        { success: false, message: 'Bu email adresi zaten kullanımda' },
+        { success: false, message: 'Bu e-posta adresi zaten kullanımda' },
         { status: 400 }
       );
     }

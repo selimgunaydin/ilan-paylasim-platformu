@@ -1,4 +1,5 @@
 'use client';
+import { signOut } from "next-auth/react";
 import { useAuth } from "@/hooks/use-auth";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
@@ -79,22 +80,39 @@ export default function Profile({ initialData }: any) {
     },
   });
 
-  const deleteAccountMutation = useMutation({
+  const deactivateAccountMutation = useMutation({
     mutationFn: async () => {
       setLoading(true);
-      const res = await fetch("/api/user", { method: "DELETE" });
-      if (!res.ok) throw new Error("Hesap silinemedi");
+      const res = await fetch("/api/user/deactivate", { method: "PATCH" });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Hesap silinirken bir hata oluştu");
+      }
+      return res.json();
     },
-    onSuccess: () => router.push('/'),
+    onSuccess: (data) => {
+      toast({
+        title: "Başarılı",
+        description: "Hesabınız başarıyla silindi. 3 saniye içinde çıkış yapılacak.",
+        variant: "success",
+      });
+      setTimeout(() => {
+        signOut({ callbackUrl: '/' });
+      }, 3000);
+    },
     onError: (error: Error) => {
       setLoading(false);
-      toast({ title: "Hata", description: error.message, variant: "destructive" });
+      toast({
+        title: "Hata",
+        description: error.message || "Hesap silinirken bir hata oluştu",
+        variant: "destructive",
+      });
     },
   });
 
   const handleDeleteAccount = () => {
     setIsDeleteDialogOpen(false);
-    deleteAccountMutation.mutate();
+    deactivateAccountMutation.mutate();
   };
 
   const onSubmit = async (data: any) => {
@@ -408,11 +426,11 @@ export default function Profile({ initialData }: any) {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t">
+                <div className="flex justify-between items-center pt-6 border-t">
                   <Button 
                     type="submit" 
                     disabled={loading}
-                    className="w-full sm:w-auto flex-1 bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md transition-all duration-200 py-2"
+                    className="bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md transition-all duration-200 py-2 px-4 text-white"
                   >
                     {loading ? (
                       <span className="flex items-center justify-center">
@@ -431,9 +449,9 @@ export default function Profile({ initialData }: any) {
                   </Button>
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="destructive"
+                    size="sm"
                     disabled={loading}
-                    className="w-full sm:w-auto flex-1 border-red-500 text-red-500 hover:bg-red-50 rounded-lg shadow-sm transition-all duration-200 py-2"
                     onClick={() => setIsDeleteDialogOpen(true)}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
@@ -449,12 +467,9 @@ export default function Profile({ initialData }: any) {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent className="rounded-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center text-red-600">
-              <AlertTriangle className="h-5 w-5 mr-2" />
-              Hesabı Sil
-            </AlertDialogTitle>
+            <AlertDialogTitle>Hesabınızı Silmek İstediğinize Emin Misiniz?</AlertDialogTitle>
             <AlertDialogDescription className="text-gray-600">
-              Hesabınızı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz ve tüm verileriniz kalıcı olarak silinecektir.
+              Hesabınızı silmek istediğinizden emin misiniz? Bu işlemden sonra hesabınıza tekrar giriş yapamayacaksınız. Hesabınızı yeniden aktif etmek için site yönetimiyle iletişime geçmeniz gerekecektir.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -462,6 +477,7 @@ export default function Profile({ initialData }: any) {
             <AlertDialogAction 
               className="bg-red-600 hover:bg-red-700 rounded-lg"
               onClick={handleDeleteAccount}
+              disabled={loading}
             >
               Hesabımı Sil
             </AlertDialogAction>

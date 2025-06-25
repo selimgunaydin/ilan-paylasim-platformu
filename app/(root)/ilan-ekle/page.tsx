@@ -27,7 +27,7 @@ export default async function CreateListingPage() {
   const userStatus = await fetchUserStatus();
 
   if (
-    userStatus.user.used_free_ad === 1 &&
+    userStatus.user.has_used_free_ad &&
     userStatus.user.yuksekUye === false
   ) {
     return (

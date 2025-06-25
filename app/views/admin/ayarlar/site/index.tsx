@@ -9,6 +9,7 @@ import { z } from "zod";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -56,6 +57,7 @@ export default function SiteSettingsPage({
       instagram_url: settings.instagram_url || "",
       linkedin_url: settings.linkedin_url || "",
       youtube_url: settings.youtube_url || "",
+      user_cleanup_months: settings.user_cleanup_months || 12,
     },
   });
 
@@ -250,11 +252,10 @@ export default function SiteSettingsPage({
                       <div>
                         <label htmlFor="logo-upload" className="w-full">
                           <div
-                            className={`flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md cursor-pointer ${
-                              uploading
+                            className={`flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md cursor-pointer ${uploading
                                 ? "bg-gray-100"
                                 : "bg-white hover:bg-gray-50"
-                            }`}
+                              }`}
                           >
                             {uploading ? (
                               <span className="flex items-center text-sm">
@@ -317,11 +318,10 @@ export default function SiteSettingsPage({
                       <div>
                         <label htmlFor="favicon-upload" className="w-full">
                           <div
-                            className={`flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md cursor-pointer ${
-                              uploading
+                            className={`flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md cursor-pointer ${uploading
                                 ? "bg-gray-100"
                                 : "bg-white hover:bg-gray-50"
-                            }`}
+                              }`}
                           >
                             {uploading ? (
                               <span className="flex items-center text-sm">
@@ -563,6 +563,54 @@ export default function SiteSettingsPage({
                     <FormMessage />
                   </FormItem>
                 )}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Sistem Ayarları */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Sistem Ayarları</CardTitle>
+              <CardDescription>
+                Platformun otomatik davranışlarını yönetin.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="user_cleanup_months"
+                render={({ field }) => {
+                  const cleanupMonths = form.watch('user_cleanup_months');
+                  const warningMonth = cleanupMonths > 1 ? cleanupMonths - 1 : 0;
+
+                  return (
+                    <FormItem>
+                      <FormLabel>Otomatik Kullanıcı Verileri Temizleme Süresi (Ay)</FormLabel>
+                      <div className="flex items-center gap-4">
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="2-20 arası"
+                            min={2}
+                            max={20}
+                            className="max-w-[120px]"
+                            {...field}
+                            onChange={event => field.onChange(parseInt(event.target.value, 10) || 0)}
+                          />
+                        </FormControl>
+                        {warningMonth > 0 && (
+                          <div className="text-sm text-muted-foreground bg-muted px-3 py-2 rounded-md">
+                            Uyarı e-postası <strong>{warningMonth}. ayda</strong> gönderilir.
+                          </div>
+                        )}
+                      </div>
+                      <FormDescription>
+                        Kullanıcılar, seçilen süre boyunca inaktif kalırlarsa verileri (ilanlar, mesajlar vb.) otomatik olarak silinir.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )
+                }}
               />
             </CardContent>
           </Card>

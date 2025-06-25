@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (usedAd && usedAd !== "all") {
-      whereConditions.push(eq(users.used_free_ad, usedAd === "yes" ? 1 : 0));
+      whereConditions.push(eq(users.has_used_free_ad, usedAd === "yes"));
     }
 
     if (status && status !== "all") {

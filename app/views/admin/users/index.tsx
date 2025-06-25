@@ -29,14 +29,14 @@ interface User {
   status: boolean;
   yuksekUye: boolean;
   isAdmin: boolean;
-  used_free_ad: number;
+  has_used_free_ad: boolean;
   createdAt: string;
   lastLogin?: string | null;
 }
 
 interface Filters {
   gender: string;
-  used_free_ad: string;
+  has_used_free_ad: string;
   yuksekUye: string;
 }
 
@@ -46,7 +46,7 @@ export default function UsersPage() {
 
   const [filters, setFilters] = useState<Filters>({
     gender: "hepsi",
-    used_free_ad: "hepsi",
+    has_used_free_ad: "hepsi",
     yuksekUye: "hepsi",
   });
 
@@ -149,9 +149,9 @@ export default function UsersPage() {
     },
     {
       header: "İlan Durumu",
-      accessorKey: "used_free_ad",
+      accessorKey: "has_used_free_ad",
       cell: ({ row }: { row: Row<User> }) =>
-        row.original.used_free_ad === 1 ? "EVET" : "--",
+        row.original.has_used_free_ad ? "EVET" : "--",
     },
     {
       header: "Cinsiyet",
@@ -238,9 +238,9 @@ export default function UsersPage() {
         if (filters.gender !== "hepsi" && user.gender !== filters.gender)
           return false;
         if (
-          filters.used_free_ad !== "hepsi" &&
-          ((filters.used_free_ad === "yes" && user.used_free_ad !== 1) ||
-            (filters.used_free_ad === "no" && user.used_free_ad === 1))
+          filters.has_used_free_ad !== "hepsi" &&
+          ((filters.has_used_free_ad === "yes" && !user.has_used_free_ad) ||
+            (filters.has_used_free_ad === "no" && user.has_used_free_ad))
         )
           return false;
         if (
@@ -275,9 +275,9 @@ export default function UsersPage() {
         </Select>
 
         <Select
-          value={filters.used_free_ad}
+          value={filters.has_used_free_ad}
           onValueChange={(value) =>
-            setFilters((prev) => ({ ...prev, used_free_ad: value }))
+            setFilters((prev) => ({ ...prev, has_used_free_ad: value }))
           }
         >
           <SelectTrigger className="w-[180px]">

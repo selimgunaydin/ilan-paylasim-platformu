@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     // Auth token'ı al
-        const token = await getToken({ 
+    const token = await getToken({ 
       req: request, 
       secret: process.env.NEXTAUTH_SECRET 
     });

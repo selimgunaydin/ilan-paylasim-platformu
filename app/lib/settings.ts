@@ -41,6 +41,6 @@ export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
     console.error("Site settings error:", error);
     
     // Hata durumunda type-safe bir fallback döndür
-    throw new Error("Site ayarları yüklenemedi");
+    throw new Error(`Site ayarları yüklenemedi: ${(error as Error).message}`);
   }
 }); 

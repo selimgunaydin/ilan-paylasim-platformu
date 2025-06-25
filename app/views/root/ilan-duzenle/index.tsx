@@ -57,7 +57,7 @@ export default function EditListing() {
     queryFn: () => fetch("/api/categories").then((res) => res.json()),
   });
 
-  // Query to check user's status including used_free_ad
+  // Query to check user's status including has_used_free_ad
   const { data: userData } = useQuery({
     queryKey: ["user-status"],
     queryFn: async () => {
@@ -109,7 +109,7 @@ export default function EditListing() {
       }
 
       // If user has used their free listing, force premium type
-      if (userData?.used_free_ad === 1) {
+      if (userData?.has_used_free_ad) {
         form.setValue("listingType", "premium");
       }
 
@@ -121,7 +121,7 @@ export default function EditListing() {
         categoryId: String(listing.categoryId),
         contactPerson: listing.contactPerson || "",
         phone: listing.phone || "",
-        listingType: userData?.used_free_ad === 1 ? "premium" : listing.listingType,
+        listingType: userData?.has_used_free_ad ? "premium" : listing.listingType,
       });
     }
   }, [listing, user, form, isLoadingListing, userData]);
@@ -182,7 +182,7 @@ export default function EditListing() {
       }
 
       // Additional validation for listing type
-      if (userData?.used_free_ad === 1 && values.listingType === "standard") {
+      if (userData?.has_used_free_ad && values.listingType === "standard") {
         throw new Error("Ücretsiz ilan hakkınızı kullandığınız için sadece öncelikli (premium) ilan verebilirsiniz");
       }
 
@@ -227,7 +227,7 @@ export default function EditListing() {
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="space-y-4"
               >
-                {userData?.used_free_ad === 1 && (
+                {userData?.has_used_free_ad && (
                   <div className="bg-yellow-50 p-4 rounded-md mb-4">
                     <p className="text-yellow-800">
                       Ücretsiz ilan hakkınızı kullandığınız için sadece öncelikli (premium) ilan verebilirsiniz.
@@ -405,13 +405,13 @@ export default function EditListing() {
                           onValueChange={field.onChange}
                           defaultValue={field.value}
                           className="flex flex-col space-y-1"
-                          disabled={userData?.used_free_ad === 1}
+                          disabled={userData?.has_used_free_ad}
                         >
                           <FormItem className="flex items-center space-x-3 space-y-0">
                             <FormControl>
                               <RadioGroupItem 
                                 value="standard" 
-                                disabled={userData?.used_free_ad === 1}
+                                disabled={userData?.has_used_free_ad}
                               />
                             </FormControl>
                             <FormLabel className="font-normal">
