@@ -29,10 +29,11 @@ interface ConversationWithDetails {
   id: number;
   listingId: number;
   listingTitle: string;
-  sender: { id: number; username: string };
+  sender: { id: number; username: string; isAdmin?: boolean };
   receiver: { id: number; username: string };
   messageCount: number;
   createdAt: string;
+  is_admin_conversation: boolean;
 }
 
 interface PaginatedResponse {
@@ -106,7 +107,7 @@ export default function AllMessages() {
                   <TableCell className="font-medium">
                     {conversation.listingTitle}
                   </TableCell>
-                  <TableCell>{conversation.sender.username}</TableCell>
+                  <TableCell>{conversation.is_admin_conversation && conversation.sender?.isAdmin ? "YÖNETİM" : conversation.sender.username}</TableCell>
                   <TableCell>{conversation.receiver.username}</TableCell>
                   <TableCell className="text-center">
                     {conversation.messageCount}

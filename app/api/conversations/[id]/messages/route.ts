@@ -93,7 +93,8 @@ export async function GET(
       page,
       total,
       listingId: conversation.listingId,
-      conversationStarterId: conversationStarterId
+      conversationStarterId: conversationStarterId,
+      is_admin_conversation: conversation.is_admin_conversation
     }, { status: 200 });
 
   } catch (error) {

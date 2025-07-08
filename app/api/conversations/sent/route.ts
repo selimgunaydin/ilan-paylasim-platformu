@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       `.as('unreadCount'),
     })
     .from(conversations)
-    .innerJoin(
+    .leftJoin(
       listings, 
       eq(conversations.listingId, listings.id)
     )

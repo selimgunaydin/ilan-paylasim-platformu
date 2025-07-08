@@ -46,6 +46,7 @@ export interface Conversation {
     profileImage?: string;
     gender?: string;
     avatar?: string;
+    isAdmin?: boolean;
   };
   receiver?: {
     id: number;
@@ -55,6 +56,7 @@ export interface Conversation {
     avatar?: string;
   };
   unreadCount: number;
+  is_admin_conversation?: boolean;
 }
 
 export interface Listing {
@@ -81,6 +83,14 @@ export interface FileGroup {
   messageId: number;
   fileKey: string;
   createdAt: string;
+}
+
+export interface ConversationPage {
+  messages: any;
+  nextPage?: number;
+  listingId?: any;
+  conversationStarterId?: any;
+  is_admin_conversation?: boolean;
 }
 
 export type { User } from '@shared/schemas';

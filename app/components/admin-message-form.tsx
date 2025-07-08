@@ -91,11 +91,8 @@ export function AdminMessageForm({
   const { toast } = useToast();
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!user) {
-    // Kullanıcı yoksa boş bir div döndür ve yönlendir
     if (typeof window !== 'undefined') {
       toast({
         title: "Hata",
@@ -107,223 +104,89 @@ export function AdminMessageForm({
     return <div />;
   }
 
-  const handleFileSelect = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(event.target.files || []);
-      const validFiles = files.filter((file) => {
-        const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
-        const maxSize = isImage ? MAX_IMAGE_SIZE : MAX_FILE_SIZE;
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
-        if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-          toast({
-            title: "Hata",
-            description: `Desteklenmeyen dosya türü: ${file.name}`,
-            variant: "destructive",
-          });
-          return false;
-        }
-        if (file.size > maxSize) {
-          toast({
-            title: "Hata",
-            description: `Dosya boyutu çok büyük: ${(
-              file.size /
-              (1024 * 1024)
-            ).toFixed(2)}MB`,
-            variant: "destructive",
-          });
-          return false;
-        }
-        return true;
+    if (!socket) {
+      toast({
+        title: 'Hata',
+        description: 'Soket bağlantısı mevcut değil.',
+        variant: 'destructive',
       });
-      setSelectedFiles((prev) => [...prev, ...validFiles]);
-    },
-    [toast]
-  );
-
-  const handleRemoveFile = useCallback((index: number) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
-  }, []);
-
-  // Konuşma oluştur
-  const createConversation = useCallback(async () => {
-    try {
-      const response = await fetch('/api/conversations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          receiverId,
-          listingId: listingId || null,
-          isSystemMessage: true
-        }),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Konuşma oluşturulamadı');
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Konuşma oluşturma hatası:', error);
-      throw error;
+      return;
     }
-  }, [receiverId, listingId]);
 
-  const handleSubmit = useCallback(
-    async (e?: React.FormEvent) => {
-      e?.preventDefault();
+    if (message.trim() === '') {
+      toast({
+        title: 'Hata',
+        description: 'Lütfen bir mesaj yazın.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
-      if (!message.trim() && selectedFiles.length === 0) {
-        toast({
-          title: 'Uyarı',
-          description: 'Mesaj veya dosya eklemelisiniz',
-          variant: 'destructive',
-        });
-        return;
-      }
+    setIsSending(true);
 
-      if (!socket) {
-        toast({
-          title: 'Bağlantı Hatası',
-          description: 'Sunucuya bağlanılamadı. Lütfen sayfayı yenileyin.',
-          variant: 'destructive',
-        });
-        return;
-      }
+    const payload = {
+      receiverId,
+      listingId, 
+      content: message.trim(),
+    };
 
-      setIsSending(true);
-      
-      try {
-        // Önce konuşmayı oluştur
-        const conversation = await createConversation();
-        const { id: conversationId } = conversation;
-        
-        let uploadedFileUrls: string[] = [];
-        
-        // Dosya yükleme işlemi
-        if (selectedFiles.length > 0) {
-          const formData = new FormData();
-          formData.append('conversationId', conversationId.toString());
-          selectedFiles.forEach((file) => formData.append('files', file));
-
-          const uploadResponse = await fetch('/api/messages/upload', {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (!uploadResponse.ok) {
-            throw new Error('Dosya yükleme başarısız');
-          }
-          
-          const uploadResult = await uploadResponse.json();
-          uploadedFileUrls = uploadResult.data?.files || [];
-        }
-
-        // Mesaj verisini hazırla
-        const messageData = {
-          conversationId,
-          content: message.trim(),
-          files: uploadedFileUrls,
-          receiverId,
-          listingId: listingId || null,
-          isSystemMessage: true,
-        };
-
-        // Socket üzerinden mesajı gönder
-        socket.emit(
-          'sendMessage',
-          messageData,
-          (response: { success: boolean; error?: string }) => {
-            if (response.success) {
-              setMessage('');
-              setSelectedFiles([]);
-              onSuccess();
-            } else {
-              throw new Error(response.error || 'Mesaj gönderilemedi');
-            }
-          }
-        );
-      } catch (error) {
-        console.error('Mesaj gönderme hatası:', error);
-        toast({
-          title: 'Hata',
-          description: error instanceof Error ? error.message : 'Mesaj gönderilirken bir hata oluştu',
-          variant: 'destructive',
-        });
-      } finally {
+    socket.emit(
+      'sendAdminMessage',
+      payload,
+      (response: { success: boolean; error?: string }) => {
         setIsSending(false);
+        if (response.success) {
+          setMessage('');
+          onSuccess();
+          toast({
+            title: 'Başarılı',
+            description: 'Mesajınız başarıyla gönderildi.',
+            variant: 'success',
+          });
+        } else {
+          toast({
+            title: 'Hata',
+            description: response.error || 'Mesaj gönderilemedi',
+            variant: 'destructive',
+          });
+        }
       }
-    },
-    [message, selectedFiles, socket, receiverId, listingId, onSuccess, createConversation, toast]
-  );
+    );
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid gap-4">
         <Textarea
-          placeholder="Mesajınızı yazın..."
+          placeholder="Kullanıcıya bir mesaj gönderin..."
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           className="min-h-[100px]"
           disabled={isSending}
         />
-        
-        {/* Dosya önizlemeleri */}
-        {selectedFiles.length > 0 && (
-          <div className="space-y-2">
-            {selectedFiles.map((file, index) => (
-              <FilePreview
-                key={index}
-                file={file}
-                onRemove={() => handleRemoveFile(index)}
-              />
-            ))}
-          </div>
-        )}
       </div>
       
-      <div className="flex justify-between items-center">
-        <div>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileSelect}
-            className="hidden"
-            multiple
-            accept={ALLOWED_FILE_TYPES.join(",")}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isSending}
-          >
-            <Paperclip className="h-4 w-4" />
-          </Button>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button 
-            type="submit" 
-            disabled={isSending || !message.trim() && selectedFiles.length === 0}
-            className="ml-auto"
-          >
-            {isSending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Gönderiliyor...
-              </>
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" />
-                Gönder
-              </>
-            )}
-          </Button>
-        </div>
+      <div className="flex justify-end items-center">
+        <Button 
+          type="submit" 
+          disabled={isSending || !message.trim()}
+          className="ml-auto"
+        >
+          {isSending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Gönderiliyor...
+            </>
+          ) : (
+            <>
+              <Send className="mr-2 h-4 w-4" />
+              Gönder
+            </>
+          )}
+        </Button>
       </div>
     </form>
   );

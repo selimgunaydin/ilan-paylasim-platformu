@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
         createdAt: conversations.createdAt,
         listingTitle: listings.title,
         messageCount: sql<number>`COALESCE(message_counts.count, 0)::int`,
+        is_admin_conversation: conversations.is_admin_conversation, // <-- EKLENDİ
       })
       .from(conversations)
       .leftJoin(
@@ -75,9 +76,10 @@ export async function GET(request: NextRequest) {
       gender: string | null;
       avatar: string | null;
       lastSeen: Date | null;
+      isAdmin: boolean | null; // <-- boolean | null olarak değiştirildi
     };
     
-    let userList: UserType[] = [];
+    let userList: any[] = [];
     if (userIds.size > 0) {
       console.log("Kullanıcı bilgileri sorgusu başlıyor...");
       const userIdsArray = Array.from(userIds);
@@ -89,9 +91,12 @@ export async function GET(request: NextRequest) {
           gender: users.gender,
           avatar: users.avatar,
           lastSeen: users.lastSeen,
+          isAdmin: users.isAdmin, // <-- EKLENDİ
         })
         .from(users)
         .where(inArray(users.id, userIdsArray))
+      // isAdmin null ise false yap
+      userList = userList.map(u => ({ ...u, isAdmin: !!u.isAdmin }));
       console.log("Kullanıcı bilgileri başarıyla getirildi:", userList);
     }
 

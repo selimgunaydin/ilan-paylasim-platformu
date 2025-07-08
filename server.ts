@@ -1,7 +1,7 @@
 import { Server, Socket } from "socket.io";
 import { db, schema } from "./shared/db"; // .js uzantısını ekleyelim
-import { messages, conversations } from "./shared/schemas"; // .js uzantısını ekleyelim
-import { eq } from "drizzle-orm";
+import { messages, conversations, users } from "./shared/schemas"; // .js uzantısını ekleyelim
+import { and, eq, or } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import { storage } from "./app/lib/storage";
@@ -253,6 +253,94 @@ io.on("connection", (socket: SocketWithAuth) => {
       console.error("Mesaj okundu işaretlenirken hata:", error);
     }
   });
+
+  // Admin mesaj gönderme (YENİ VE DOĞRU MANTIK)
+  socket.on(
+    "sendAdminMessage",
+    async (data: {
+      receiverId: number;
+      listingId?: number;
+      content: string;
+      files?: any[];
+    }, callback: (response: { success: boolean; error?: string }) => void) => {
+      if (!socket.userId) {
+        return callback({ success: false, error: "Kimlik doğrulama gerekli" });
+      }
+
+      try {
+        // 1. Gönderenin admin rolünü doğrula
+        const senderUser = await db.query.users.findFirst({
+          where: eq(users.id, parseInt(socket.userId)),
+        });
+
+        if (!senderUser?.isAdmin) {
+          return callback({ success: false, error: "Bu işlemi yapmaya yetkiniz yok." });
+        }
+
+        // 2. Kullanıcı ile olan "Yönetim" konuşmasını bul veya oluştur
+        // Bu sorgu, kullanıcının gönderen VEYA alıcı olduğu, yönetici tarafından başlatılmış bir konuşma arar.
+        let conversation = await db.query.conversations.findFirst({
+          where: and(
+            eq(conversations.is_admin_conversation, true),
+            or(
+              eq(conversations.senderId, data.receiverId),
+              eq(conversations.receiverId, data.receiverId)
+            )
+          ),
+        });
+
+        if (!conversation) {
+          const [newConversation] = await db
+            .insert(conversations)
+            .values({
+              senderId: parseInt(socket.userId), // Konuşmayı başlatan admin
+              receiverId: data.receiverId,
+              listingId: data.listingId ?? null,
+              is_admin_conversation: true, // Bu bir admin konuşmasıdır
+            })
+            .returning();
+          conversation = newConversation;
+        }
+
+        // 3. Mesajı veritabanına kaydet (Gerçek admin ID'si ile)
+        const [newMessage] = await db
+          .insert(messages)
+          .values({
+            conversationId: conversation.id,
+            senderId: parseInt(socket.userId), // Mesajı gönderen gerçek admin
+            receiverId: data.receiverId,
+            content: data.content,
+            files: data.files,
+            createdAt: new Date(),
+            isRead: false,
+          })
+          .returning();
+
+        // 4. Mesajı alıcıya ve diğer adminlere "Yönetim" adıyla gönder
+        const payload = {
+          ...newMessage,
+          sender: {
+            id: conversation.senderId, // Konuşmayı temsil eden ID
+            name: "Yönetim",
+            role: "admin",
+          },
+          conversation: {
+            ...conversation,
+            is_admin_conversation: true
+          }
+        };
+
+        // Odaya (konuşmaya) yayını yap
+        io.to(conversation.id.toString()).emit("newMessage", payload);
+
+        callback({ success: true });
+
+      } catch (error) {
+        console.error("Admin mesaj gönderme hatası:", error);
+        callback({ success: false, error: "Mesaj gönderilemedi." });
+      }
+    }
+  );
 
   socket.on("disconnect", () => {
     console.log("Bir istemci ayrıldı:", socket.id);

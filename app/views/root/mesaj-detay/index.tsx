@@ -46,6 +46,7 @@ import { useSession } from "next-auth/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { getDummyUser } from "@/utils/get-dummy-user";
+import { useAuth } from "@/hooks/use-auth";
 // File type helpers
 const getFileIcon = (fileName: string) => {
   const extension = fileName.split(".").pop()?.toLowerCase();
@@ -311,10 +312,12 @@ export default function MessagesView({
   conversationId: id,
   type,
   onBack,
+  conversation,
 }: {
   conversationId: string;
   type: ConversationDirection;
   onBack: () => void;
+  conversation?: import("@/types").Conversation | null;
 }) {
   const { socket } = useSocket();
   const { toast } = useToast();
@@ -326,6 +329,7 @@ export default function MessagesView({
   const isInitialMount = useRef(true);
   const headerRef = useRef<HTMLDivElement>(null);
   const { data: session } = useSession();
+  const { user } = useAuth();
 
   const currentUserId = Number(session?.user?.id);
 
@@ -605,6 +609,9 @@ export default function MessagesView({
 
   if (!session?.user) return null;
 
+  // is_admin_conversation bilgisini conversation prop'undan veya API'den al
+  const isAdminConversation = conversation?.is_admin_conversation ?? (data?.pages?.[0] as any)?.is_admin_conversation;
+
   return (
     <div className="flex flex-col h-full bg-white md:border rounded-xl overflow-hidden pb-28 md:pb-0">
       <div
@@ -653,7 +660,9 @@ export default function MessagesView({
             <div className="font-medium">
               {!isLoading && listing ? (
                 <>
-                  {dummyUser && type === "sent" ? (
+                  {isAdminConversation && conversation?.sender?.isAdmin ? (
+                    "YÖNETİM"
+                  ) : dummyUser && type === "sent" ? (
                     listing?.contactPerson
                   ) : dummyUser && type === "received" ? (
                     dummyUser
@@ -666,7 +675,8 @@ export default function MessagesView({
                 </>
               )}
             </div>
-            {listing && (
+            {/* İlan linkini sadece admin konuşması değilse göster */}
+            {listing && !(isAdminConversation && conversation?.sender?.isAdmin) && (
               <Link
                 href={`/ilan/${listing.id}`}
                 target="_blank"
@@ -718,6 +728,12 @@ export default function MessagesView({
                     : "bg-gray-100 text-gray-900"
                 }`}
               >
+                {/* GÖNDERİCİ ADI */}
+                <div className="text-xs font-semibold mb-1">
+                  {isAdminConversation && conversation?.sender?.isAdmin && message.senderId !== currentUserId
+                    ? "YÖNETİM"
+                    : otherUser?.username}
+                </div>
                 <MessageContent
                   message={message}
                   isOwnMessage={message.senderId === currentUserId}

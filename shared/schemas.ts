@@ -115,9 +115,7 @@ export const listings = pgTable("listings", {
 
 export const conversations = pgTable("conversations", {
   id: serial("id").primaryKey(),
-  listingId: integer("listing_id")
-    .references(() => listings.id)
-    .notNull(),
+  listingId: integer("listing_id").references(() => listings.id), //(.notNull) admin mesajı göndermek için ilana bağlı mesaj zorunluluğunu kaldırdık.
   senderId: integer("sender_id")
     .references(() => users.id)
     .notNull(),
@@ -125,6 +123,7 @@ export const conversations = pgTable("conversations", {
     .references(() => users.id)
     .notNull(),
   createdAt: timestamp("created_at").defaultNow(),
+  is_admin_conversation: boolean("is_admin_conversation").default(false).notNull(),
 });
 
 export const messages = pgTable(

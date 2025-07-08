@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { useRecaptchaToken } from '@/components/ReCaptcha';
 import { Button } from "@app/components/ui/button";
 import { Input } from "@app/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@app/components/ui/card";
 import { Label } from "@app/components/ui/label";
 import { Loader2 } from "lucide-react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminView() {
@@ -16,11 +17,12 @@ export default function AdminView() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const getRecaptchaToken = useRecaptchaToken('admin_login');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
       // ESKİ YÖNTEM: Ayrı admin provider'ı ile giriş (Yorumda kalmalı)
       // const result = await signIn("admin-credentials", {
@@ -29,15 +31,27 @@ export default function AdminView() {
       //   redirect: false,
       //   callbackUrl: "/yonetim/anasayfa"
       // });
-      
+
       // YENİ YÖNTEM: Tek user provider'ı ile giriş (isAdmin kontrolü authOptions'da)
+      const recaptchaToken = await getRecaptchaToken();
+      if (!recaptchaToken) {
+        toast({
+          title: "Güvenlik doğrulaması başarısız",
+          description: "Lütfen reCAPTCHA doğrulamasını tamamlayın ve tekrar deneyin.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       const result = await signIn("user-credentials", {
         username,
         password,
+        recaptchaToken,
         redirect: false,
         callbackUrl: "/yonetim/anasayfa" // Admin paneline yönlendirme
       });
-        
+
       if (result?.error) {
         toast({
           title: "Giriş başarısız",
@@ -52,9 +66,10 @@ export default function AdminView() {
         window.location.href = result.url;
       }
     } catch (error) {
+      console.error("Giriş sırasında bir hata oluştu:", error);
       toast({
         title: "Giriş başarısız",
-        description: "Bir hata oluştu", // Daha spesifik hata mesajı verilebilir
+        description: "Bilinmeyen bir hata oluştu. Lütfen tekrar deneyin.",
         variant: "destructive",
       });
     } finally {
@@ -112,4 +127,4 @@ export default function AdminView() {
       </Card>
     </div>
   );
-} 
+}

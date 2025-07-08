@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
         createdAt: conversations.createdAt,
         listingTitle: listings.title,
         contactPerson: listings.contactPerson,
+        is_admin_conversation: conversations.is_admin_conversation,
         sender: {
           id: users.id,
           username: users.username,
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest) {
           gender: users.gender,
           avatar: users.avatar,
           lastSeen: users.lastSeen,
+          isAdmin: users.isAdmin,
         },
         unreadCount: sql<number>`
           (SELECT COUNT(*)::int 
@@ -53,7 +55,7 @@ export async function GET(request: NextRequest) {
         `.as('unreadCount'),
       })
       .from(conversations)
-      .innerJoin(
+      .leftJoin(
         listings,
         eq(conversations.listingId, listings.id)
       )

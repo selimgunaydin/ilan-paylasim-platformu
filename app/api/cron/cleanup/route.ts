@@ -6,6 +6,9 @@ import { sendEmail } from '@shared/services/email';
 import { generateInactivityWarningEmail } from '@shared/services/email-templates';
 import { lte, inArray, eq, and, gte, or } from 'drizzle-orm';
 
+
+//12 ay aktif olmayan kullanıcıların verilerini temizleme route
+
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {

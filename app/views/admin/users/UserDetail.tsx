@@ -17,7 +17,7 @@ import { tr } from "date-fns/locale";
 import { useEffect, useState } from "react";
 import { useSocket } from "@/providers/socket-provider";
 import { AdminMessageForm } from "@app/components/admin-message-form";
-import { MessageForm } from "@/components/message-form";
+
 
 interface UserDetailResponse {
   user: UserType;
@@ -99,79 +99,39 @@ useEffect(() => {
                 Mesaj Gönder
               </Button>
             </DialogTrigger>
-            {/* <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>{user.username} kullanıcısına mesaj gönder</DialogTitle>
               </DialogHeader>
               <div className="py-4">
-                <MessageForm
-                socket={socket}
-                  receiverId={user.id}
-                  conversationId={user.id + Date.now()}
-                  onSuccess={() => {
-                    setIsMessageOpen(false);
-                    toast({
-                      title: "Başarılı",
-                      description: "Mesaj başarıyla gönderildi"
-                    });
-                    // Mesajların güncellenmesi için sayfayı yenile
-                    queryClient.invalidateQueries({ queryKey: ['user', userId] });
-                  }}
-                  listingId={listings[0].id}
-                />
+                {!socket || !socket.connected ? (
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <p className="text-yellow-800">Sunucuya bağlanılıyor...</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-2"
+                      onClick={() => window.location.reload()}
+                    >
+                      Yeniden Dene
+                    </Button>
+                  </div>
+                ) : (
+                  <AdminMessageForm
+                    receiverId={user.id}
+                    listingId={listings?.[0]?.id}
+                    onSuccess={() => {
+                      toast({
+                        title: "Başarılı",
+                        description: "Mesaj başarıyla gönderildi",
+                      });
+                      setIsMessageOpen(false);
+                      queryClient.invalidateQueries({ queryKey: ['user', userId] });
+                    }}
+                  />
+                )}
               </div>
-            </DialogContent> */}
-
-<DialogContent className="max-w-2xl">
-  <DialogHeader>
-    <DialogTitle>{user.username} kullanıcısına mesaj gönder</DialogTitle>
-  </DialogHeader>
-  <div className="py-4">
-    {!socket || !socket.connected ? (
-      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-        <p className="text-yellow-800">Sunucuya bağlanılıyor...</p>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="mt-2"
-          onClick={() => window.location.reload()}
-        >
-          Yeniden Dene
-        </Button>
-      </div>
-    ) : (
-      <MessageForm
-        socket={socket}
-        receiverId={user.id}
-        conversationId={user.id}
-        onSuccess={() => {
-          console.log('Mesaj başarıyla gönderildi');
-          setIsMessageOpen(false);
-          toast({
-            title: "Başarılı",
-            description: "Mesaj başarıyla gönderildi",
-            variant: "default",
-          });
-          queryClient.invalidateQueries({ queryKey: ['user', userId] });
-        }}
-        // onError={(error) => {
-        //   console.error('Mesaj gönderme hatası:', {
-        //     error,
-        //     message: error.message,
-        //     code: error.code,
-        //     status: error.status
-        //   });
-        //   toast({
-        //     title: "Hata",
-        //     description: error.message || "Mesaj gönderilirken bir hata oluştu",
-        //     variant: "destructive",
-        //   });
-        // }}
-        listingId={listings?.[0]?.id}
-      />
-    )}
-  </div>
-</DialogContent>
+            </DialogContent>
           </Dialog>
           <Button
             variant={user.status ? "destructive" : "default"}

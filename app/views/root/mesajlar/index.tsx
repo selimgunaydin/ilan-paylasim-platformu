@@ -47,6 +47,7 @@ export default function Messages({ type }: MessagesProps) {
   const [selectedConversationId, setSelectedConversationId] = useState<
     number | null
   >(null);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
   // Check if mobile view on mount and resize
@@ -145,9 +146,10 @@ export default function Messages({ type }: MessagesProps) {
     }
   };
 
-  const handleConversationClick = (conversationId: number) => {
-    markConversationAsRead(conversationId);
-    setSelectedConversationId(conversationId);
+  const handleConversationClick = (conversation: Conversation) => {
+    markConversationAsRead(conversation.id);
+    setSelectedConversationId(conversation.id);
+    setSelectedConversation(conversation);
   };
 
   const handleBack = () => {
@@ -193,6 +195,7 @@ export default function Messages({ type }: MessagesProps) {
             conversationId={selectedConversationId.toString()}
             type={type}
             onBack={handleBack}
+            conversation={selectedConversation}
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
@@ -207,7 +210,7 @@ export default function Messages({ type }: MessagesProps) {
                     conversation={conversation}
                     deleteMutation={deleteMutation}
                     type={type}
-                    onCardClick={() => handleConversationClick(conversation.id)}
+                    onCardClick={() => handleConversationClick(conversation)}
                     isSelected={selectedConversationId === conversation.id}
                     className="cursor-pointer hover:bg-gray-100 transition-colors"
                   />
@@ -232,6 +235,7 @@ export default function Messages({ type }: MessagesProps) {
                   conversationId={selectedConversationId.toString()}
                   type={type}
                   onBack={handleBack}
+                  conversation={selectedConversation}
                 />
               ) : (
                 <Card className="h-full flex items-center justify-center">

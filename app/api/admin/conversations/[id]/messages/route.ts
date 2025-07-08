@@ -72,7 +72,10 @@ export async function GET(
       .where(eq(users.id, conversation.receiverId));
 
     return NextResponse.json({
-      conversation,
+      conversation: {
+        ...conversation,
+        is_admin_conversation: conversation.is_admin_conversation,
+      },
       messages: messageList,
       sender,
       receiver

@@ -133,14 +133,16 @@ export default function ConversationCard({
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">
                   {
-                    type === "sent" &&
-                    conversation?.contactPerson ||
-                    (dummyUser ? dummyUser : conversation[type === "sent" ? "receiver" : "sender"]
-                      ?.username)
+                    conversation.is_admin_conversation && conversation.sender?.isAdmin
+                      ? "YÖNETİM"
+                      : (type === "sent" && conversation?.contactPerson) ||
+                        (dummyUser ? dummyUser : conversation[type === "sent" ? "receiver" : "sender"]?.username)
                   }
                 </p>
                 <p className="text-sm text-muted-foreground truncate mt-1">
-                  {conversation.listingTitle}
+                  {conversation.is_admin_conversation && conversation.sender?.isAdmin
+                    ? "Sistem Mesajı"
+                    : conversation.listingTitle || (conversation.is_admin_conversation ? "Sistem Mesajı" : "")}
                 </p>
               </div>
             </div>
