@@ -147,6 +147,8 @@ export default function PendingListings() {
     {
       header: "Eklenme Tarihi",
       accessorKey: "createdAt",
+      sortingFn: "datetime",
+      sortDescFirst: false,
       cell: ({ row }: { row: any }) =>
         format(new Date(row.getValue("createdAt")), "dd.MM.yy", { locale: tr }),
     },

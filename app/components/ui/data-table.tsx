@@ -10,6 +10,7 @@ import {
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "./table";
 import { Input } from "./input";
 import { Button } from "./button";
+import { FaSortUp, FaSortDown, FaSort } from "react-icons/fa";
 
 interface DataTableProps<TData> {
   columns: any[];
@@ -65,11 +66,31 @@ export function DataTable<TData>({
             {table.getHeaderGroups().map(headerGroup => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map(header => (
-                  <TableHead key={header.id}>
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
+                  <TableHead
+                    key={header.id}
+                    onClick={header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
+                    style={{
+                      cursor: header.column.getCanSort() ? 'pointer' : 'default',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                      {header.column.getCanSort() && (
+                        <span style={{ marginLeft: 4, fontSize: 12, display: 'inline-flex', alignItems: 'center' }}>
+                          {header.column.getIsSorted() === 'asc' ? (
+                            <FaSortUp />
+                          ) : header.column.getIsSorted() === 'desc' ? (
+                            <FaSortDown />
+                          ) : (
+                            <FaSort style={{ opacity: 0.4 }} />
+                          )}
+                        </span>
+                      )}
+                    </span>
                   </TableHead>
                 ))}
               </TableRow>

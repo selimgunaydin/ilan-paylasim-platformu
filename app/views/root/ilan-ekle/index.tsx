@@ -129,9 +129,11 @@ export default function CreateListing({ isAdmin = false }: CreateListingProps) {
       // Invalidate pending listings query after successful submission
       queryClient.invalidateQueries({ queryKey: ["pending-listings"] });
 
+
+      //ÜCRETİ İLAN SONRASINDA ÖDEME YAPILACAK - PREMİUM İLAN YÖNLENDİRME
       if (values.listingType === "premium") {
         // Oluşturulan ilanın ID'sini ödeme sayfasına parametre olarak ekle
-        router.push(`/payment?listing_id=${data.id}`);
+        // router.push(`/payment?listing_id=${data.id}`);
       } else {
         toast({
           title: "Başarılı",
