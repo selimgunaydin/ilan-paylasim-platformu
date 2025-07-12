@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Mesaj gönderme hatası:", error);
     return NextResponse.json(
-      { success: false, message: "Mesaj gönderilirken bir hata oluştu" },
+      { success: false, message: "Mesaj gönderilirken bir hata oluştu. Lütfen tekrar deneyin." },
       { status: 500 }
     );
   }

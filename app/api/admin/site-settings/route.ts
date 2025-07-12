@@ -146,7 +146,7 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error("Site ayarları güncelleme hatası:", error);
     return NextResponse.json(
-      { error: "Site ayarları güncellenemedi", details: error },
+      { error: "Site ayarları güncellenirken bir hata oluştu. Lütfen tekrar deneyin." },
       { status: 500 }
     );
   }

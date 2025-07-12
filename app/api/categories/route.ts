@@ -16,7 +16,7 @@ export async function GET() {
     
     // Hata durumunda yanıt
     return NextResponse.json(
-      { success: false, message: 'Kategoriler getirilirken bir hata oluştu' },
+      { success: false, message: 'Kategoriler getirilirken bir hata oluştu. Lütfen tekrar deneyin.' },
       { status: 500 }
     );
   }

@@ -121,9 +121,9 @@ export async function GET(request: NextRequest) {
       { status: 401 }
     );
   } catch (error) {
-    console.error('User fetch error:', error);
+    console.error('Kullanıcı bilgileri hatası:', error);
     return NextResponse.json(
-      { success: false, message: 'Kullanıcı bilgileri alınırken bir hata oluştu' },
+      { success: false, message: 'Kullanıcı bilgileri alınırken bir hata oluştu. Lütfen tekrar deneyin.' },
       { status: 500 }
     );
   }
@@ -209,9 +209,9 @@ export async function DELETE(request: NextRequest) {
     
     return response;
   } catch (error) {
-    console.error('Account deletion error:', error);
+    console.error('Hesap silme hatası:', error);
     return NextResponse.json(
-      { success: false, message: 'Hesap silinirken bir hata oluştu' },
+      { success: false, message: 'Hesap silinirken bir hata oluştu. Lütfen tekrar deneyin.' },
       { status: 500 }
     );
   }

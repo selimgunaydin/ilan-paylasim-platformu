@@ -8,6 +8,9 @@ import "next-auth/jwt";
 import { db } from "@shared/db";
 import { comparePasswords } from "@/utils/compare-passwords";
 import bcrypt from 'bcryptjs';
+import GoogleProvider from "next-auth/providers/google";
+import FacebookProvider from "next-auth/providers/facebook";
+import crypto from 'crypto';
 
 // Extend the User type
 declare module "next-auth" {
@@ -173,6 +176,16 @@ export const authOptions: NextAuthOptions = {
         }
       },
     }),
+
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    }),
+
+    FacebookProvider({
+      clientId: process.env.FACEBOOK_CLIENT_ID || '',
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET || '',
+    }),
     // CredentialsProvider({
     //   id: "admin-credentials",
     //   name: "Admin Credentials",
@@ -208,26 +221,93 @@ export const authOptions: NextAuthOptions = {
     // }),
   ],
   callbacks: {
+    async signIn({ user, account, profile }) {
+      // DÜZELTME: Google ile sosyal login'de, kendi kullanıcı id'n (users.id, integer) session ve token'a yazılır. Google'dan gelen id sadece googleId alanında tutulur. Google ile giriş yapmayanların googleId'si null olur.
+      if (account?.provider === 'google' || account?.provider === 'facebook') {
+        const email = user.email;
+        const providerId = account.providerAccountId;
+        const name = user.name || profile?.name || (account.provider === 'google' ? 'Google Kullanıcısı' : 'Facebook Kullanıcısı');
+        let username = name;
+        if (!username) {
+          username = (email && typeof email === 'string') ? email.split('@')[0] : (account.provider === 'google' ? 'googleuser' : 'facebookuser');
+        }
+        const image = (user.image || (profile && (profile as any).picture)) || null;
+        // Kullanıcıyı e-posta ile bul
+        const [existingUser] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, String(email)));
+        if (existingUser) {
+          // Eğer ilgili provider id yoksa ekle/güncelle
+          const updateData: any = {
+            profileImage: image,
+            username: String(username),
+            emailVerified: true,
+          };
+          if (account.provider === 'google' && !existingUser.googleId) {
+            updateData.googleId = String(providerId);
+          }
+          if (account.provider === 'facebook' && !existingUser.facebookId) {
+            updateData.facebookId = String(providerId);
+          }
+          await db
+            .update(users)
+            .set(updateData)
+            .where(eq(users.id, existingUser.id));
+          // user.id olarak kendi veritabanı id'sini döndür
+          user.id = existingUser.id.toString();
+          return true;
+        } else {
+          // Yoksa yeni kullanıcı oluştur
+          const insertData: any = {
+            email: String(email),
+            profileImage: image,
+            username: String(username),
+            emailVerified: true,
+            status: true,
+            password: crypto.randomUUID(),
+          };
+          if (account.provider === 'google') {
+            insertData.googleId = String(providerId);
+            insertData.facebookId = null;
+          }
+          if (account.provider === 'facebook') {
+            insertData.facebookId = String(providerId);
+            insertData.googleId = null;
+          }
+          const inserted = await db
+            .insert(users)
+            .values(insertData)
+            .returning({ id: users.id });
+          // user.id olarak yeni oluşturulan id'yi döndür
+          user.id = inserted[0].id.toString();
+          return true;
+        }
+      }
+      // Diğer providerlar veya normal giriş için default davranış
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
+        // user.id burada kendi veritabanı id'n olmalı (integer)
         token.id = user.id;
-        token.email = user.email || "";
-        token.name = user.name || "";
+        token.email = user.email;
+        token.name = user.name;
         token.emailVerified = user.emailVerified ? true : null;
-        token.isAdmin = Boolean(user.isAdmin); 
-        token.type = user.type || "user"; 
+        token.isAdmin = Boolean(user.isAdmin);
+        token.type = user.type || "user";
         token.username = user.username || "";
       }
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
-        session.user.id = token.id;
+        session.user.id = token.id; // integer id
         session.user.email = token.email;
         session.user.name = token.name;
         session.user.emailVerified = token.emailVerified;
-        session.user.isAdmin = token.isAdmin; 
-        session.user.type = token.type; 
+        session.user.isAdmin = token.isAdmin;
+        session.user.type = token.type;
         session.user.username = token.username;
       }
       return session;

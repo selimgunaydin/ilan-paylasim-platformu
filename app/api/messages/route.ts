@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Mesaj gönderme hatası:", error);
     return NextResponse.json(
-      { error: "Mesaj gönderilemedi" },
+      { error: "Mesaj gönderilemedi. Lütfen tekrar deneyin." },
       { status: 500 }
     );
   }

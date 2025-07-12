@@ -38,6 +38,8 @@ export const users = pgTable("users", {
   status: boolean("status").default(true),
   phone: text("phone"),
   ip_address: text("ip_address"),
+  googleId: text("google_id"), // TODO: Google ile sosyal giriş yapan kullanıcılar için Google user ID
+  facebookId: text("facebook_id"), // TODO: Facebook ile sosyal giriş yapan kullanıcılar için Facebook user ID
 });
 
 // Categories table definition

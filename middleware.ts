@@ -118,17 +118,28 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/dashboard/:path*',
-    '/ilan-ekle/:path*',
-    '/ilan-duzenle/:path*',
-    '/ilanlarim/:path*',
-    '/favorilerim/:path*',
-    '/gonderilen-mesajlar/:path*',
-    '/gelen-mesajlar/:path*',
-    '/profilim/:path*',
-    '/yonetim',
-    '/yonetim/:path*',
-    '/api/:path*',
-    '/auth/:path*',
+    // ***eski matcher sistemi***
+    // '/dashboard/:path*',
+    // '/ilan-ekle/:path*',
+    // '/ilan-duzenle/:path*',
+    // '/ilanlarim/:path*',
+    // '/favorilerim/:path*',
+    // '/gonderilen-mesajlar/:path*',
+    // '/gelen-mesajlar/:path*',
+    // '/profilim/:path*',
+    // '/yonetim',
+    // '/yonetim/:path*',
+    // '/api/:path*',
+    // '/auth/:path*',
+
+    // ***yeni matcher sistemi***
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ]
 }

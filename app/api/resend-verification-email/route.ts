@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
     console.error('[API /resend-verification-email] CATCH BLOCK HATASI - BİTİŞ\n\n');
     
     return NextResponse.json(
-      { success: false, message: 'E-posta gönderimi sırasında bir hata oluştu.' },
+      { success: false, message: 'Doğrulama e-postası gönderilirken bir hata oluştu. Lütfen tekrar deneyin.' },
       { status: 500 }
     );
   }

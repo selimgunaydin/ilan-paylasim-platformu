@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('İletişim formu hatası:', error);
     return NextResponse.json(
-      { error: 'Mesaj gönderilirken bir hata oluştu', details: error },
+      { error: 'Mesaj gönderilirken bir hata oluştu. Lütfen tekrar deneyin.' },
       { status: 500 }
     );
   }

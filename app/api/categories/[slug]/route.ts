@@ -32,10 +32,8 @@ export async function GET(
     return NextResponse.json(category, { status: 200 });
   } catch (error) {
     console.error(`Kategori getirme hatası (${slug}):`, error);
-    
-    // Hata durumunda yanıt
     return NextResponse.json(
-      { success: false, message: 'Kategori getirilirken bir hata oluştu' },
+      { success: false, message: 'Kategori getirilirken bir hata oluştu. Lütfen tekrar deneyin.' },
       { status: 500 }
     );
   }

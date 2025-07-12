@@ -78,9 +78,9 @@ export async function PUT(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error('Profile update error:', error);
+    console.error('Profil güncelleme hatası:', error);
     return NextResponse.json(
-      { success: false, message: 'Profil güncellenirken bir hata oluştu' },
+      { success: false, message: 'Profil güncellenirken bir hata oluştu. Lütfen tekrar deneyin.' },
       { status: 500 }
     );
   }

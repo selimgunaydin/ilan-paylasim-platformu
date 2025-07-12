@@ -40,6 +40,8 @@ import { signIn, useSession } from "next-auth/react";
 import { useState } from "react";
 import { TermsModal } from "@/components/TermsModal";
 import { Suspense } from "react";
+import { FaFacebook, FaGoogle } from "react-icons/fa";
+import { FcGoogle } from "react-icons/fc";
 // NextAuth session tipini genişlet
 declare module "next-auth" {
   interface Session {
@@ -373,6 +375,33 @@ const handleSubmit = async (data: z.infer<typeof formSchema>) => {
             </Button>
           </div>
         )}
+        {/* Kompakt ve yan yana sosyal login butonları */}
+        <div className="flex flex-row gap-2 my-2 w-full">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium border border-gray-200 bg-white hover:bg-gray-100 text-gray-700 shadow-sm rounded-md min-w-0"
+            style={{ minWidth: 0 }}
+            onClick={() => signIn('google', { callbackUrl: '/' })}
+          >
+            <span className="flex items-center justify-center w-5 h-5 bg-transparent">
+              <FcGoogle size={20} />
+            </span>
+            <span className="flex-1 text-center">Google</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium border border-blue-200 bg-[#1877f2] hover:bg-[#145db2] text-white shadow-sm rounded-md min-w-0"
+            style={{ minWidth: 0 }}
+            onClick={() => signIn('facebook', { callbackUrl: '/' })}
+          >
+            <span className="flex items-center justify-center w-5 h-5 bg-transparent">
+              <FaFacebook size={20} />
+            </span>
+            <span className="flex-1 text-center">Facebook</span>
+          </Button>
+        </div>
         
         <div className="flex flex-col space-y-2">
           <Button type="submit" className="w-full" disabled={isLoading || authLoading}>

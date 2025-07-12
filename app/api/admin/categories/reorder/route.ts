@@ -74,10 +74,10 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error("Error reordering categories:", error);
-    return NextResponse.json({
-      error: "Kategoriler güncellenirken bir hata oluştu",
-      details: error instanceof Error ? error.message : String(error),
-    }, { status: 500 });
+    console.error("Kategoriler güncelleme hatası:", error);
+    return NextResponse.json(
+      { error: "Kategoriler güncellenirken bir hata oluştu. Lütfen tekrar deneyin." },
+      { status: 500 }
+    );
   }
 } 

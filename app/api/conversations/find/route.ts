@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Konuşma bulma hatası:", error);
     return NextResponse.json(
-      { success: false, message: "Bir hata oluştu", error: error instanceof Error ? error.message : "Bilinmeyen hata" },
+      { success: false, message: "Konuşma bulunurken bir hata oluştu. Lütfen tekrar deneyin." },
       { status: 500 }
     );
   }

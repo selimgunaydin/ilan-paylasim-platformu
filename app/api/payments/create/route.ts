@@ -9,6 +9,14 @@ import { getToken } from 'next-auth/jwt';
 
 export const dynamic = 'force-dynamic';
 
+// TODO: Bu dosya PayTR ödeme başlatma endpointidir. İleride iyzico gibi farklı sağlayıcılar için de uyarlanabilir.
+// Açıklama: Kullanıcıdan gelen ilan ID'si ile ödeme başlatılır. Şu an sadece dummy (simülasyon) token dönmektedir.
+// TODO: Gerçek PayTR API entegrasyonu eklenmeli. Şu an sadece simüle edilmiş token dönüyor.
+// TODO: PayTR'den dönen gerçek token alınmalı ve frontend'e iletilmeli.
+// TODO: Ödeme başarılı/başarısız callback endpointi eklenmeli.
+// TODO: İleride iyzico gibi farklı sağlayıcılar için parametreler ve akış güncellenebilir.
+// TODO: Ödeme başarılı olursa ilgili ilan/premium üyelik vs. aktif edilmeli.
+
 // PayTR için gerekli bilgiler
 const MERCHANT_ID = process.env.PAYTR_MERCHANT_ID || '123456'
 const MERCHANT_KEY = process.env.PAYTR_MERCHANT_KEY || 'merchant_key'
@@ -128,7 +136,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Ödeme oluşturma hatası:", error)
     return NextResponse.json(
-      { error: "Ödeme işlemi sırasında bir hata oluştu" },
+      { error: "Ödeme işlemi sırasında bir hata oluştu. Lütfen tekrar deneyin." },
       { status: 500 }
     )
   }

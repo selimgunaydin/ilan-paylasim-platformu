@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Dosya yükleme hatası:", error);
     return NextResponse.json(
-      { error: "Dosya yüklenirken bir hata oluştu" },
+      { error: "Dosya yüklenirken bir hata oluştu. Lütfen tekrar deneyin." },
       { status: 500 }
     );
   }

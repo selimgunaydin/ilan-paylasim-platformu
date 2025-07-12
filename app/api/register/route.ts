@@ -116,9 +116,9 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error('Kayıt hatası:', error);
     return NextResponse.json(
-      { success: false, message: 'Kayıt sırasında bir hata oluştu' },
+      { success: false, message: 'Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.' },
       { status: 500 }
     );
   }

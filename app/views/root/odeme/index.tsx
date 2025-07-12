@@ -7,6 +7,11 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { apiRequest } from "@/lib/queryClient";
 import type { PaymentResponse } from "@/types/payment";
 import { Suspense } from "react";
+// TODO: Bu dosya ödeme ekranıdır. Şu an sadece PayTR dummy token ile çalışmaktadır.
+// Açıklama: İlan ekleme akışında ödeme yapılması gerektiğinde bu ekran açılır.
+// TODO: Gerçek ödeme sağlayıcıdan (PayTR veya iyzico) alınan token ile iframe açılacak şekilde güncellenmeli.
+// TODO: Ödeme başarılı/başarısız sonucu callback ile alınacak ve kullanıcıya gösterilecek.
+// TODO: İleride farklı ödeme sağlayıcıları (iyzico, PayTR) arasında seçim yapılabilir.
 function PaymentContent() {
   const [paymentToken, setPaymentToken] = useState("");
   const [showPayTR, setShowPayTR] = useState(false);

@@ -4,11 +4,11 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import type { Category } from "@shared/schemas";
 import ListingDetailClient from "@/views/root/ilan-detay";
-import NotFound from "@/not-found";
 import { Metadata } from "next";
 import { getListingImageUrlClient } from "@/utils/get-message-file-url";
 import AddFavorites from "@/views/root/ilan-detay/add-favorites";
 import { createSeoUrl } from "@/utils/create-seo-url";
+import NotFound from "../../../not-found";
 
 function stripHtml(html: string): string {
   if (!html) return "";
@@ -382,8 +382,80 @@ export default async function ListingDetailPage({
                       </h1>
                       <AddFavorites id={listing.id} listing={listing} />
                     </div>
+                  </div>
+
+                  {/* Listing Meta Information */}
+                  <div className="mt-3 sm:mt-4 flex flex-row justify-between items-center flex-wrap text-xs sm:text-sm text-gray-500 gap-2 sm:gap-x-6 sm:gap-y-2 relative">
+                    <div className="flex items-center gap-x-2 flex-wrap">
+                      <div className="flex items-center">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-1.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                        </svg>
+                        {listing.city}
+                      </div>
+
+                      <div className="flex items-center">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-1.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
+                        {formattedDate}
+                      </div>
+
+                      <div className="flex items-center">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-1.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                          />
+                        </svg>
+                        {listing.views || 0} görüntülenme
+                      </div>
+                    </div>
+
                     {listing.listingType === "premium" && (
-                      <span className="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium bg-amber-100 text-amber-800 w-max">
+                      <span className="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1.5 rounded-full font-medium bg-amber-100 text-amber-800 text-xs sm:text-sm">
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
                           className="h-3 w-3 sm:h-4 sm:w-4 mr-1"
@@ -398,78 +470,10 @@ export default async function ListingDetailPage({
                             d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
                           />
                         </svg>
-                        Öncelikli İlan
+                        <span className="sm:inline hidden">Öncelikli İlan</span>
+                        <span className="inline sm:hidden">Öncelikli</span>
                       </span>
                     )}
-                  </div>
-
-                  {/* Listing Meta Information */}
-                  <div className="mt-3 sm:mt-4 flex flex-wrap items-center text-xs sm:text-sm text-gray-500 gap-3 sm:gap-x-6 sm:gap-y-2">
-                    <div className="flex items-center">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-1.5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                      </svg>
-                      {listing.city}
-                    </div>
-
-                    <div className="flex items-center">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-1.5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                        />
-                      </svg>
-                      {formattedDate}
-                    </div>
-
-                    <div className="flex items-center">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-1.5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                        />
-                      </svg>
-                      {listing.views || 0} görüntülenme
-                    </div>
                   </div>
                 </div>
               </div>

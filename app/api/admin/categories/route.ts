@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Kategori oluşturma hatası:", error);
     return NextResponse.json(
-      { error: "Kategori oluşturulamadı" },
+      { error: "Kategori oluşturulurken bir hata oluştu. Lütfen tekrar deneyin." },
       { status: 500 }
     );
   }

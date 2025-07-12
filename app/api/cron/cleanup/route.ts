@@ -96,6 +96,6 @@ export async function GET(request: Request) {
 
   } catch (error) {
     console.error('Cron job hatası:', error);
-    return NextResponse.json({ success: false, message: 'İşlem sırasında bir hata oluştu.' }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'Arka plan işlemi sırasında bir hata oluştu. Lütfen tekrar deneyin.' }, { status: 500 });
   }
 }
