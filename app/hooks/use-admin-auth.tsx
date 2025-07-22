@@ -5,6 +5,7 @@ import { useQuery, useMutation, UseMutationResult } from "@tanstack/react-query"
 import { getQueryFn, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 type AdminUser = {
   id: number;
@@ -30,6 +31,7 @@ export const AdminAuthContext = createContext<AdminAuthContextType | null>(null)
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const router = useRouter();
+  const status = useSession();
 
   const {
     data: admin,
@@ -38,6 +40,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   } = useQuery<AdminUser | null>({
     queryKey: ["/api/admin/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    enabled: status.status === "authenticated",
     staleTime: 1000 * 60 * 30, // 30 dakika
     gcTime: 1000 * 60 * 60, // 1 saat
   });

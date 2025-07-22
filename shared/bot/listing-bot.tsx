@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 import { chromium } from 'playwright';
 import axios from 'axios';
+import { turkishCities } from "@/lib/constants";
+import { contactPersons } from "./contact-persons";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const SITE_URL = process.env.SITE_URL || 'http://localhost:3000';
@@ -10,6 +12,22 @@ const SITE_URL = process.env.SITE_URL || 'http://localhost:3000';
 // Ayarlanabilir parametreler
 const ILAN_SAYISI = 1; // Kaç ilan eklenecek
 const BEKLEME_SURESI_MS = { min: 5000, max: 15000 }; // 5-15 sn arası - spam, rare limit koruması
+
+// Kullanılan isimleri takip etmek için bir map
+const usedContactPersons: Record<string, number> = {};
+
+function getNextContactPerson() {
+  // Kullanılabilir isimleri filtrele (max 2 defa kullanılmamış olanlar)
+  const available = contactPersons.filter(name => (usedContactPersons[name] ?? 0) < 2);
+  if (available.length === 0) {
+    throw new Error("Tüm contact person isimleri maksimum kullanım sayısına ulaştı.");
+  }
+  // Rastgele bir isim seç
+  const idx = Math.floor(Math.random() * available.length);
+  const name = available[idx];
+  usedContactPersons[name] = (usedContactPersons[name] ?? 0) + 1;
+  return name;
+}
 
 // Kategorileri API'den çek
 async function fetchCategories() {
@@ -19,21 +37,16 @@ async function fetchCategories() {
 
 // Şehirleri sabit liste olarak döndür
 async function fetchCities() {
-    return [
-        "Adana", "Ankara", "İstanbul", "İzmir", "Bursa",
-        "Antalya", "Konya", "Kayseri", "Mersin", "Eskişehir"
-    ];
+    return turkishCities;
 }
 
 // Gemini API ile kategoriye uygun başlık, açıklama ve contact person oluştur
 async function getGeminiListing(categoryName: string) {
-    const prompt = `Aşağıdaki kategoriye uygun, sade ve gerçekçi bir Türkçe ilan üret. Lütfen sadece metin ver; **kalın**, _italik_, markdown veya HTML biçimlendirme kullanma.\n
+    const prompt = `Aşağıdaki kategoriye uygun, sade ve gerçekçi bir Türkçe ve şehir ismi içermeyen ilan üret. Lütfen sadece metin ver; **kalın**, _italik_, markdown veya HTML biçimlendirme kullanma.\n
 Format şu şekilde olmalı:\n
 Başlık: [Sade, dikkat çekici bir başlık. Kalınlık, yıldız, markdown kullanma.]\n
-Açıklama: [Paragraflar halinde detaylı ve çok samimi açıklama. Biçimlendirme karakteri kullanma. Satış, hizmet, vs. ise ona uygun içerik üret.]\n
-Contact Person: [Sadece bir gerçekçi ve genelde Kadın Türkçe isim ve soyisim. Unvan, telefon numarası, e-posta yazma.]\n
-\n
-Kategori: ${categoryName}`;
+Açıklama: [Paragraflar halinde detaylı ve çok samimi açıklama yaz. Fazla resmi olmamalı. Biçimlendirme karakteri kullanma. Satış, hizmet, vs. ise ona uygun içerik üret. Şehir ismi kullanma.]\n
+Kategori: ${categoryName} için üreteceksin. Kategoriyi açıklamaya eklememelisin.` ;
 
     try {
         const response = await axios.post(
@@ -53,18 +66,18 @@ Kategori: ${categoryName}`;
         console.log('Gemini API response metni:', fullText);
         if (!fullText) throw new Error("API'den geçerli metin gelmedi.");
 
-        const baslik = fullText.match(/Başlık:\s*(.*)/)?.[1]?.trim() || "Başlık";
-        const aciklama = fullText.match(/Açıklama:\s*([\s\S]*?)Contact Person:/)?.[1]?.trim() || "Açıklama";
-        const contactPerson = fullText.match(/Contact Person:\s*(.*)/)?.[1]?.trim() || "Ahmet Yılmaz";
+        const baslik = fullText.match(/Başlık:\s*(.*)/)?.[1]?.trim() || "Örnek Başlık";
+        const aciklama = fullText.match(/Açıklama:\s*([\s\S]*)/)?.[1]?.trim() || "Örnek Açıklama";
+        // const contactPerson = fullText.match(/Contact Person:\s*(.*)/)?.[1]?.trim() || "Örnek Kişi";
 
-        return { baslik, aciklama, contactPerson };
+        return { baslik, aciklama };
 
     } catch (error) {
         console.error("Gemini API hatası:", error);
         return {
             baslik: "Başlık",
             aciklama: "Açıklama",
-            contactPerson: "Ahmet Yılmaz",
+        
         };
     }
 }
@@ -116,7 +129,7 @@ async function runBot() {
             }
 
             // Gemini'den veri al
-            const { baslik, aciklama, contactPerson } = await getGeminiListing(categoryName);
+            const { baslik, aciklama } = await getGeminiListing(categoryName);
 
             // Başlık doldur
             await page.fill('input[name="title"]', baslik);
@@ -139,6 +152,7 @@ async function runBot() {
             await page.click(`div[role="option"]:has-text("${city}")`);
 
             // Contact Person doldur
+            const contactPerson = getNextContactPerson();
             await page.fill('input[name="contactPerson"]', contactPerson);
 
             // Premium seçeneği olan radio butonunu seç (aria-checked="false" olanı bulup tıkla)
@@ -202,7 +216,11 @@ async function runBot() {
     }
 
     await browser.close();
-    console.log('Tüm ilanlar eklendi, bot kapatıldı.');
+    console.log(`${ILAN_SAYISI} adet ilan eklendi, bot kapatıldı.`);
 }
 
 runBot();
+
+
+//çalıştırmak için --> npm run ai-bot
+//hata verirse package.json scriptindeki path kontrol edin. (shared/bot/listing-bot.tsx)

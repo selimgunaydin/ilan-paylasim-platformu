@@ -7,10 +7,12 @@ import { Loader2 } from "lucide-react";
 import { Listing } from "../../../types";
 import { Button } from "../../../components/ui/button";
 import { useDebounce } from "../../../hooks/use-debounce";
+import { getCityOptions } from "../../../lib/constants";
 
 export default function SearchView() {
   const searchParams = useSearchParams();
   const queryParam = searchParams.get("q") || "";
+  const cityParam = searchParams.get("city") || "";
   const [searchQuery, setSearchQuery] = useState(queryParam);
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [results, setResults] = useState<Listing[]>([]);
@@ -21,13 +23,25 @@ export default function SearchView() {
   const [initialLoad, setInitialLoad] = useState(true);
 
   const ITEMS_PER_PAGE = 12;
+  const cityOptions = getCityOptions();
+
+  // Yardımcı: cityParam'dan label bul
+  const getCityLabel = (cityValue: string) => {
+    if (!cityValue) return "";
+    const found = cityOptions.find((c) => c.value === cityValue);
+    return found ? found.label : cityValue;
+  };
+
+  const cityLabel = getCityLabel(cityParam);
 
   const fetchSearchResults = async (
     query: string,
+    city: string,
     pageNum: number,
     shouldReplace: boolean = false
   ) => {
-    if (!query.trim()) {
+    // Hem arama sorgusu hem de şehir parametresi boşsa
+    if (!query.trim() && !city.trim()) {
       setResults(shouldReplace ? [] : results);
       setTotal(0);
       setHasMore(false);
@@ -36,11 +50,13 @@ export default function SearchView() {
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `/api/listings/arama?q=${encodeURIComponent(
-          query
-        )}&page=${pageNum}&limit=${ITEMS_PER_PAGE}`
-      );
+      const params = new URLSearchParams();
+      if (query.trim()) params.append('q', query);
+      if (city.trim()) params.append('city', city);
+      params.append('page', pageNum.toString());
+      params.append('limit', ITEMS_PER_PAGE.toString());
+
+      const response = await fetch(`/api/listings/arama?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error("Arama yapılırken bir hata oluştu");
@@ -77,14 +93,14 @@ export default function SearchView() {
   // Debounced sorgu değiştiğinde veya sayfa değiştiğinde
   useEffect(() => {
     if (debouncedSearchQuery === queryParam) {
-      fetchSearchResults(debouncedSearchQuery, page, page === 1);
+      fetchSearchResults(debouncedSearchQuery, cityParam, page, page === 1);
     }
-  }, [debouncedSearchQuery, page]);
+  }, [debouncedSearchQuery, cityParam, page]);
 
   // İlk yüklemede sorguyu çalıştır
   useEffect(() => {
-    if (initialLoad && queryParam) {
-      fetchSearchResults(queryParam, 1, true);
+    if (initialLoad && (queryParam || cityParam)) {
+      fetchSearchResults(queryParam, cityParam, 1, true);
     }
   }, []);
 
@@ -96,13 +112,61 @@ export default function SearchView() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    window.history.pushState(
-      {},
-      "",
-      `/arama?q=${encodeURIComponent(searchQuery)}`
-    );
+    const params = new URLSearchParams();
+    if (searchQuery.trim()) params.append('q', searchQuery);
+    if (cityParam) params.append('city', cityParam);
+    
+    window.history.pushState({}, "", `/arama?${params.toString()}`);
     setPage(1);
-    fetchSearchResults(searchQuery, 1, true);
+    fetchSearchResults(searchQuery, cityParam, 1, true);
+  };
+
+  // Arama başlığını oluştur
+  const getSearchTitle = () => {
+    if (queryParam && cityParam) {
+      return `"${queryParam}" için ${cityLabel} şehrinde arama sonuçları`;
+    } else if (queryParam) {
+      return `"${queryParam}" için arama sonuçları`;
+    } else if (cityParam) {
+      return `${cityLabel} şehrindeki ilanlar`;
+    }
+    return "Arama Sonuçları";
+  };
+
+  // Arama açıklamasını oluştur
+  const getSearchDescription = () => {
+    if (queryParam && cityParam) {
+      return `"${queryParam}" için ${cityLabel} şehrinde ${total} sonuç bulundu`;
+    } else if (queryParam) {
+      return `"${queryParam}" için ${total} sonuç bulundu`;
+    } else if (cityParam) {
+      return `${cityLabel} şehrinde ${total} ilan bulundu`;
+    }
+    return "Lütfen arama yapmak için bir kelime girin veya şehir seçin";
+  };
+
+  // Sonuç bulunamadı mesajını oluştur
+  const getNoResultsMessage = () => {
+    if (queryParam && cityParam) {
+      return `"${queryParam}" için ${cityLabel} şehrinde sonuç bulunamadı`;
+    } else if (queryParam) {
+      return `"${queryParam}" için sonuç bulunamadı`;
+    } else if (cityParam) {
+      return `${cityLabel} şehrinde ilan bulunamadı`;
+    }
+    return "Aramaya başlamak için bir kelime girin veya şehir seçin";
+  };
+
+  // Sonuç bulunamadı açıklamasını oluştur
+  const getNoResultsDescription = () => {
+    if (queryParam && cityParam) {
+      return "Farklı anahtar kelimeler kullanarak veya farklı şehir seçerek tekrar aramayı deneyin.";
+    } else if (queryParam) {
+      return "Farklı anahtar kelimeler kullanarak tekrar aramayı deneyin.";
+    } else if (cityParam) {
+      return "Farklı şehir seçerek tekrar aramayı deneyin.";
+    }
+    return "İlan başlıklarında ve açıklamalarında arama yapabilir veya belirli bir şehirdeki ilanları görüntüleyebilirsiniz.";
   };
 
   return (
@@ -110,18 +174,11 @@ export default function SearchView() {
       {/* Sayfa başlığı */}
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          Arama Sonuçları
+          {getSearchTitle()}
         </h1>
         {!initialLoad && (
           <p className="text-gray-600">
-            {queryParam ? (
-              <>
-                <span className="font-semibold">"{queryParam}"</span> için{" "}
-                <span className="font-semibold">{total}</span> sonuç bulundu
-              </>
-            ) : (
-              "Lütfen arama yapmak için bir kelime girin"
-            )}
+            {getSearchDescription()}
           </p>
         )}
       </div>
@@ -142,14 +199,10 @@ export default function SearchView() {
           ) : (
             <div className="text-center py-16 px-4">
               <h3 className="text-xl font-semibold text-gray-700 mb-4">
-                {queryParam
-                  ? `"${queryParam}" için sonuç bulunamadı`
-                  : "Aramaya başlamak için bir kelime girin"}
+                {getNoResultsMessage()}
               </h3>
               <p className="text-gray-500 max-w-md mx-auto">
-                {queryParam
-                  ? "Farklı anahtar kelimeler kullanarak tekrar aramayı deneyin."
-                  : "İlan başlıklarında ve açıklamalarında arama yapabilirsiniz."}
+                {getNoResultsDescription()}
               </p>
             </div>
           )}

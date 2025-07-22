@@ -73,6 +73,13 @@ export function AdminPinModal({ isOpen, onClose, onSuccess }: AdminPinModalProps
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && pin.length === 6 && !isLoading) {
+      e.preventDefault();
+      handleVerifyPin();
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
@@ -83,7 +90,12 @@ export function AdminPinModal({ isOpen, onClose, onSuccess }: AdminPinModalProps
           </DialogDescription>
         </DialogHeader>
         <div className="flex justify-center py-4">
-          <InputOTP maxLength={6} value={pin} onChange={(value) => setPin(value)}>
+          <InputOTP 
+            maxLength={6} 
+            value={pin} 
+            onChange={(value) => setPin(value)}
+            onKeyDown={handleKeyDown}
+          >
             <InputOTPGroup>
               <InputOTPSlot index={0} />
               <InputOTPSlot index={1} />
@@ -98,7 +110,7 @@ export function AdminPinModal({ isOpen, onClose, onSuccess }: AdminPinModalProps
           <Button variant="outline" onClick={onClose}>
             İptal
           </Button>
-          <Button onClick={handleVerifyPin} disabled={isLoading}>
+          <Button onClick={handleVerifyPin} disabled={isLoading} type="submit">
             {isLoading ? "Doğrulanıyor..." : "Onayla"}
           </Button>
         </DialogFooter>

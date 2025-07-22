@@ -1,11 +1,9 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
 import { MessageForm } from "@app/components/message-form";
 import { Button } from "@app/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Star, StarOff } from "lucide-react";
-import { queryClient } from "@/lib/queryClient";
+
 import { useCallback, useState } from "react";
 import { Modal } from "@app/components/ui/modal";
 import { useSocket } from "@/providers/socket-provider";
@@ -34,45 +32,48 @@ type Listing = {
 type Props = {
   listing: Listing;
   user: User | null;
-  initialFavoriteStatus: boolean;
+  // initialFavoriteStatus: boolean;
   slug: string;
 };
 
 export default function ListingDetailClient({
   listing,
   user,
-  initialFavoriteStatus,
+  // initialFavoriteStatus,
   slug,
 }: Props) {
   const { toast } = useToast();
   const { socket } = useSocket();
   const id = slug.split("-").pop()!;
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(initialFavoriteStatus);
 
-  const addToFavorites = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/favorites", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ listingId: id }),
-      });
-      if (!res.ok) throw new Error("Favorilere eklenemedi");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["favorites", id] });
-      setIsFavorite(true);
-      toast({ title: "Başarılı", description: "İlan favorilere eklendi" });
-    },
-    onError: () => {
-      toast({
-        title: "Hata",
-        description: "İlan favorilere eklenemedi",
-        variant: "destructive",
-      });
-    },
-  });
+
+  //gereksiz favoriye ekleme kodu.
+  // const [isFavorite, setIsFavorite] = useState(initialFavoriteStatus);
+
+  // const addToFavorites = useMutation({
+  //   mutationFn: async () => {
+  //     const res = await fetch("/api/favorites", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ listingId: id }),
+  //     });
+  //     if (!res.ok) throw new Error("Favorilere eklenemedi");
+  //     return res.json();
+  //   },
+  //   onSuccess: () => {
+  //     queryClient.invalidateQueries({ queryKey: ["favorites", id] });
+  //     setIsFavorite(true);
+  //     toast({ title: "Başarılı", description: "İlan favorilere eklendi" });
+  //   },
+  //   onError: () => {
+  //     toast({
+  //       title: "Hata",
+  //       description: "İlan favorilere eklenemedi",
+  //       variant: "destructive",
+  //     });
+  //   },
+  // });
 
   const handleMessageSuccess = useCallback(
     (content: string, files?: string[]) => {

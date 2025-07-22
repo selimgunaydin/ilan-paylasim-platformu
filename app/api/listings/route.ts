@@ -14,17 +14,7 @@ import { getListingImageUrl, getListingImagesUrls } from '../../lib/r2';
 
 export const dynamic = 'force-dynamic';
 
-// Türkiye'deki tüm şehirlerin listesi
-const turkishCities = [
-  "Adana", "Adıyaman", "Afyonkarahisar", "Ağrı", "Amasya", "Ankara", "Antalya", "Artvin", "Aydın", "Balıkesir",
-  "Bilecik", "Bingöl", "Bitlis", "Bolu", "Burdur", "Bursa", "Çanakkale", "Çankırı", "Çorum", "Denizli", "Diyarbakır",
-  "Edirne", "Elazığ", "Erzincan", "Erzurum", "Eskişehir", "Gaziantep", "Giresun", "Gümüşhane", "Hakkari", "Hatay",
-  "Isparta", "Mersin", "İstanbul", "İzmir", "Kars", "Kastamonu", "Kayseri", "Kırklareli", "Kırşehir", "Kocaeli",
-  "Konya", "Kütahya", "Malatya", "Manisa", "Kahramanmaraş", "Mardin", "Muğla", "Muş", "Nevşehir", "Niğde", "Ordu",
-  "Rize", "Sakarya", "Samsun", "Siirt", "Sinop", "Sivas", "Tekirdağ", "Tokat", "Trabzon", "Tunceli", "Şanlıurfa",
-  "Uşak", "Van", "Yozgat", "Zonguldak", "Aksaray", "Bayburt", "Karaman", "Kırıkkale", "Batman", "Şırnak", "Bartın",
-  "Ardahan", "Iğdır", "Yalova", "Karabük", "Kilis", "Osmaniye", "Düzce"
-]
+import { validateAndNormalizeCity } from '../../lib/constants';
 
 // Arama koşulu oluşturan yardımcı fonksiyon
 const createSearchCondition = (search: string): SQL<unknown> => {
@@ -72,21 +62,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ listings: [], total: 0 }, { status: 200 })
       }
 
-      // Şehir parametresini kontrol et
-      let cityParam: string | undefined = undefined
-      if (city) {
-        const normalizedCity = city.toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/[^a-z0-9]/g, "")
-        
-        cityParam = turkishCities.find(c => 
-          c.toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-z0-9]/g, "") === normalizedCity
-        )
-      }
+      // Şehir parametresini doğrula ve normalize et
+      const cityParam = validateAndNormalizeCity(city || '');
 
       // Ana kategori ise alt kategorileri de dahil et
       let categoryIds: number[] = [category.id]

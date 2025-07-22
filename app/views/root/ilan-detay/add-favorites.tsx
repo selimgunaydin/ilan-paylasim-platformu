@@ -11,11 +11,13 @@ import React, { useState } from "react";
 export default function addToFavorites({
   id,
   listing,
+  initialFavoriteStatus = false,
 }: {
   id: number;
   listing: any;
+  initialFavoriteStatus?: boolean;
 }) {
-  const [isFavorite, setIsFavorite] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(initialFavoriteStatus);
   const session = useSession();
   const addToFavorites = useMutation({
     mutationFn: async () => {

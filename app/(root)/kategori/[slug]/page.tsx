@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Category, Listing } from "@shared/schemas";
 import CategoryDetailClient from "@/views/root/category";
 import { cn } from "@/utils";
-import cityList from "../../../../public/city-list.json";
+import { getCityOptions } from "../../../lib/constants";
 import { Metadata } from "next";
 import { FaqAccordion, type FaqItem } from "@/components/FaqAccordion";
 import { notFound } from "next/navigation";
@@ -196,6 +196,8 @@ export default async function CategoryPage({
     ]
   };
   
+  const cityOptions = getCityOptions();
+
   return (
     <div className="py-8 container mx-auto">
       {/* JSON-LD Structured Data */}
@@ -209,7 +211,7 @@ export default async function CategoryPage({
         category={category}
         params={params}
         searchParams={searchParams}
-        cityList={cityList.cities}
+        cityList={cityOptions}
       />
 
       {/* Breadcrumbs */}

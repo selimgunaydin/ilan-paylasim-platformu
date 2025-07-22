@@ -13,6 +13,7 @@ import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getClientIp } from "@/utils/getIpAddress";
 import { Loader2 } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 type AuthContextType = {
   user: SelectUser | null;
@@ -30,6 +31,7 @@ export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  const status = useSession();
   const {
     data: user,
     error,
@@ -37,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   } = useQuery<SelectUser | null, Error>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    enabled: status.status === "authenticated",
     staleTime: 1000 * 60 * 60 * 4, // 4 saat
     gcTime: 1000 * 60 * 60 * 8, // 8 saat (cacheTime yerine gcTime kullanılacak)
     refetchInterval: 1000 * 60 * 60 * 2, // 2 saatte bir yenileme

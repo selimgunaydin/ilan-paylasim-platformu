@@ -4,6 +4,7 @@ import { db } from '@shared/db';
 import { listings } from '@shared/schemas'
 import { eq, and, or, ilike, sql } from 'drizzle-orm'
 import { getListingImagesUrls } from '../../../lib/r2';
+import { validateAndNormalizeCity } from '../../../lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,47 +26,57 @@ export async function GET(request: NextRequest) {
     // URL parametrelerini al
     const { searchParams } = new URL(request.url)
     const searchQuery = searchParams.get('q') || ''
+    const city = searchParams.get('city') || ''
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '12')
     const offset = (page - 1) * limit
 
-    // Boş arama sorgusu kontrolü
-    if (!searchQuery.trim()) {
+    // Hem arama sorgusu hem de şehir parametresi boşsa hata döndür
+    if (!searchQuery.trim() && !city.trim()) {
       return NextResponse.json({
         listings: [],
         total: 0,
-        query: searchQuery
+        query: searchQuery,
+        city: city
       }, { status: 200 })
     }
 
-    // Arama koşulunu oluştur
-    const searchCondition = createSearchCondition(searchQuery)
+    // Şehir parametresini doğrula ve normalize et
+    const cityParam = validateAndNormalizeCity(city);
+
+    // Sorgu koşullarını oluştur
+    const conditions: any[] = [
+      eq(listings.approved, true),
+      eq(listings.active, true)
+    ]
+
+    // Arama koşulu ekle
+    if (searchQuery.trim()) {
+      const searchCondition = createSearchCondition(searchQuery)
+      conditions.push(searchCondition)
+    }
+
+    // Şehir koşulu ekle
+    if (cityParam) {
+      conditions.push(eq(listings.city, cityParam))
+    }
+
+    // Koşulları birleştir
+    const whereClause = and(...conditions)
     
     // İlanları ve toplam sayıyı al
     const [data, countResult] = await Promise.all([
       db
         .select()
         .from(listings)
-        .where(
-          and(
-            searchCondition,
-            eq(listings.approved, true),
-            eq(listings.active, true)
-          )
-        )
+        .where(whereClause)
         .orderBy(sql`CASE WHEN listing_type = 'premium' THEN 1 ELSE 2 END`)
         .limit(limit)
         .offset(offset),
       db
         .select({ count: sql<number>`count(*)` })
         .from(listings)
-        .where(
-          and(
-            searchCondition,
-            eq(listings.approved, true),
-            eq(listings.active, true)
-          )
-        )
+        .where(whereClause)
     ])
 
     // İlan resimlerini URL'e çevir
@@ -77,7 +88,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       listings: listingsWithUrls,
       total: Number(countResult[0].count),
-      query: searchQuery
+      query: searchQuery,
+      city: city
     }, { status: 200 })
   } catch (error) {
     console.error('Search error:', error)

@@ -380,7 +380,11 @@ export default async function ListingDetailPage({
                       <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
                         {listing.title}
                       </h1>
-                      <AddFavorites id={listing.id} listing={listing} />
+                      <AddFavorites 
+                        id={listing.id} 
+                        listing={listing} 
+                        initialFavoriteStatus={favoriteStatus.isFavorite}
+                      />
                     </div>
                   </div>
 
@@ -517,7 +521,6 @@ export default async function ListingDetailPage({
                     categoryName: category?.name || "",
                   }}
                   user={session?.user || null}
-                  initialFavoriteStatus={favoriteStatus.isFavorite}
                   slug={params.slug}
                 />
               </div>

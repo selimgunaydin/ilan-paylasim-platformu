@@ -302,10 +302,10 @@ export default function ManagementHome({ children }: { children?: React.ReactNod
                       <span>Kategori Yönetimi</span>
                     </Button>
                   </Link>
-                  <Link href="/yonetim/ayarlar">
+                  <Link href="/yonetim/ayarlar/site">
                     <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center gap-2">
                       <Calendar className="h-5 w-5" />
-                      <span>Sistem Ayarları</span>
+                      <span>Site Ayarları</span>
                     </Button>
                   </Link>
                 </div>

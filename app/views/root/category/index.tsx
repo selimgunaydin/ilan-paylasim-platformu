@@ -12,18 +12,14 @@ import {
   SelectSeparator,
 } from "@app/components/ui/select";
 import { Button } from "@app/components/ui/button";
-
-type City = {
-  value: string;
-  label: string;
-};
+import { CityOption } from "../../../lib/constants";
 
 type Props = {
   categories: Category[];
   category: Category;
   params: { slug: string; city?: string };
   searchParams: { page?: string; search?: string };
-  cityList: City[];
+  cityList: CityOption[];
 };
 
 export default function CategoryDetailClient({
@@ -65,6 +61,10 @@ export default function CategoryDetailClient({
                     <SelectLabel className="font-semibold text-sm text-gray-700">
                       {mainCategory.name}
                     </SelectLabel>
+                    {/* Farketmez/Hepsi seçeneği - sadece ana kategoriler için */}
+                    <SelectItem value={mainCategory.slug}>
+                      {mainCategory.name} - Tümü
+                    </SelectItem>
                     {categories
                       ?.filter((c) => c.parentId === mainCategory.id)
                       .map((subCategory) => (

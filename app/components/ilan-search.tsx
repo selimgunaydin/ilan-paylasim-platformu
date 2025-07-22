@@ -13,7 +13,7 @@ import {
   SelectGroup,
 } from "@app/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
-import cityList from "../../public/city-list.json";
+import { getCityOptions } from "../lib/constants";
 
 // JSON verinizden gelen Category yapısına uygun tip tanımı
 interface Category {
@@ -37,6 +37,7 @@ interface CategoryWithCount extends Category {
 
 export default function IlanSearch({ categories }: { categories: CategoryWithCount[] }) {
   const mainCategories = categories.filter((c) => !c.parentId);
+  const cityOptions = getCityOptions();
 
   return (
     <div className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-lg">
@@ -47,15 +48,29 @@ export default function IlanSearch({ categories }: { categories: CategoryWithCou
           const category = form.category.value;
           const city = form.city.value;
 
-          if (!category) return;
+          // Kategori seçilmemişse sadece şehir ile arama yap
+          if (!category && !city) return;
 
-          const url = `/kategori/${category}${city ? `/${city}` : ""}`;
-          window.location.href = url;
+          let url = "";
+          if (category && city) {
+            url = `/kategori/${category}/${city}`;
+          } else if (category) {
+            url = `/kategori/${category}`;
+          } else if (city) {
+            // Sadece şehir seçilmişse genel arama sayfasına yönlendir
+            url = `/arama?city=${encodeURIComponent(city)}`;
+          }
+
+          // const url = `/kategori/${category}${city ? `/${city}` : ""}`;
+          // window.location.href = url;
+          if (url) {
+            window.location.href = url;
+          }
         }}
         className="flex flex-col md:flex-row gap-4"
       >
         <div className="w-full md:flex-1">
-          <Select name="category" required>
+          <Select name="category">
             <SelectTrigger>
               <SelectValue placeholder="Kategori Seç" />
             </SelectTrigger>
@@ -95,7 +110,7 @@ export default function IlanSearch({ categories }: { categories: CategoryWithCou
               <SelectValue placeholder="Tüm Şehirler" />
             </SelectTrigger>
             <SelectContent>
-              {cityList.cities.map((city) => (
+              {cityOptions.map((city) => (
                 <SelectItem key={city.value} value={city.value}>
                   {city.label}
                 </SelectItem>

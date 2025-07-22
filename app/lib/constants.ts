@@ -81,3 +81,36 @@ export const turkishCities = [
   "Osmaniye",
   "Düzce",
 ];
+
+// Şehir normalizasyon fonksiyonu
+export function normalizeCity(city: string): string {
+  return city.toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+// Şehir parametresini doğrula ve normalize et
+export function validateAndNormalizeCity(cityParam: string): string | undefined {
+  if (!cityParam.trim()) return undefined;
+  
+  const normalizedParam = normalizeCity(cityParam);
+  
+  return turkishCities.find(city => 
+    normalizeCity(city) === normalizedParam
+  );
+}
+
+// Şehir listesi tipi
+export interface CityOption {
+  value: string;
+  label: string;
+}
+
+// Şehir listesini CityOption formatında döndür
+export function getCityOptions(): CityOption[] {
+  return turkishCities.map(city => ({
+    value: city.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, ""),
+    label: city
+  }));
+}

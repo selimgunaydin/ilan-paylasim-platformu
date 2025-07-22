@@ -120,7 +120,7 @@
 ### 4. Mesajlaşma Sistemi
 - **Amaç:** Kullanıcılar arası ve admin-kullanıcı arası gerçek zamanlı mesajlaşma, dosya paylaşımı.
 - **Tüm Frontend Sayfaları:**
-  - `/gelen-mesajlar`, `/gonderilen-mesajlar`, `/admin/tummesajlar`, `/admin/ilanmesajdetayi/[id]`, `/admin/iletisim-mesajlari`, `/ilan/[slug]`, `/mesajlar`, `/mesaj-detay`, `/admin/ilan-mesaj-detayi`
+  - `/gelen-mesajlar`, `/gonderilen-mesajlar`, `/admin/tummesajlar`, `/admin/ilanmesajdetayi/[id]`, `/admin/iletisim-mesajlari`, `/ilan/[slug]`, `/admin/ilan-mesaj-detayi`
 - **Admin/Superadmin Erişimi:**
   - Tüm mesajlar: admin
   - Kendi mesajları: user
