@@ -22,7 +22,7 @@ import {
 import { Button } from "@app/components/ui/button";
 import { Input } from "@app/components/ui/input";
 import { Card } from "@app/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 import { SortableCategory } from "@app/components/admin/sortable-category";
 import {
   Dialog,

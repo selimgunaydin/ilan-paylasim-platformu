@@ -4,7 +4,7 @@ import * as React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 import { queryClient, apiRequest, getQueryFn } from "@/lib/queryClient";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@app/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@app/components/ui/card";

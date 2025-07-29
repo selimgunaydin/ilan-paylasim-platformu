@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useEffect, useState } from "react";
-import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { useAdminAuth } from "@app/hooks/use-admin-auth";
 import { 
   Users, 
   AlertTriangle, 
@@ -13,10 +13,10 @@ import {
   Eye,
   Calendar
 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@app/components/ui/card";
+import { Button } from "@app/components/ui/button";
 import Link from "next/link";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@app/components/ui/skeleton";
 import { formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
 

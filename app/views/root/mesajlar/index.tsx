@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 import { Card, CardContent } from "@app/components/ui/card";
 import { MessageSquare } from "lucide-react";
 import { Conversation, Listing } from "@/types";

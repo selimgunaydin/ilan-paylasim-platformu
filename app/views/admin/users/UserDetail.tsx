@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@app/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@app/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@app/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@app/components/ui/tabs";
+import { Badge } from "@app/components/ui/badge";
 import { Loader2, ArrowLeft, Mail, Phone, MapPin, User, Calendar, Info, Shield, Star, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { User as UserType, Listing } from "@shared/schemas";
 import { format } from "date-fns";

@@ -10,7 +10,7 @@ import { Card, CardContent } from "@app/components/ui/card";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 
 // İlan durumuna göre butonları dinamik gösteren fonksiyon
 function renderListingActionButtons(

@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useSocket } from "@/providers/socket-provider";
 import { Button } from "@app/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 import { MessageForm } from "@app/components/message-form";
 import { Listing } from "@/types";
 import { Avatar, AvatarImage, AvatarFallback } from "@app/components/ui/avatar";
@@ -40,13 +40,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "@app/components/ui/alert-dialog";
 import { getMessageFileUrClient } from "@/utils/get-message-file-url";
 import { useSession } from "next-auth/react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@app/components/ui/skeleton";
 import Link from "next/link";
 import { getDummyUser } from "@/utils/get-dummy-user";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@app/hooks/use-auth";
 // File type helpers
 const getFileIcon = (fileName: string) => {
   const extension = fileName.split(".").pop()?.toLowerCase();

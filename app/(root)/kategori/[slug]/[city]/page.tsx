@@ -5,7 +5,7 @@ import CategoryDetailClient from "@/views/root/category";
 import { cn } from "@/utils";
 import { getCityOptions } from "../../../../lib/constants";
 import { Metadata } from "next";
-import { FaqAccordion, type FaqItem } from "@/components/FaqAccordion";
+import { FaqAccordion, type FaqItem } from "@app/components/FaqAccordion";
 import { createSeoUrl } from "@/utils/create-seo-url";
 // Helper to parse FAQs from string
 const parseFaqs = (faqsString?: string | null): FaqItem[] => {

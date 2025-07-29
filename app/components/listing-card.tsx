@@ -4,7 +4,7 @@ import { Listing } from "@shared/schemas";
 import { format, addDays } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 import { Power, PowerOff } from "lucide-react";
 import { FaEdit, FaPowerOff, FaToggleOff, FaTrash } from "react-icons/fa";
 

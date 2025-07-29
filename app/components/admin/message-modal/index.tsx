@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { X, Paperclip, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "@app/components/ui/button";
+import { Textarea } from "@app/components/ui/textarea";
+import { Label } from "@app/components/ui/label";
+import { useToast } from "@app/hooks/use-toast";
 
 interface MessageModalProps {
   isOpen: boolean;

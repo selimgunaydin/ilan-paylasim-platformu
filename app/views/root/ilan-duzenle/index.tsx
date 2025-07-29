@@ -4,8 +4,8 @@ import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter, useParams } from "next/navigation";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@app/hooks/use-toast";
+import { useAuth } from "@app/hooks/use-auth";
 import { Button } from "@app/components/ui/button";
 import { Input } from "@app/components/ui/input";
 import { Textarea } from "@app/components/ui/textarea";
@@ -30,8 +30,8 @@ import type { Category, Listing } from "@shared/schemas";
 import { turkishCities } from "@/lib/constants";
 import { queryClient } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
-import { RichTextEditor } from "@/components/Editor";
-import { EmojiInput } from "@/components/EmojiInput";
+import { RichTextEditor } from "@app/components/Editor";
+import { EmojiInput } from "@app/components/EmojiInput";
 
 export default function EditListing() {
   const { id } = useParams<{ id: string }>();

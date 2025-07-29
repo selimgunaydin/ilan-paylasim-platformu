@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@app/components/ui/button";
 import { Badge, CheckCircle2 } from "lucide-react";
 import React from "react";
 import Link from "next/link";

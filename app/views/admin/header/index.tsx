@@ -14,6 +14,8 @@ import {
   Cog,
   FolderTree,
   Mail,
+  KeyRound,
+  FileText,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@app/components/ui/sheet";
 import {
@@ -63,6 +65,11 @@ const menuItems = [
     icon: Mail,
   },
   {
+    label: "Blog",
+    path: "/yonetim/blog",
+    icon: FileText,
+  },
+  {
     label: "Kategoriler",
     path: "/yonetim/kategoriler",
     icon: FolderTree,
@@ -80,6 +87,11 @@ const settingsMenuItems = [
     label: "Site Ayarları",
     path: "/yonetim/ayarlar/site",
     icon: Settings,
+  },
+  {
+    label: "Admin Pin Değiştir",
+    path: "/yonetim/admin-pin-degistir",
+    icon: KeyRound,
   },
 ];
 

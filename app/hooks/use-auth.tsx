@@ -10,7 +10,7 @@ import {
   InsertUser,
 } from "@shared/schemas";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 import { getClientIp } from "@/utils/getIpAddress";
 import { Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";

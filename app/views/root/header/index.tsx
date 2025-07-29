@@ -33,7 +33,7 @@ import { cn } from "@/utils";
 import { useOnClickOutside } from "../../../hooks/use-on-click-outside"; // Import the hook
 import Image from "next/image";
 import { SiteSettings } from "@shared/schemas";
-import { Input } from "@/components/ui/input";
+import { Input } from "@app/components/ui/input";
 
 interface MenuItem {
   label: string;

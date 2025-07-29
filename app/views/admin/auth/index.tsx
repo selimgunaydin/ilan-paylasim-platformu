@@ -9,7 +9,7 @@ import { Input } from "@app/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@app/components/ui/card";
 import { Label } from "@app/components/ui/label";
 import { Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 
 export default function AdminView() {
   const [username, setUsername] = useState("");

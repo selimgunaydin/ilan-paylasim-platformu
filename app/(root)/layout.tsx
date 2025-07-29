@@ -1,8 +1,8 @@
 import React from "react";
 import type { Metadata } from "next";
-import { ClientLayout } from "../components/ClientLayout";
+import { ClientLayout } from "@app/components/ClientLayout";
 import "../globals.css";
-import { getSiteSettings } from "../lib/settings";
+import { getSiteSettings } from "@app/lib/settings";
 
 export async function generateMetadata(): Promise<Metadata> {
   // Site ayarlarını metadata için getir

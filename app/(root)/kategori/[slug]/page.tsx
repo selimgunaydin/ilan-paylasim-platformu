@@ -5,7 +5,7 @@ import CategoryDetailClient from "@/views/root/category";
 import { cn } from "@/utils";
 import { getCityOptions } from "../../../lib/constants";
 import { Metadata } from "next";
-import { FaqAccordion, type FaqItem } from "@/components/FaqAccordion";
+import { FaqAccordion, type FaqItem } from "@app/components/FaqAccordion";
 import { notFound } from "next/navigation";
 import { createSeoUrl } from "@/utils/create-seo-url";
 

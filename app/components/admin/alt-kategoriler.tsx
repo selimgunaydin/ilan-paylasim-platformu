@@ -4,7 +4,7 @@ import { Category } from "@shared/schemas";
 import { Button } from "@app/components/ui/button";
 import { Input } from "@app/components/ui/input";
 import { Card } from "@app/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 // Alt kategoriler sayfası
 export default function AltKategorilerPage() {

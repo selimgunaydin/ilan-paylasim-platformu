@@ -4,7 +4,7 @@ import { Listing } from "@shared/schemas";
 import { format, addDays } from "date-fns";
 import { tr } from "date-fns/locale";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 import { Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 

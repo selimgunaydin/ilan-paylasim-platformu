@@ -28,7 +28,7 @@ import {
 import { Textarea } from "@app/components/ui/textarea";
 import { Save, Check, Upload } from "lucide-react";
 import Image from "next/image";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 type FormData = z.infer<typeof insertSiteSettingsSchema>;
 
 export default function SiteSettingsPage({

@@ -8,14 +8,14 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/components/ui/dialog";
+} from "@app/components/ui/dialog";
 import {
   InputOTP,
   InputOTPGroup,
   InputOTPSlot,
-} from "@/components/ui/input-otp";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+} from "@app/components/ui/input-otp";
+import { Button } from "@app/components/ui/button";
+import { useToast } from "@app/hooks/use-toast";
 
 interface AdminPinModalProps {
   isOpen: boolean;

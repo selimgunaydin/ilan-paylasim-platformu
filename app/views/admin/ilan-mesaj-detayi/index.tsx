@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@app/components/ui/card";
 import { Button } from "@app/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 import { Message } from "@/types";
 import {
   ArrowLeft,

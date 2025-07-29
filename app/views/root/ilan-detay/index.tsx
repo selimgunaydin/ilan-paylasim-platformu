@@ -2,7 +2,7 @@
 
 import { MessageForm } from "@app/components/message-form";
 import { Button } from "@app/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 
 import { useCallback, useState } from "react";
 import { Modal } from "@app/components/ui/modal";

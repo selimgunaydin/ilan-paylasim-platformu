@@ -4,7 +4,7 @@ import React from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 import { Button } from "@app/components/ui/button";
 import { Input } from "@app/components/ui/input";
 import { EmojiInput } from "@app/components/EmojiInput";
@@ -33,7 +33,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@app/components/ui/radio-group";
 import { queryClient } from "@/lib/queryClient";
 import { useRouter } from "next/navigation";
-import { TermsModal } from "@/components/TermsModal";
+import { TermsModal } from "@app/components/TermsModal";
 import { Checkbox } from "@app/components/ui/checkbox";
 import { turkishCities } from "@/lib/constants";
 

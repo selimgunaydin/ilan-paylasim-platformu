@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@app/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@app/components/ui/sheet";
 import {
   DropdownMenu,
@@ -14,7 +14,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { LogOut, Menu, Settings, KeyRound } from "lucide-react";
+import { LogOut, Menu, Settings } from "lucide-react";
 
 type MenuItem = {
   label: string;
@@ -68,20 +68,13 @@ export function AdminHeaderClient({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {settingsMenuItems.map((item) => (
-            <DropdownMenuItem key={item.path} asChild> 
-            {/* asChild eklendi w-full eklendi.  */}
-              <Link href={item.path} className="flex items-center w-full">
+            <DropdownMenuItem key={item.path} asChild>
+              <Link href={item.path} className="flex items-center w-full cursor-pointer">
                 <item.icon className="w-4 h-4 mr-2" />
                 {item.label}
               </Link>
             </DropdownMenuItem>
           ))}
-          <DropdownMenuItem asChild>
-            <Link href="/yonetim/admin-pin-degistir" className="flex items-center w-full">
-              <KeyRound className="w-4 h-4 mr-2" />
-              Admin PIN Değiştir
-            </Link>
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -133,7 +126,7 @@ export function AdminHeaderClient({
                   className="w-full justify-start"
                 >
                   <LogOut className="w-4 h-4 mr-2" />
-                  Çıkış Yap
+
                 </Button>
               </div>
             </div>
@@ -141,12 +134,13 @@ export function AdminHeaderClient({
         </Sheet>
       </div>
 
+      {/* Admin panel çıkış yap butonu */}
       {/* Masaüstü Menü */}
       <div className="hidden lg:flex items-center gap-4">
         <MenuContent />
-        <Button variant="destructive" onClick={handleLogout} className="ml-4">
-          <LogOut className="w-4 h-4 mr-2" />
-          Çıkış Yap
+        <Button variant="destructive" onClick={handleLogout} className="p-2 pl-4 justify-center items-center">
+          <LogOut className="w-8 h-4 mr-2" />
+          {/* Çıkış Yap */}
         </Button>
       </div>
     </>

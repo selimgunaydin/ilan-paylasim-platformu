@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@app/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { DataTable } from "@app/components/ui/data-table";
 import type { Row } from "@tanstack/react-table";

@@ -3,7 +3,7 @@ import { Button } from "@app/components/ui/button";
 import { ScrollArea } from "@app/components/ui/scroll-area";
 import { getAvailableAvatars } from "@/lib/avatar";
 import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 
 interface AvatarSelectorModalProps {
   open: boolean;

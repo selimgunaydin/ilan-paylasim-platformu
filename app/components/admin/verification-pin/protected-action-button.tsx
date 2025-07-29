@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 
-import { Button, ButtonProps } from "@/components/ui/button";
+import { Button, ButtonProps } from "@app/components/ui/button";
 import { AdminPinModal } from "./modals/admin-pin-modal";
 
 interface ProtectedActionButtonProps extends ButtonProps {

@@ -1,8 +1,8 @@
 'use client';
 import { signOut } from "next-auth/react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@app/hooks/use-auth";
 import { useForm } from "react-hook-form";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";

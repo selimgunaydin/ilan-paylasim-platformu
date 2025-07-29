@@ -30,7 +30,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@app/components/ui/tabs";
 import { CheckCircle2, Loader2 } from "lucide-react";
 // import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 import * as z from "zod";
 import { Checkbox } from "@app/components/ui/checkbox";
 import Link from "next/link";
@@ -38,7 +38,7 @@ import { getClientIp } from "@/utils/getIpAddress";
 import { useRecaptchaToken } from '@/components/ReCaptcha';
 import { signIn, useSession } from "next-auth/react";
 import { useState } from "react";
-import { TermsModal } from "@/components/TermsModal";
+import { TermsModal } from "@app/components/TermsModal";
 import { Suspense } from "react";
 import { FaFacebook, FaGoogle } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";

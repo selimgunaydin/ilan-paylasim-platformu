@@ -1,8 +1,8 @@
 "use client";
 
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@app/components/ui/card";
 import { Listing } from "@/types";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@app/components/ui/badge";
 import { formatDistance } from "date-fns";
 import { tr } from "date-fns/locale";
 import Link from "next/link";

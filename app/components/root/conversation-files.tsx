@@ -1,10 +1,10 @@
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@app/hooks/use-auth";
 import { Button } from "@app/components/ui/button";
 import { Card, CardContent } from "@app/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@app/hooks/use-toast";
 import {
   ArrowLeft,
   FileText,

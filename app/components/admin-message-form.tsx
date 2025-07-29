@@ -3,8 +3,8 @@
 import React, { useState, useRef, useCallback } from "react";
 import { Button } from "@app/components/ui/button";
 import { Textarea } from "@app/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@app/hooks/use-toast";
+import { useAuth } from "@app/hooks/use-auth";
 import { Loader2, Paperclip, X, Image as ImageIcon, FileText, Video, Archive, File as FileIcon, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSocket } from "@/providers/socket-provider";

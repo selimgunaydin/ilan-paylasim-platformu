@@ -9,8 +9,8 @@ import React, {
 } from "react";
 import { Button } from "@app/components/ui/button";
 import { Textarea } from "@app/components/ui/textarea";
-import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@app/hooks/use-auth";
+import { useToast } from "@app/hooks/use-toast";
 import {
   Loader2,
   Paperclip,

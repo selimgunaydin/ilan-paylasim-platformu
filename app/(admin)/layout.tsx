@@ -10,7 +10,7 @@ import { AdminHeader } from "@/views/admin/header";
 import { queryClient } from "@/lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { SessionProvider } from "next-auth/react";
-import { ReCaptchaProvider } from "@/components/ReCaptcha";
+import { ReCaptchaProvider } from "@app/components/ReCaptcha";
 
 function useAutoCssReload() {
   // useEffect kaldırıldı
@@ -20,7 +20,7 @@ function useAutoCssReload() {
     // 2 saniye sonra CSS kontrolü yap
     const timeout = setTimeout(() => {
       const bodyStyles = window.getComputedStyle(document.body);
-      // Burada kendi CSS'inize göre bir kontrol ekleyebilirsiniz
+      
       if (
         bodyStyles.backgroundColor === "" ||
         bodyStyles.backgroundColor === "transparent" ||
