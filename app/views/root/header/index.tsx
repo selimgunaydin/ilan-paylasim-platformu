@@ -56,8 +56,10 @@ export function Header({ settings }: HeaderProps) {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const dropdownRef = useRef<HTMLDivElement>(null); // Ref for the dropdown
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchError, setSearchError] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef(null);
 
   const incomingUnreadMessages = useAppSelector(selectIncomingUnreadMessages);
@@ -66,18 +68,26 @@ export function Header({ settings }: HeaderProps) {
   const { socket, isConnected } = useSocket();
 
   useEffect(() => {
-    if (window !== undefined) {
+    if (typeof window !== 'undefined') {
       document.body.style.overflow = isMobileMenuOpen ? "hidden" : "auto";
     }
-
     return () => {
-      if (window !== undefined) {
+      if (typeof window !== 'undefined') {
         document.body.style.overflow = "auto";
       }
     };
   }, [isMobileMenuOpen]);
 
-  // Use the hook to close dropdown when clicking outside
+  useEffect(() => {
+    // Clear search query and errors when navigating to a new page
+    if (searchQuery) {
+        setSearchQuery('');
+    }
+    if (searchError) {
+        setSearchError('');
+    }
+  }, [pathname]);
+
   useOnClickOutside([dropdownRef, buttonRef], () => {
     setIsProfileDropdownOpen(false);
   });
@@ -164,10 +174,14 @@ export function Header({ settings }: HeaderProps) {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/arama?q=${encodeURIComponent(searchQuery.trim())}`);
-      setIsMobileMenuOpen(false);
+    if (searchQuery.trim().length < 3) {
+      setSearchError('Arama yapmak için en az 3 karakter girmelisiniz.');
+      return;
     }
+    setSearchError('');
+    router.push(`/arama?q=${encodeURIComponent(searchQuery.trim())}`);
+    // The input will be cleared by the useEffect watching the pathname
+    setIsMobileMenuOpen(false); // Close mobile menu on search
   };
 
   return (
@@ -201,10 +215,17 @@ export function Header({ settings }: HeaderProps) {
               <div className="relative w-full">
                 <Input
                   type="text"
-                  placeholder="İlanlarda ara..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pr-10 focus:ring-indigo-500 focus:border-indigo-500"
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    if (e.target.value.length >= 3) {
+                      setSearchError('');
+                    }
+                  }}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
+                  placeholder="İlanlarda ara..."
+                  className={`w-full pr-10 focus:ring-indigo-500 focus:border-indigo-500 ${searchError && isFocused ? 'border-red-500' : ''}`}
                 />
                 <button
                   type="submit"
@@ -212,6 +233,12 @@ export function Header({ settings }: HeaderProps) {
                 >
                   <Search className="h-5 w-5" />
                 </button>
+                {searchError && isFocused && (
+                  <div className="absolute top-full mt-3 w-max bg-red-600 text-white text-xs rounded-md px-3 py-1.5 z-20 shadow-lg">
+                    {searchError}
+                    <div className="absolute bottom-full left-4 w-0 h-0 border-x-8 border-x-transparent border-b-8 border-b-red-600"></div>
+                  </div>
+                )}
               </div>
             </form>
           </div>
@@ -365,10 +392,17 @@ export function Header({ settings }: HeaderProps) {
                 <div className="relative w-full">
                   <Input
                     type="text"
-                    placeholder="İlanlarda ara..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pr-10 focus:ring-indigo-500 focus:border-indigo-500"
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      if (e.target.value.length >= 3) {
+                        setSearchError('');
+                      }
+                    }}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setIsFocused(false)}
+                    placeholder="İlanlarda ara..."
+                    className={`w-full pr-10 focus:ring-indigo-500 focus:border-indigo-500 ${searchError && isFocused ? 'border-red-500' : ''}`}
                   />
                   <button
                     type="submit"
@@ -376,6 +410,12 @@ export function Header({ settings }: HeaderProps) {
                   >
                     <Search className="h-5 w-5" />
                   </button>
+                  {searchError && isFocused && (
+                    <div className="absolute top-full mt-3 w-max bg-red-600 text-white text-xs rounded-md px-3 py-1.5 z-20 shadow-lg">
+                      {searchError}
+                      <div className="absolute bottom-full left-4 w-0 h-0 border-x-8 border-x-transparent border-b-8 border-b-red-600"></div>
+                    </div>
+                  )}
                 </div>
               </form>
 

@@ -138,6 +138,7 @@ type MessageFormProps = {
   receiverId: number;
   onSuccess: (content: string, files?: string[]) => void;
   listingId?: number;
+  onlyText?: boolean;
 };
 
 export function MessageForm({
@@ -146,6 +147,7 @@ export function MessageForm({
   receiverId,
   onSuccess,
   listingId,
+  onlyText = false,
 }: MessageFormProps) {
   const { toast } = useToast();
   const [message, setMessage] = useState("");
@@ -384,37 +386,41 @@ export function MessageForm({
         onSubmit={handleSubmit}
         className="flex items-center gap-0 md:gap-2"
       >
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="shrink-0 px-0"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isRecording}
-        >
-          <Paperclip className="h-5 w-5" />
-        </Button>
+        {!onlyText && (
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="shrink-0 px-0"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isRecording}
+            >
+              <Paperclip className="h-5 w-5" />
+            </Button>
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className={`shrink-0 transition-colors duration-200 relative ${
-            isRecording
-              ? "text-red-600 dark:text-red-500 bg-red-50 dark:bg-red-900/20"
-              : ""
-          }`}
-          onClick={toggleRecording}
-        >
-          <Mic
-            className={`h-5 w-5 ${
-              isRecording ? "animate-[pulse_1s_ease-in-out_infinite]" : ""
-            }`}
-          />
-          {isRecording && (
-            <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-600 animate-[pulse_1s_ease-in-out_infinite]" />
-          )}
-        </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className={`shrink-0 transition-colors duration-200 relative ${
+                isRecording
+                  ? "text-red-600 dark:text-red-500 bg-red-50 dark:bg-red-900/20"
+                  : ""
+              }`}
+              onClick={toggleRecording}
+            >
+              <Mic
+                className={`h-5 w-5 ${
+                  isRecording ? "animate-[pulse_1s_ease-in-out_infinite]" : ""
+                }`}
+              />
+              {isRecording && (
+                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-600 animate-[pulse_1s_ease-in-out_infinite]" />
+              )}
+            </Button>
+          </>
+        )}
 
         <div className="flex-1 relative me-2">
           <Textarea

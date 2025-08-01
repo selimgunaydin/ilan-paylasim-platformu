@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { AdminAuthProvider } from "@/hooks/use-admin-auth";
@@ -41,6 +41,43 @@ function useAutoCssReload() {
     return () => clearTimeout(timeout);
 }
 
+function PasswordProtection({ children }: { children: React.ReactNode }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Always ask for the password on page load
+    const password = prompt('Admin paneline erişmek için lütfen şifreyi girin:');
+    
+    if (password === process.env.NEXT_PUBLIC_ADMIN_PANEL_PASSWORD) {
+      setIsAuthenticated(true);
+    } else {
+      alert('Hatalı şifre! Ana sayfaya yönlendiriliyorsunuz...');
+      window.location.href = '/';
+    }
+    setIsLoading(false);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    // This part will be briefly visible before redirection
+    return (
+       <div className="flex items-center justify-center min-h-screen">
+        <p>Yetkiniz yok. Yönlendiriliyorsunuz...</p>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
 export default function AdminLayout({
   children,
 }: {
@@ -55,9 +92,11 @@ export default function AdminLayout({
           <AuthProvider>
             <AdminAuthProvider>
               <SocketProvider>
-                <AdminHeader />
-                <div className="container mx-auto pt-8">{children}</div>
-                <Toaster />
+                                <PasswordProtection>
+                  <AdminHeader />
+                  <div className="container mx-auto pt-8">{children}</div>
+                  <Toaster />
+                </PasswordProtection>
               </SocketProvider>
             </AdminAuthProvider>
           </AuthProvider>

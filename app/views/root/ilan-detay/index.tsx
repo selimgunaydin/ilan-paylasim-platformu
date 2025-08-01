@@ -143,6 +143,7 @@ export default function ListingDetailClient({
                 receiverId={listing.userId}
                 onSuccess={handleMessageSuccess}
                 listingId={listing.id}
+                onlyText={true}
               />
             )}
             <div className="mt-3 sm:mt-4 flex justify-end">

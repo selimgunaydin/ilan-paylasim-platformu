@@ -526,111 +526,114 @@ export default async function ListingDetailPage({
               </div>
 
               {/* Similar Listings */}
-              <div className="bg-white rounded-xl shadow-md overflow-hidden p-3 sm:p-6">
+              {similarListingsResponse.listings?.filter(
+                (l: any) => l.id !== listing.id && l.listingType === "premium"
+              ).length > 0 && (
+                <div className="bg-white rounded-xl shadow-md overflow-hidden p-3 sm:p-6">
                 <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
-                  <svg
+                    <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2 text-blue-600"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"
-                    />
-                  </svg>
-                  Benzer İlanlar
-                </h2>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
-                  {similarListingsResponse.listings
-                    ?.filter(
-                      (l: any) =>
-                        l.id !== listing.id && l.listingType === "premium"
-                    )
-                    .slice(0, 4)
-                    .map((similarListing: any) => (
-                      <Link
-                        key={similarListing.id}
-                        href={`/ilan/${createSeoUrl(similarListing.title)}-${
-                          similarListing.id
-                        }`}
-                        className="group"
-                      >
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md group-hover:border-blue-300">
-                          <div className="p-3 sm:p-4">
-                            <h3 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors mb-1 sm:mb-2 line-clamp-1 text-sm sm:text-base">
-                              {similarListing.title}
-                            </h3>
-                            <div dangerouslySetInnerHTML={{ __html: similarListing.description }} className="text-xs sm:text-sm text-gray-600 line-clamp-2">
-                            </div>
-                            <div className="mt-2 text-xs text-gray-500 flex items-center">
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-3 w-3 mr-1"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                                />
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                                />
-                              </svg>
-                              {similarListing.city}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"
+                      />
+                    </svg>
+                    Benzer Öncelikli İlanlar
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
+                    {similarListingsResponse.listings
+                      .filter(
+                        (l: any) =>
+                          l.id !== listing.id && l.listingType === "premium"
+                      )
+                      .slice(0, 4)
+                      .map((similarListing: any) => (
+                        <Link
+                          key={similarListing.id}
+                          href={`/ilan/${createSeoUrl(similarListing.title)}-${
+                            similarListing.id
+                          }`}
+                          className="group"
+                        >
+                          <div className="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md group-hover:border-blue-300">
+                            <div className="p-3 sm:p-4">
+                              <h3 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors mb-1 sm:mb-2 line-clamp-1 text-sm sm:text-base">
+                                {similarListing.title}
+                              </h3>
+                              <div dangerouslySetInnerHTML={{ __html: similarListing.description }} className="text-xs sm:text-sm text-gray-600 line-clamp-2">
+                              </div>
+                              <div className="mt-2 text-xs text-gray-500 flex items-center">
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-3 w-3 mr-1"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                                  />
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                                  />
+                                </svg>
+                                {similarListing.city}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </Link>
-                    ))}
-                </div>
-
-                {similarListingsResponse.listings?.filter(
-                  (l: any) => l.id !== listing.id
-                ).length === 0 && (
-                  <p className="text-gray-500 text-center py-4 text-sm sm:text-base">
-                    Bu kategoride başka ilan bulunmuyor.
-                  </p>
-                )}
-
-                {similarListingsResponse.listings?.filter(
-                  (l: any) => l.id !== listing.id
-                ).length > 4 && (
-                  <div className="mt-4 text-center">
-                    <Link
-                      href={`/kategori/${category?.slug || ""}`}
-                      className="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors text-sm sm:text-base"
-                    >
-                      Daha fazla ilan gör
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-3 w-3 sm:h-4 sm:w-4 ml-1"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13 7l5 5m0 0l-5 5m5-5H6"
-                        />
-                      </svg>
-                    </Link>
+                        </Link>
+                      ))}
                   </div>
-                )}
-              </div>
+
+                  {similarListingsResponse.listings?.filter(
+                    (l: any) => l.id !== listing.id
+                  ).length === 0 && (
+                    <p className="text-gray-500 text-center py-4 text-sm sm:text-base">
+                      Bu kategoride başka ilan bulunmuyor.
+                    </p>
+                  )}
+
+                  {similarListingsResponse.listings?.filter(
+                    (l: any) => l.id !== listing.id
+                  ).length > 4 && (
+                    <div className="mt-4 text-center">
+                      <Link
+                        href={`/kategori/${category?.slug || ""}`}
+                        className="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors text-sm sm:text-base"
+                      >
+                        Daha fazla ilan gör
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-3 w-3 sm:h-4 sm:w-4 ml-1"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M13 7l5 5m0 0l-5 5m5-5H6"
+                          />
+                        </svg>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Right Column - Contact & Additional Info - Visible as Bottom Section on Mobile */}
