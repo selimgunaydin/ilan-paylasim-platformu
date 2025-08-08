@@ -175,15 +175,18 @@ const FileAttachment = ({
     ? fileUrl
     : getMessageFileUrClient(fileUrl);
 
+
+    // Mesaj içeriğinde indirme icon ve dosya ismi gözükme kısmı
   return (
     <a
       href={fullUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center gap-2 p-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+      className="flex items-center gap-2 p-2 bg-gray-50 hover:bg-gray-200 rounded-lg transition-colors"
     >
       {getFileIcon(fileName)}
-      <span className="text-sm text-blue-500 truncate">{fileName}</span>
+      {/* Dosya ismi basılıyor.*/}
+      {/* <span className="text-sm text-blue-500 truncate">{fileName}</span> */}
     </a>
   );
 };
@@ -622,7 +625,7 @@ export default function MessagesView({
           <Button variant="ghost" size="sm" onClick={handleBack}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <Avatar className="h-10 w-10">
+          <Avatar className="h-10 w-10 ">
             {dummyUser && type === "sent" ? (
               <>
                 <AvatarImage src={listing?.contactPerson} alt="Profil" />
@@ -651,22 +654,20 @@ export default function MessagesView({
                   alt="Profil"
                 />
                 <AvatarFallback>
+                  {otherUser?.contactPerson?.charAt(0)} ??
                   {otherUser?.username?.charAt(0)}
                 </AvatarFallback>
               </>
             )}
           </Avatar>
           <div>
+            {/* mesaj üstünde GÖNDERİCİ ADI */}
             <div className="font-medium">
               {!isLoading && listing ? (
                 <>
                   {isAdminConversation && conversation?.sender?.isAdmin ? (
                     "YÖNETİM"
-                  ) : dummyUser && type === "sent" ? (
-                    listing?.contactPerson
-                  ) : dummyUser && type === "received" ? (
-                    dummyUser
-                  ) : otherUser?.username}
+                  ) : listing?.contactPerson ? listing?.contactPerson : otherUser?.username}
                 </>
               ) : (
                 <>
@@ -676,7 +677,7 @@ export default function MessagesView({
               )}
             </div>
             {/* İlan linkini sadece admin konuşması değilse göster */}
-            {listing && !(isAdminConversation && conversation?.sender?.isAdmin) && (
+            {listing && (
               <Link
                 href={`/ilan/${listing.id}`}
                 target="_blank"
@@ -715,24 +716,24 @@ export default function MessagesView({
           allMessages.map((message) => (
             <div
               key={message.id}
-              className={`flex ${
-                message.senderId === currentUserId
+              className={`flex ${message.senderId === currentUserId
                   ? "justify-end"
                   : "justify-start"
-              } group`}
+                } group`}
             >
               <div
-                className={`max-w-[70%] rounded-2xl p-3 transition-all relative ${
-                  message.senderId === currentUserId
+                className={`max-w-[70%] rounded-2xl p-3 transition-all relative ${message.senderId === currentUserId
                     ? "bg-blue-500 text-white"
                     : "bg-gray-100 text-gray-900"
-                }`}
+                  }`}
               >
-                {/* GÖNDERİCİ ADI */}
+                {/*mesaj içinde GÖNDERİCİ ADI */}
                 <div className="text-xs font-semibold mb-1">
-                  {isAdminConversation && conversation?.sender?.isAdmin && message.senderId !== currentUserId
-                    ? "YÖNETİM"
-                    : otherUser?.username}
+                  {message.senderId === currentUserId
+                  ? "Siz"
+                  : isAdminConversation && conversation?.sender?.isAdmin && message.senderId !== currentUserId
+                  ? "YÖNETİM"
+                  : listing?.contactPerson ?? otherUser?.username}
                 </div>
                 <MessageContent
                   message={message}

@@ -4,6 +4,8 @@
 const AVATAR_BASE_PATH = "/avatars";
 const FEMALE_AVATAR_PATH = `${AVATAR_BASE_PATH}/female`;
 const MALE_AVATAR_PATH = `${AVATAR_BASE_PATH}/male`;
+const FEMALE_AVATAR_COUNT = 2;
+const MALE_AVATAR_COUNT = 2;
 
 // Cinsiyete göre mevcut avatarları döndüren fonksiyon
 export const getAvailableAvatars = (gender: string): string[] => {
@@ -11,23 +13,23 @@ export const getAvailableAvatars = (gender: string): string[] => {
     case "male":
       // Erkek avatarlarını döndür (male1.jpg - male23.jpg)
       return Array.from(
-        { length: 2 },
+        { length: MALE_AVATAR_COUNT },
         (_, i) => `${MALE_AVATAR_PATH}/male${i + 1}.png`
       );
     case "female":
       // Kadın avatarlarını döndür (female1.jpg - female24.jpg)
       return Array.from(
-        { length: 2 },
+        { length: FEMALE_AVATAR_COUNT },
         (_, i) => `${FEMALE_AVATAR_PATH}/female${i + 1}.png`
       );
     default:
       // Tüm avatarları döndür
       const maleAvatars = Array.from(
-        { length: 2 },
+        { length: MALE_AVATAR_COUNT },
         (_, i) => `${MALE_AVATAR_PATH}/male${i + 1}.png`
       );
       const femaleAvatars = Array.from(
-        { length: 2 },
+        { length: FEMALE_AVATAR_COUNT },
         (_, i) => `${FEMALE_AVATAR_PATH}/female${i + 1}.png`
       );
       return [...maleAvatars, ...femaleAvatars];

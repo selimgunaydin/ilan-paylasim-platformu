@@ -26,12 +26,26 @@ import {
   FormMessage,
 } from "@app/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@app/components/ui/radio-group";
-import type { Category, Listing } from "@shared/schemas";
+import type { Listing } from "@shared/schemas";
 import { turkishCities } from "@/lib/constants";
 import { queryClient } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
 import { RichTextEditor } from "@app/components/Editor";
 import { EmojiInput } from "@app/components/EmojiInput";
+
+interface Category {
+  id: number;
+  name: string;
+  parentId: number | null;
+  slug: string;
+  order: number;
+  customTitle: string | null;
+  metaDescription: string | null;
+  content: string | null;
+  faqs: string | null;
+  listingCount: number;
+  children: Category[];
+}
 
 export default function EditListing() {
   const { id } = useParams<{ id: string }>();
@@ -52,9 +66,9 @@ export default function EditListing() {
     },
   });
 
-  const { data: categories } = useQuery<Category[]>({
+  const { data: categoriesData } = useQuery<Category[]>({
     queryKey: ["categories"],
-    queryFn: () => fetch("/api/categories").then((res) => res.json()),
+    queryFn: () => fetch("/api/categories/all").then((res) => res.json()),
   });
 
   // Query to check user's status including has_used_free_ad
@@ -317,13 +331,27 @@ export default function EditListing() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {categories?.map((category) => (
-                            <SelectItem
-                              key={category.id}
-                              value={String(category.id)}
-                            >
-                              {category.name}
-                            </SelectItem>
+                          {categoriesData?.map((category) => (
+                            <React.Fragment key={category.id}>
+                              {/* Main category - disabled */}
+                              <SelectItem
+                                value={category.id.toString()}
+                                disabled={true}
+                                className="font-bold bg-gray-100"
+                              >
+                                {category.name}
+                              </SelectItem>
+                              {/* Subcategories - selectable */}
+                              {category.children?.map((subCategory) => (
+                                <SelectItem
+                                  key={subCategory.id}
+                                  value={subCategory.id.toString()}
+                                  className="pl-6"
+                                >
+                                  {subCategory.name}
+                                </SelectItem>
+                              ))}
+                            </React.Fragment>
                           ))}
                         </SelectContent>
                       </Select>

@@ -45,8 +45,8 @@ export function Footer({ settings }: FooterProps) {
             <h3 className="text-lg font-semibold mb-4">Hızlı Bağlantılar</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/kategoriler" className="text-gray-400 hover:text-white transition-colors">
-                  Kategoriler
+                <Link href="/blog" className="text-gray-400 hover:text-white transition-colors">
+                  Blog
                 </Link>
               </li>
               <li>

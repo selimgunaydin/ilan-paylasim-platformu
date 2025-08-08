@@ -17,6 +17,7 @@ import { tr } from "date-fns/locale";
 import { useEffect, useState } from "react";
 import { useSocket } from "@/providers/socket-provider";
 import { AdminMessageForm } from "@app/components/admin-message-form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@app/components/ui/select";
 
 
 interface UserDetailResponse {
@@ -29,6 +30,7 @@ export default function UserDetailView({ userId }: { userId: number }) {
   const { toast } = useToast();
     const { socket } = useSocket();
   const [isMessageOpen, setIsMessageOpen] = useState(false);
+  const [selectedListingId, setSelectedListingId] = useState<number | null>(null);
 
   const { data, isLoading, error } = useQuery<UserDetailResponse, Error>({
     queryKey: [`/api/admin/users/${userId}`],
@@ -80,7 +82,6 @@ useEffect(() => {
       </div>
     );
   }
-
   const { user, listings } = data;
 
   return (
@@ -117,18 +118,41 @@ useEffect(() => {
                     </Button>
                   </div>
                 ) : (
-                  <AdminMessageForm
-                    receiverId={user.id}
-                    listingId={listings?.[0]?.id}
-                    onSuccess={() => {
-                      toast({
-                        title: "Başarılı",
-                        description: "Mesaj başarıyla gönderildi",
-                      });
-                      setIsMessageOpen(false);
-                      queryClient.invalidateQueries({ queryKey: ['user', userId] });
-                    }}
-                  />
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium">Mesaj gönderilecek ilgili ilan seçin</label>
+                      <Select
+                          value={selectedListingId === null ? 'system' : selectedListingId?.toString()}
+                          onValueChange={(value: string) => {
+                            setSelectedListingId(value === 'system' ? null : Number(value));
+                          }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Mesaj gönderilecek ilgili ilan seçin..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="system">- Genel Mesaj -</SelectItem>
+                          {listings.map((listing) => (
+                            <SelectItem key={listing.id} value={listing.id.toString()}>
+                              {listing.title} 
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <AdminMessageForm
+                      receiverId={user.id}
+                      listingId={selectedListingId ?? undefined}
+                      onSuccess={() => {
+                        toast({
+                          title: "Başarılı",
+                          description: "Mesaj başarıyla gönderildi",
+                        });
+                        setIsMessageOpen(false);
+                        queryClient.invalidateQueries({ queryKey: ['user', userId] });
+                      }}
+                    />
+                  </div>
                 )}
               </div>
             </DialogContent>

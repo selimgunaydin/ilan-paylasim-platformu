@@ -1,7 +1,7 @@
 import { Server, Socket } from "socket.io";
 import { db, schema } from "./shared/db"; // .js uzantısını ekleyelim
 import { messages, conversations, users } from "./shared/schemas"; // .js uzantısını ekleyelim
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, or, isNull } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import { storage } from "./app/lib/storage";
@@ -279,13 +279,15 @@ io.on("connection", (socket: SocketWithAuth) => {
 
         // 2. Kullanıcı ile olan "Yönetim" konuşmasını bul veya oluştur
         // Bu sorgu, kullanıcının gönderen VEYA alıcı olduğu, yönetici tarafından başlatılmış bir konuşma arar.
+        // Sohbeti hem kullanıcı hem de ilan ID'sine göre bul
+        // Sohbeti hem kullanıcı hem de ilan ID'sine göre bul
         let conversation = await db.query.conversations.findFirst({
           where: and(
             eq(conversations.is_admin_conversation, true),
-            or(
-              eq(conversations.senderId, data.receiverId),
-              eq(conversations.receiverId, data.receiverId)
-            )
+            eq(conversations.receiverId, data.receiverId),
+            data.listingId !== undefined
+              ? eq(conversations.listingId, data.listingId)
+              : isNull(conversations.listingId)
           ),
         });
 
