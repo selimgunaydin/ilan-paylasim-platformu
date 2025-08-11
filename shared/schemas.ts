@@ -421,3 +421,51 @@ export const insertBlogSchema = createInsertSchema(blogs, {
         { message: "Schema must be a valid JSON string." }
     ).optional(),
 });
+
+// Reports table for complaints
+export const reports = pgTable("reports", {
+  id: serial("id").primaryKey(),
+  reporterId: integer("reporter_id")
+    .references(() => users.id)
+    .notNull(),
+  reportedUserId: integer("reported_user_id")
+    .references(() => users.id)
+    .notNull(),
+  reportType: text("report_type").notNull(), // "listing" or "message"
+  contentId: integer("content_id").notNull(), // listing_id or message_id
+  reason: text("reason").notNull(),
+  status: text("status").default("pending").notNull(), // "pending", "reviewed", "resolved"
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedBy: integer("reviewed_by").references(() => users.id),
+  notes: text("notes"), // Admin notes
+});
+
+export const reportsRelations = relations(reports, ({ one }) => ({
+  reporter: one(users, {
+    fields: [reports.reporterId],
+    references: [users.id],
+    relationName: "reporterUser",
+  }),
+  reportedUser: one(users, {
+    fields: [reports.reportedUserId],
+    references: [users.id],
+    relationName: "reportedUser",
+  }),
+  reviewedByUser: one(users, {
+    fields: [reports.reviewedBy],
+    references: [users.id],
+    relationName: "reviewerUser",
+  }),
+}));
+
+export type Report = typeof reports.$inferSelect;
+export type InsertReport = typeof reports.$inferInsert;
+
+export const insertReportSchema = createInsertSchema(reports, {
+  reportType: z.enum(["listing", "message"], {
+    required_error: "Şikayet türü seçilmelidir",
+  }),
+  reason: z.string().min(1, "Şikayet nedeni seçilmelidir"),
+  contentId: z.number().min(1, "İçerik ID gereklidir"),
+});

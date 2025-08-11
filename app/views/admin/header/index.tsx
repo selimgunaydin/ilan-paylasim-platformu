@@ -40,19 +40,9 @@ const menuItems = [
     icon: Users,
   },
   {
-    label: "Onay",
-    path: "/yonetim/onaybekleyenilanlar",
-    icon: AlertTriangle,
-  },
-  {
-    label: "Aktif",
-    path: "/yonetim/aktifilanlar",
-    icon: ListChecks,
-  },
-  {
-    label: "Pasif",
-    path: "/yonetim/pasifilanlar",
-    icon: PowerOff,
+    label: "Şikayetler",
+    path: "/yonetim/sikayetler",
+    icon: ClipboardList,
   },
   {
     label: "Mesajlar",

@@ -14,7 +14,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { LogOut, Menu, Settings } from "lucide-react";
+import { LogOut, Menu, Settings, AlertTriangle, ListChecks, PowerOff } from "lucide-react";
 
 type MenuItem = {
   label: string;
@@ -58,6 +58,35 @@ export function AdminHeaderClient({
           </Button>
         </Link>
       ))}
+      {/* İlan İşlemleri Dropdown */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="flex items-center gap-2">
+            <ListChecks className="w-4 h-4" />
+            <span className="hidden md:inline">İlan İşlemleri</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href="/yonetim/onaybekleyenilanlar" className="flex items-center w-full cursor-pointer">
+              <AlertTriangle className="w-4 h-4 mr-2" />
+              Onay Bekleyen İlanlar
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/yonetim/aktifilanlar" className="flex items-center w-full cursor-pointer">
+              <ListChecks className="w-4 h-4 mr-2" />
+              Aktif İlanlar
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/yonetim/pasifilanlar" className="flex items-center w-full cursor-pointer">
+              <PowerOff className="w-4 h-4 mr-2" />
+              Pasif İlanlar
+            </Link>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       {/* Ayarlar Dropdown Menüsü */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -105,6 +134,23 @@ export function AdminHeaderClient({
                       </Button>
                     </Link>
                   ))}
+                  {/* İlan İşlemleri (Mobil) */}
+                  <div className="mt-2 px-2 text-xs uppercase text-muted-foreground">İlan İşlemleri</div>
+                  <Link href="/yonetim/onaybekleyenilanlar" onClick={() => setIsMobileMenuOpen(false)}>
+                    <Button variant={pathname === "/yonetim/onaybekleyenilanlar" ? "default" : "ghost"} className={cn("w-full justify-start")}> 
+                      <AlertTriangle className="w-4 h-4 mr-2" /> Onay Bekleyen İlanlar
+                    </Button>
+                  </Link>
+                  <Link href="/yonetim/aktifilanlar" onClick={() => setIsMobileMenuOpen(false)}>
+                    <Button variant={pathname === "/yonetim/aktifilanlar" ? "default" : "ghost"} className={cn("w-full justify-start")}> 
+                      <ListChecks className="w-4 h-4 mr-2" /> Aktif İlanlar
+                    </Button>
+                  </Link>
+                  <Link href="/yonetim/pasifilanlar" onClick={() => setIsMobileMenuOpen(false)}>
+                    <Button variant={pathname === "/yonetim/pasifilanlar" ? "default" : "ghost"} className={cn("w-full justify-start")}> 
+                      <PowerOff className="w-4 h-4 mr-2" /> Pasif İlanlar
+                    </Button>
+                  </Link>
                   {/* Mobil Ayarlar Menüsü */}
                   {settingsMenuItems.map((item) => (
                     <Link key={item.path} href={item.path} onClick={() => setIsMobileMenuOpen(false)}>

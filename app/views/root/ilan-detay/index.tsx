@@ -8,6 +8,8 @@ import { useCallback, useState } from "react";
 import { Modal } from "@app/components/ui/modal";
 import { useSocket } from "@/providers/socket-provider";
 import { ImageGallery } from "@app/components/image-gallery";
+import { ReportModal } from "@/components/report-modal";
+import { Flag } from "lucide-react";
 
 type User = {
   id: string;
@@ -46,6 +48,7 @@ export default function ListingDetailClient({
   const { socket } = useSocket();
   const id = slug.split("-").pop()!;
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
 
   //gereksiz favoriye ekleme kodu.
@@ -204,6 +207,31 @@ export default function ListingDetailClient({
             <p>Kendi ilanınıza mesaj gönderemezsiniz.</p>
           </div>
         )}
+
+        {/* Şikayet Butonu - Sadece giriş yapmış ve ilan sahibi olmayan kullanıcılar için */}
+        {user && listing.userId && Number(user.id) !== listing.userId && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsReportModalOpen(true)}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 text-xs sm:text-sm"
+            >
+              <Flag className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5" />
+              İlanı Şikayet Et
+            </Button>
+          </div>
+        )}
+
+        {/* Şikayet Modalı */}
+        <ReportModal
+          isOpen={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+          reportType="listing"
+          contentId={listing.id}
+          reportedUserId={listing.userId}
+          contentTitle={listing.title}
+        />
       </div>
     </div>
   );

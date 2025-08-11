@@ -28,6 +28,7 @@ import {
   X,
   ArrowDown,
   Loader2,
+  Flag,
 } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import {
@@ -47,6 +48,7 @@ import { Skeleton } from "@app/components/ui/skeleton";
 import Link from "next/link";
 import { getDummyUser } from "@/utils/get-dummy-user";
 import { useAuth } from "@app/hooks/use-auth";
+import { ReportModal } from "@/components/report-modal";
 // File type helpers
 const getFileIcon = (fileName: string) => {
   const extension = fileName.split(".").pop()?.toLowerCase();
@@ -597,6 +599,8 @@ export default function MessagesView({
   };
 
   const [dummyUser, setDummyUser] = React.useState<string | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = React.useState(false);
+  const [reportingMessage, setReportingMessage] = React.useState<Message | null>(null);
 
   useEffect(() => {
     if (
@@ -690,6 +694,29 @@ export default function MessagesView({
             )}
           </div>
         </div>
+        
+        {/* Şikayet Butonu - Sadece karşı tarafın mesajları için */}
+        {otherUserId && otherUserId !== currentUserId && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setReportingMessage({ 
+                id: 0, 
+                content: "Sohbet", 
+                createdAt: new Date().toISOString(), 
+                senderId: otherUserId, 
+                receiverId: currentUserId, 
+                isRead: false 
+              });
+              setIsReportModalOpen(true);
+            }}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+          >
+            <Flag className="h-4 w-4 mr-1" />
+            Sohbeti Şikayet Et
+          </Button>
+        )}
       </div>
 
       <div
@@ -814,6 +841,21 @@ export default function MessagesView({
           onSuccess={handleMessageSuccess}
         />
       </div>
+
+      {/* Şikayet Modalı */}
+      {reportingMessage && (
+        <ReportModal
+          isOpen={isReportModalOpen}
+          onClose={() => {
+            setIsReportModalOpen(false);
+            setReportingMessage(null);
+          }}
+          reportType="message"
+          contentId={parseInt(id)} // conversation id olarak kullanıyoruz
+          reportedUserId={reportingMessage.senderId}
+          contentTitle="Sohbet mesajları"
+        />
+      )}
     </div>
   );
 }
