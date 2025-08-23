@@ -10,8 +10,7 @@
     "db:push": "dotenv -e .env.local -- drizzle-kit push",
     "db:generate": "dotenv -e .env.local -- drizzle-kit generate",
     "db:migrate": "dotenv -e .env.local -- drizzle-kit migrate",
-    "check": "tsc",
-    "ai-bot": "tsx shared/bot/listing-bot.tsx"
+    "check": "tsc"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.3",
@@ -100,7 +99,6 @@
     "openai": "^4.85.0",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
-    "playwright": "^1.53.2",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
